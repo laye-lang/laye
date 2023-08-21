@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.22)
 
 project(layec
     VERSION 0.1.0
@@ -20,4 +20,6 @@ else()
 endif()
 
 add_executable(layec "${PROJECT_SOURCE_DIR}/src/driver.c")
+set_property(TARGET layec PROPERTY C_STANDARD 17)
+set_property(TARGET layec PROPERTY C_STANDARD_REQUIRED true)
 target_include_directories(layec PUBLIC "${PROJECT_SOURCE_DIR}/include")
