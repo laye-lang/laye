@@ -19,5 +19,5 @@ else()
 	add_link_options(-fsanitize=address)
 endif()
 
-add_executable(clayec "${PROJECT_SOURCE_DIR}/src/driver.c")
-target_include_directories(clayec PUBLIC "${PROJECT_SOURCE_DIR}/include")
+add_executable(layec "${PROJECT_SOURCE_DIR}/src/driver.c")
+target_include_directories(layec PUBLIC "${PROJECT_SOURCE_DIR}/include")
