@@ -1,4 +1,7 @@
+#include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "layec/context.h"
 
@@ -13,9 +16,27 @@ void layec_context_destroy(layec_context* context)
     free(context);
 }
 
+static const char* layec_read_file(const char* file_path)
+{
+    assert(file_path);
+
+    /// TODO(local): file reading error handling
+    FILE* stream = fopen(file_path, "r");
+    fseek(stream, 0, SEEK_END);
+    long file_length = ftell(stream);
+    assert(file_length >= 0);
+    fseek(stream, 0, SEEK_SET);
+    char* data = malloc((unsigned long long)file_length + 1);
+    fread(data, (size_t)file_length, 1, stream);
+    data[file_length] = 0;
+    fclose(stream);
+
+    return data;
+}
+
 int layec_context_get_or_add_source_buffer_from_file(layec_context* context, const char* file_path)
 {
-    //assert(context);
+    assert(context);
     if (!file_path) return 0;
 
     for (long long i = 0; i < context->sources_count; i++)
@@ -37,9 +58,11 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
         context->sources = realloc(context->sources, (unsigned long long)context->sources_capacity);
     }
 
-    int source_id = context->sources_count + 1;
+    int source_id = (int)(context->sources_count + 1);
     context->sources[context->sources_count].name = file_path;
-    context->sources[context->sources_count].text = "<source_text>";
+    const char* file_source_text = layec_read_file(file_path)
+    assert(file_source_text);
+    context->sources[context->sources_count].text = file_source_text;
     context->sources_count++;
 
     return source_id;
@@ -47,7 +70,7 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
 
 layec_source_buffer layec_context_get_source_buffer(layec_context* context, int source_id)
 {
-    //assert(context);
+    assert(context);
 
     if (!context->sources)
         return (layec_source_buffer){ .name = "<unknown>", .text = "" };
