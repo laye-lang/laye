@@ -2,14 +2,13 @@
 #define LAYEC_CONTEXT_H
 
 #include "layec/source.h"
+#include "layec/util.h"
 
 typedef struct layec_context layec_context;
 
 struct layec_context
 {
-    layec_source_buffer* sources;
-    long long sources_capacity;
-    long long sources_count;
+    vector(layec_source_buffer) sources;
 };
 
 /// Create a layec_context.

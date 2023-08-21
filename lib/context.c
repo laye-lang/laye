@@ -38,12 +38,16 @@ static const char* layec_read_file(const char* file_path)
 int layec_context_get_or_add_source_buffer_from_file(layec_context* context, const char* file_path)
 {
     assert(context);
-    if (!file_path) return 0;
+    if (!file_path)
+    {
+        printf("No input file path given\n");
+        return 0;
+    }
 
-    for (long long i = 0; i < context->sources_count; i++)
+    for (long long i = 0; i < (long long)vector_count(context->sources); i++)
     {
         if (0 == strcmp(file_path, context->sources[i].name))
-            return (int)i;
+            return (int)i + 1;
     }
     
     const char* file_source_text = layec_read_file(file_path);
@@ -53,24 +57,15 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
         return 0;
     }
 
-    // If no source buffer exists with that name, allocate space for one and return it.
-    if (!context->sources)
-    {
-        context->sources_count = 0;
-        context->sources_capacity = 32;
-        context->sources = calloc((unsigned long long)context->sources_capacity, sizeof *context->sources);
-    }
-    else if (context->sources_count + 1 >= context->sources_capacity)
-    {
-        context->sources_capacity *= 2;
-        context->sources = realloc(context->sources, (unsigned long long)context->sources_capacity);
-    }
-
-    int source_id = (int)(context->sources_count + 1);
-    context->sources[context->sources_count].name = file_path;
     assert(file_source_text);
-    context->sources[context->sources_count].text = file_source_text;
-    context->sources_count++;
+    layec_source_buffer source_buffer =
+    {
+        .name = file_path,
+        .text = file_source_text,
+    };
+
+    int source_id = (int)vector_count(context->sources) + 1;
+    vector_push(context->sources, source_buffer);
 
     return source_id;
 }
@@ -83,7 +78,7 @@ layec_source_buffer layec_context_get_source_buffer(layec_context* context, int 
         return (layec_source_buffer){ .name = "<unknown>", .text = "" };
 
     int source_index = source_id - 1;
-    if (source_index >= context->sources_count)
+    if (source_index >= vector_count(context->sources))
         return (layec_source_buffer){ .name = "<unknown>", .text = "" };
 
     return context->sources[source_index];
