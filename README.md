@@ -41,4 +41,4 @@ High level goals, in roughly the order we aim to achieve them:
 
 If we can continue to parse the project's source after implementing a parser for both Laye and C, then we're pretty much home free for continuing to be able to self-host this project through to code generation. Self-hosting in Laye is not a goal of this project.
 
-Being able to parse other C projets is an entirely different beast. Along the way we'll probably add support for popular extensions through compiler flags (I think `layec` should be standards-compliant first and foremost, with extensions as opt-in), but supporting enough extensions to be able to compile popular libraries in full may take much longer than self-hosting.
+Being able to parse other C projets is an entirely different beast. Along the way we'll probably add support for popular extensions, but supporting enough extensions to be able to compile popular libraries in full may take much longer than self-hosting.
