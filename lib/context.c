@@ -60,7 +60,7 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
         context->sources_capacity = 32;
         context->sources = calloc((unsigned long long)context->sources_capacity, sizeof *context->sources);
     }
-    else if (context->sources_count >= context->sources_capacity)
+    else if (context->sources_count + 1 >= context->sources_capacity)
     {
         context->sources_capacity *= 2;
         context->sources = realloc(context->sources, (unsigned long long)context->sources_capacity);

@@ -3,6 +3,7 @@
 
 #include "layec/context.h"
 #include "layec/source.h"
+#include "layec/util.h"
 
 const char* usage_text = "Usage: layec [options] file...\n";
 
