@@ -19,7 +19,10 @@ else()
 	add_link_options(-fsanitize=address)
 endif()
 
+add_subdirectory(lib)
+
 add_executable(layec "${PROJECT_SOURCE_DIR}/src/driver.c")
 set_property(TARGET layec PROPERTY C_STANDARD 17)
 set_property(TARGET layec PROPERTY C_STANDARD_REQUIRED true)
+target_link_libraries(layec liblayec)
 target_include_directories(layec PUBLIC "${PROJECT_SOURCE_DIR}/include")
