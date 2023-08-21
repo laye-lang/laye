@@ -22,6 +22,7 @@ static const char* layec_read_file(const char* file_path)
 
     /// TODO(local): file reading error handling
     FILE* stream = fopen(file_path, "r");
+    if (!stream) return NULL;
     fseek(stream, 0, SEEK_END);
     long file_length = ftell(stream);
     assert(file_length >= 0);
@@ -44,6 +45,13 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
         if (0 == strcmp(file_path, context->sources[i].name))
             return (int)i;
     }
+    
+    const char* file_source_text = layec_read_file(file_path);
+    if (!file_source_text)
+    {
+        printf("Could not read source file '%s'\n", file_path);
+        return 0;
+    }
 
     // If no source buffer exists with that name, allocate space for one and return it.
     if (!context->sources)
@@ -60,7 +68,6 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
 
     int source_id = (int)(context->sources_count + 1);
     context->sources[context->sources_count].name = file_path;
-    const char* file_source_text = layec_read_file(file_path)
     assert(file_source_text);
     context->sources[context->sources_count].text = file_source_text;
     context->sources_count++;
