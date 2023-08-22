@@ -2,15 +2,14 @@
 #define LAYEC_C_LEXER_H
 
 #include "layec/context.h"
+#include "layec/util.h"
 #include "layec/c/token.h"
 
 typedef struct layec_c_token_buffer layec_c_token_buffer;
 
 struct layec_c_token_buffer
 {
-    layec_c_token* tokens;
-    long long capacity;
-    long long count;
+    vector(layec_c_token) tokens;
 };
 
 /// Return a buffer of tokens as lexed from the input file.

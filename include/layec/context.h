@@ -1,6 +1,7 @@
 #ifndef LAYEC_CONTEXT_H
 #define LAYEC_CONTEXT_H
 
+#include "layec/diag.h"
 #include "layec/source.h"
 #include "layec/util.h"
 
@@ -23,5 +24,8 @@ int layec_context_get_or_add_source_buffer_from_file(layec_context* context, con
 /// Get the layec_source_buffer associated with the given source ID.
 /// If an invlaid ID is given, an empty buffer is returned.
 layec_source_buffer layec_context_get_source_buffer(layec_context* context, int source_id);
+
+void layec_context_issue_diagnostic_prolog(layec_context* context, layec_diagnostic_severity severity, layec_location location);
+void layec_context_issue_diagnostic_epilog(layec_context* context, layec_diagnostic_severity severity, layec_location location);
 
 #endif // LAYEC_CONTEXT_H

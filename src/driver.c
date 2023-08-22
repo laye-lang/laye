@@ -28,7 +28,5 @@ int main(int argc, char* argv[])
     assert(source_buffer.name == file_path);
     assert(source_buffer.text);
 
-    printf("// %s\n", source_buffer.name);
-    printf("%s\n", source_buffer.text);
     return 0;
 }

@@ -21,7 +21,6 @@ FILE* __cdecl __acrt_iob_func(unsigned _Ix);
 #endif
 
 int printf(const char* format, ...);
-int fprintf(FILE* stream, const char* format, ...);
 
 FILE* fopen(const char* file_name, const char* mode);
 int fclose(FILE* stream);
