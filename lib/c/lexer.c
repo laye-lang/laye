@@ -20,6 +20,7 @@ struct layec_c_lexer
     int current_char;
     bool at_start_of_line;
     bool is_in_preprocessor;
+    bool is_in_include;
 };
 
 struct keyword_info
@@ -330,6 +331,9 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
 
         case '<':
         {
+            if (lexer->is_in_include)
+                goto parse_string_literal;
+
             layec_c_lexer_advance(lexer, true);
             if (lexer->current_char == '<')
             {
@@ -426,13 +430,15 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
 
         case '"':
         {
+        parse_string_literal:;
+            char end_delim = lexer->current_char == '"' ? '"' : '>';
             // TODO(local): When we write (or copy an old) UTF-8 encoder/decoder, do string building as well
             vector(char) string_data = NULL;
 
             layec_c_lexer_advance(lexer, false);
             out_token->kind = LAYEC_CTK_LIT_STRING;
 
-            while (lexer->current_char != '"')
+            while (lexer->current_char != end_delim)
             {
                 if (layec_c_lexer_at_eof(lexer))
                 {
@@ -444,12 +450,12 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                         start_location);
                     goto finish_token;
                 }
-                else if (lexer->current_char == '\\')
+                else if (lexer->current_char == '\\' && !lexer->is_in_include)
                     layec_c_lexer_read_escape_sequence(lexer, false);
                 else layec_c_lexer_advance(lexer, false);
             }
 
-            if (lexer->current_char != '"')
+            if (lexer->current_char != end_delim)
             {
                 layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                     start_location);
@@ -751,7 +757,9 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
     }
 
 store_macro_in_translation_unit:;
+    // TODO(local): store macro definitions in a translation unit
     lexer->is_in_preprocessor = false;
+    lexer->is_in_include = false;
 }
 
 static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c_token token)
@@ -761,10 +769,48 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
     assert(token.kind == LAYEC_CTK_IDENT &&
         0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length));
 
+    lexer->is_in_include = true;
     layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+    layec_string_view include_path = {
+        .data = "",
+        .length = 0,
+    };
+
+    if (token.kind == '\n')
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("expected a file name");
+        layec_c_lexer_advance(lexer, true);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+            
+        layec_c_lexer_skip_to_end_of_directive(lexer, token);
+        return;
+    }
+    
+    if (token.kind == LAYEC_CTK_LIT_STRING)
+    {
+        include_path = token.string_value;
+    }
+    else
+    {
+        // TODO(local): computed #include
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("expected a file name");
+        layec_c_lexer_advance(lexer, true);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+    }
+
     layec_c_lexer_skip_to_end_of_directive(lexer, token);
     
     lexer->is_in_preprocessor = false;
+    lexer->is_in_include = false;
+
+    // TODO(local): process the include
 }
 
 static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer)
@@ -788,7 +834,7 @@ static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer)
         invalid_preprocessing_directive:;
             layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                 token.location);
-            printf("Invalid preprocessing directive");
+            printf("invalid preprocessing directive");
             layec_c_lexer_advance(lexer, true);
             layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
                 token.location);

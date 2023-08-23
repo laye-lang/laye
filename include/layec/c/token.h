@@ -36,6 +36,8 @@ struct layec_c_token
 
     bool is_macro_param;
     long long macro_param_index;
+    
+    bool is_angle_string;
 
     layec_string_view string_value;
     long long int_value;
