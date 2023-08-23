@@ -1,3 +1,41 @@
+// Other Delimiters
+CTK(TRIPLE_DOT, "...")
+
+// Assignment Operators
+CTK(PLUS_EQUAL, "+=")
+CTK(MINUS_EQUAL, "-=")
+CTK(STAR_EQUAL, "*=")
+CTK(SLASH_EQUAL, "/=")
+CTK(PERCENT_EQUAL, "%=")
+CTK(AMPERSAND_EQUAL, "&=")
+CTK(PIPE_EQUAL, "|=")
+CTK(CARET_EQUAL, "^=")
+CTK(LESS_LESS_EQUAL, "<<=")
+CTK(GREATER_GREATER_EQUAL, ">>=")
+
+// Bitwise Operators
+CTK(LESS_LESS, "<<")
+CTK(GREATER_GREATER, ">>")
+
+// Boolean Operators
+CTK(AMPERSAND_AMPERSAND, "&&")
+CTK(PIPE_PIPE, "||")
+
+// Equality Operators
+CTK(EQUAL_EQUAL, "==")
+CTK(BANG_EQUAL, "!=")
+
+// Relational Operators
+CTK(LESS_EQUAL, "<=")
+CTK(GREATER_EQUAL, ">=")
+
+// Increment/Decrement Operators
+CTK(PLUS_PLUS, "++")
+CTK(MINUS_MINUS, "--")
+
+// Member Selection Operators
+CTK(MINUS_GREATER, "->")
+
 CTK(IDENT, "<ident>")
 CTK(LIT_CHAR, "<character literal>")
 CTK(LIT_STRING, "<string literal>")
