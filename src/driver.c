@@ -24,7 +24,10 @@ int main(int argc, char* argv[])
 
     int source_id = layec_context_get_or_add_source_buffer_from_file(context, file_path);
     if (source_id <= 0)
+    {
+        layec_context_destroy(context);
         return 1;
+    }
         
     layec_c_token_buffer token_buffer = layec_c_get_tokens(context, source_id);
 
@@ -41,5 +44,8 @@ int main(int argc, char* argv[])
         printf("\n");
     }
 
+    layec_c_token_buffer_destroy(&token_buffer);
+    layec_context_destroy(context);
+    
     return 0;
 }

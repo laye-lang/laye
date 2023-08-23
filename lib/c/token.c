@@ -53,3 +53,8 @@ layec_string_view layec_c_token_get_source_image(layec_context* context, layec_c
 
     return layec_string_view_create(source_buffer.text + token.location.offset, token.location.length);
 }
+
+void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer)
+{
+    vector_free(token_buffer->tokens);
+}

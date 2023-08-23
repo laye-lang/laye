@@ -1,6 +1,8 @@
 #ifndef LAYEC_UTIL_H
 #define LAYEC_UTIL_H
 
+#include <stdlib.h>
+
 #define ANSI_COLOR_RESET             "\x1b[0m"
 #define ANSI_COLOR_BLACK             "\x1b[30m"
 #define ANSI_COLOR_RED               "\x1b[31m"
@@ -65,5 +67,6 @@ void layec_vector_maybe_expand(void** vector_ref, long long element_size, long l
 #define vector_get_header(V) ((struct layec_vector_header*)(V) - 1)
 #define vector_count(V) ((V) ? vector_get_header(V)->count : 0)
 #define vector_push(V, E) do { layec_vector_maybe_expand((void**)&(V), (long long)sizeof *(V), vector_count(V) + 1); (V)[vector_count(V)] = E; vector_get_header(V)->count++; } while (0)
+#define vector_free(V) do { if (V) { free(vector_get_header(V)); (V) = NULL; } } while (0)
 
 #endif // LAYEC_UTIL_H

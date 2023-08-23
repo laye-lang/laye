@@ -8,6 +8,7 @@
 #include "layec/util.h"
 
 typedef struct layec_c_token layec_c_token;
+typedef struct layec_c_token_buffer layec_c_token_buffer;
 
 typedef enum layec_c_token_kind
 {
@@ -44,6 +45,11 @@ struct layec_c_token
     double real_value;
 };
 
+struct layec_c_token_buffer
+{
+    vector(layec_c_token) tokens;
+};
+
 const char* layec_c_token_kind_to_string(layec_c_token_kind kind);
 
 void layec_c_token_print(layec_context* context, layec_c_token token);
@@ -51,5 +57,7 @@ void layec_c_token_print(layec_context* context, layec_c_token token);
 /// Return a view into the original source text at the location of this token.
 /// This is the literal text of the token as it appears in the source, not a processed version.
 layec_string_view layec_c_token_get_source_image(layec_context* context, layec_c_token token);
+
+void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer);
 
 #endif // LAYEC_C_TOKEN_H

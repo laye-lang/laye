@@ -5,13 +5,6 @@
 #include "layec/util.h"
 #include "layec/c/token.h"
 
-typedef struct layec_c_token_buffer layec_c_token_buffer;
-
-struct layec_c_token_buffer
-{
-    vector(layec_c_token) tokens;
-};
-
 /// Return a buffer of tokens as lexed from the input file.
 layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id);
 
