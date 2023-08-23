@@ -19,6 +19,7 @@ struct layec_c_lexer
     const char* current_char_location;
     int current_char;
     bool at_start_of_line;
+    bool is_in_preprocessor;
 };
 
 struct keyword_info
@@ -111,7 +112,7 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id)
     layec_c_lexer_advance(&lexer, true);
 
     layec_c_token_buffer token_buffer = {0};
-    while (!layec_c_lexer_at_eof(&lexer))
+    for (;;)
     {
         layec_c_token token = {0};
         layec_c_lexer_read_token(&lexer, &token);
@@ -124,7 +125,12 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id)
 
 static void layec_c_lexer_eat_white_space(layec_c_lexer* lexer)
 {
-    while (is_space(lexer->current_char)) layec_c_lexer_advance(lexer, true);
+    while (is_space(lexer->current_char))
+    {
+        if (lexer->is_in_preprocessor && lexer->current_char == '\n')
+            break;
+        layec_c_lexer_advance(lexer, true);
+    }
 }
 
 static int layec_c_lexer_read_escape_sequence(layec_c_lexer* lexer, bool allow_comments)
@@ -171,6 +177,11 @@ static int layec_c_lexer_read_escape_sequence(layec_c_lexer* lexer, bool allow_c
 static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c_token* out_token)
 {
     layec_c_lexer_eat_white_space(lexer);
+    if (layec_c_lexer_at_eof(lexer))
+    {
+        out_token->kind = LAYEC_CTK_EOF;
+        return;
+    }
 
     layec_location start_location = layec_c_lexer_get_location(lexer);
     out_token->location = start_location;
@@ -178,6 +189,14 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
     int cur = lexer->current_char;
     switch (cur)
     {
+        case '\n':
+        {
+            assert(lexer->is_in_preprocessor);
+            out_token->kind = (layec_c_token_kind)'\n';
+            layec_c_lexer_advance(lexer, true);
+            if (lexer->current_char != 0 && lexer->cur < lexer->end) assert(lexer->at_start_of_line);
+        } break;
+
         case '~': case '?':
         case '(': case ')':
         case '[': case ']':
@@ -519,15 +538,6 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             layec_location ident_end_location = layec_c_lexer_get_location(lexer);
             out_token->string_value = layec_string_view_create(lexer->source_buffer.text + start_location.offset,
                 ident_end_location.offset - start_location.offset);
-
-            for (int i = 0; c89_keywords[i].name != NULL; i++)
-            {
-                if (0 == strncmp(c89_keywords[i].name, out_token->string_value.data, (unsigned long long)out_token->string_value.length))
-                {
-                    out_token->kind = c89_keywords[i].kind;
-                    break;
-                }
-            }
         } break;
 
         default:
@@ -546,9 +556,258 @@ finish_token:;
     out_token->location.length = end_location.offset - start_location.offset;
 }
 
+static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer);
+
 static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_token)
 {
+    layec_c_lexer_eat_white_space(lexer);
+    while (lexer->at_start_of_line && lexer->current_char == '#')
+    {
+        layec_c_lexer_handle_preprocessor_directive(lexer);
+        assert(!lexer->is_in_preprocessor);
+        layec_c_lexer_eat_white_space(lexer);
+    }
+    
     layec_c_lexer_read_token_no_preprocess(lexer, out_token);
+
+    /// TODO(local): move special handling of identifiers to here (like keywords) so the preprocessor can handle them first.
+
+    if (out_token->kind == LAYEC_CTK_IDENT)
+    {
+        for (int i = 0; c89_keywords[i].name != NULL; i++)
+        {
+            if (0 == strncmp(c89_keywords[i].name, out_token->string_value.data, (unsigned long long)out_token->string_value.length))
+            {
+                out_token->kind = c89_keywords[i].kind;
+                break;
+            }
+        }
+    }
+}
+
+static void layec_c_lexer_skip_to_end_of_directive(layec_c_lexer* lexer, layec_c_token token)
+{
+    assert(lexer);
+    assert(lexer->is_in_preprocessor);
+    while (token.kind != LAYEC_CTK_EOF && token.kind != '\n')
+    {
+        layec_c_lexer_read_token_no_preprocess(lexer, &token);
+    }
+
+    if (lexer->current_char != 0 && lexer->cur < lexer->end) assert(lexer->at_start_of_line);
+    lexer->is_in_preprocessor = false;
+}
+
+#define LEXER_PAST_EOF(L) ((L)->cur >= (L)->end)
+
+static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_token token)
+{
+    assert(lexer);
+    assert(lexer->is_in_preprocessor);
+    assert(token.kind == LAYEC_CTK_IDENT &&
+        0 == strncmp(token.string_value.data, "define", (unsigned long long)token.string_value.length));
+
+    layec_location start_location = token.location;
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+    if (token.kind == LAYEC_CTK_EOF)
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("macro name missing");
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+
+        return;
+    }
+    
+    if (token.kind != LAYEC_CTK_IDENT)
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("macro name must be an identifier");
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+
+        layec_c_lexer_skip_to_end_of_directive(lexer, token);
+        return;
+    }
+
+    assert(token.kind == LAYEC_CTK_IDENT);
+    layec_string_view macro_name = token.string_value;
+
+    bool macro_has_params = false;
+    vector(layec_string_view) macro_params = NULL;
+    vector(layec_c_token) macro_body = NULL;
+
+    if (LEXER_PAST_EOF(lexer))
+        goto store_macro_in_translation_unit;
+    assert(lexer->cur < lexer->end);
+
+    if (lexer->current_char == '(' &&
+        (lexer->current_char_location - lexer->source_buffer.text) == token.location.offset + token.location.length)
+    {
+        macro_has_params = true;
+        layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+        for (;;)
+        {
+            layec_c_lexer_read_token_no_preprocess(lexer, &token);
+            if (token.kind == LAYEC_CTK_INVALID)
+            {
+                layec_c_lexer_skip_to_end_of_directive(lexer, token);
+                return;
+            }
+
+            if (token.kind == LAYEC_CTK_EOF || token.kind == '\n')
+            {
+                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+                printf("expected ')' in macro parameter list");
+                layec_c_lexer_advance(lexer, true);
+                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+
+                layec_c_lexer_skip_to_end_of_directive(lexer, token);
+                return;
+            }
+
+            if (token.kind != LAYEC_CTK_IDENT)
+            {
+                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+                printf("invalid token in macro parameter list (expected identifier)");
+                layec_c_lexer_advance(lexer, true);
+                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+
+                layec_c_lexer_skip_to_end_of_directive(lexer, token);
+                return;
+            }
+        
+            assert(token.kind == LAYEC_CTK_IDENT);
+            vector_push(macro_params, token.string_value);
+
+            layec_c_lexer_read_token_no_preprocess(lexer, &token);
+            if (token.kind == ')')
+                break;
+            else if (token.kind != ',')
+            {
+                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+                printf("expected comma in macro parameter list");
+                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                    token.location);
+
+                layec_c_lexer_skip_to_end_of_directive(lexer, token);
+                return;
+            }
+        }
+
+        //layec_c_lexer_read_token_no_preprocess(lexer, &token);
+        if (token.kind != ')')
+        {
+            layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                token.location);
+            printf("expected ')' in macro parameter list");
+            layec_c_lexer_advance(lexer, true);
+            layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                token.location);
+
+            layec_c_lexer_skip_to_end_of_directive(lexer, token);
+            return;
+        }
+    }
+
+    for (;;)
+    {
+        layec_c_lexer_read_token_no_preprocess(lexer, &token);
+        if (token.kind == LAYEC_CTK_INVALID)
+        {
+            layec_c_lexer_skip_to_end_of_directive(lexer, token);
+            return;
+        }
+
+        if (token.kind == LAYEC_CTK_EOF || token.kind == '\n')
+            break;
+
+        if (token.kind == LAYEC_CTK_IDENT && macro_has_params)
+        {
+            for (long long i = 0; i < vector_count(macro_params); i++)
+            {
+                if (token.string_value.length != macro_params[i].length)
+                    continue;
+
+                if (0 == strncmp(token.string_value.data, macro_params[i].data, (unsigned long long)token.string_value.length))
+                {
+                    token.is_macro_param = true;
+                    token.macro_param_index = i;
+                    break;
+                }
+            }
+        }
+
+        vector_push(macro_body, token);
+    }
+
+store_macro_in_translation_unit:;
+    lexer->is_in_preprocessor = false;
+}
+
+static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c_token token)
+{
+    assert(lexer);
+    assert(lexer->is_in_preprocessor);
+    assert(token.kind == LAYEC_CTK_IDENT &&
+        0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length));
+
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
+    layec_c_lexer_skip_to_end_of_directive(lexer, token);
+    
+    lexer->is_in_preprocessor = false;
+}
+
+static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer)
+{
+    assert(lexer);
+    assert(!lexer->is_in_preprocessor);
+    assert(lexer->at_start_of_line && lexer->current_char == '#');
+
+    lexer->is_in_preprocessor = true;
+    layec_c_lexer_advance(lexer, true);
+
+    layec_location start_location = layec_c_lexer_get_location(lexer);
+
+    layec_c_token token = {0};
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+    switch (token.kind)
+    {
+        default:
+        {
+        invalid_preprocessing_directive:;
+            layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                token.location);
+            printf("Invalid preprocessing directive");
+            layec_c_lexer_advance(lexer, true);
+            layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                token.location);
+
+            layec_c_lexer_skip_to_end_of_directive(lexer, token);
+            return;
+        }
+
+        case LAYEC_CTK_IDENT:
+        {
+            if (0 == strncmp(token.string_value.data, "define", (unsigned long long)token.string_value.length))
+                layec_c_lexer_handle_define_directive(lexer, token);
+            else if (0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length))
+                layec_c_lexer_handle_include_directive(lexer, token);
+            else goto invalid_preprocessing_directive;
+        } break;
+    }
+    
+    assert(!lexer->is_in_preprocessor);
 }
 
 static bool layec_c_lexer_skip_backslash_newline(layec_c_lexer* lexer)
@@ -579,15 +838,15 @@ static bool layec_c_lexer_skip_backslash_newline(layec_c_lexer* lexer)
 
 static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comments)
 {
-    if (layec_c_lexer_at_eof(lexer)) return 0;
+    if (LEXER_PAST_EOF(lexer)) return 0;
 
     if (lexer->current_char == '\n')
         lexer->at_start_of_line = true;
-    else if (!is_space(lexer->current_char))
+    else if (!is_space(lexer->current_char) && lexer->current_char != 0)
         lexer->at_start_of_line = false;
 
     while (layec_c_lexer_skip_backslash_newline(lexer)) { }
-    if (layec_c_lexer_at_eof(lexer)) return 0;
+    if (LEXER_PAST_EOF(lexer)) return 0;
 
     if (allow_comments && *lexer->cur == '/')
     {
@@ -596,7 +855,7 @@ static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comment
             bool has_warned = false;
 
             lexer->cur += 2;
-            while (!layec_c_lexer_at_eof(lexer))
+            while (!LEXER_PAST_EOF(lexer))
             {
                 if (*lexer->cur == '\\' && layec_c_lexer_skip_backslash_newline(lexer))
                 {
@@ -634,10 +893,10 @@ static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comment
             int lastc = 0;
             for (;;)
             {
-                if (!layec_c_lexer_at_eof(lexer) && *lexer->cur == '\\')
+                if (!LEXER_PAST_EOF(lexer) && *lexer->cur == '\\')
                     layec_c_lexer_skip_backslash_newline(lexer);
 
-                if (layec_c_lexer_at_eof(lexer))
+                if (LEXER_PAST_EOF(lexer))
                 {
                     // TODO(local): we could track the total length of the comment and report it after
                     layec_location location = (layec_location)
@@ -671,11 +930,13 @@ static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comment
         }
     }
 
-    assert(!layec_c_lexer_at_eof(lexer));
+    assert(!LEXER_PAST_EOF(lexer));
     int result = *lexer->cur;
     lexer->cur++;
     return result;
 }
+
+#undef LEXER_PAST_EOF
 
 static int layec_c_lexer_peek_no_process(layec_c_lexer* lexer, int ahead)
 {
@@ -687,12 +948,12 @@ static int layec_c_lexer_peek_no_process(layec_c_lexer* lexer, int ahead)
 
 static bool layec_c_lexer_at_eof(layec_c_lexer* lexer)
 {
-    return lexer->cur >= lexer->end;
+    return lexer->current_char == 0;
 }
 
 static void layec_c_lexer_advance(layec_c_lexer* lexer, bool allow_comments)
 {
     lexer->current_char_location = lexer->cur;
     lexer->current_char = layec_c_lexer_read_next_char(lexer, allow_comments);
-    assert(lexer->current_char_location < lexer->cur);
+    if (lexer->current_char != 0) assert(lexer->current_char_location < lexer->cur);
 }

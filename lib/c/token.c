@@ -34,9 +34,13 @@ void layec_c_token_print(layec_context* context, layec_c_token token)
     assert(token.location.source_id);
 
     const char* kind_name = layec_c_token_kind_to_string(token.kind);
-    layec_string_view token_image = layec_c_token_get_source_image(context, token);
-
-    printf("%s  ::  `%.*s`", kind_name, (int)token_image.length, token_image.data);
+    if (token.kind == LAYEC_CTK_INVALID)
+        printf("%s", kind_name);
+    else
+    {
+        layec_string_view token_image = layec_c_token_get_source_image(context, token);
+        printf("%s  ::  `%.*s`", kind_name, (int)token_image.length, token_image.data);
+    }
 }
 
 layec_string_view layec_c_token_get_source_image(layec_context* context, layec_c_token token)

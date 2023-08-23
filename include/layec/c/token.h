@@ -1,6 +1,8 @@
 #ifndef LAYEC_C_TOKEN_H
 #define LAYEC_C_TOKEN_H
 
+#include <stdbool.h>
+
 #include "layec/context.h"
 #include "layec/source.h"
 #include "layec/util.h"
@@ -31,6 +33,9 @@ struct layec_c_token
 {
     layec_c_token_kind kind;
     layec_location location;
+
+    bool is_macro_param;
+    long long macro_param_index;
 
     layec_string_view string_value;
     long long int_value;

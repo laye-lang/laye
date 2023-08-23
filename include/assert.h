@@ -7,7 +7,7 @@
 #ifdef NDEBUG
 #  define assert(condition) ((void)0)
 #else
-#  define assert(condition) do { if (!(condition)) { printf("ASSERT FAIL: "  #condition "\n"); exit(1); } } while (0)
+#  define assert(condition) do { if (!(condition)) { printf(__FILE__":%d: ASSERT FAIL: "  #condition "\n", __LINE__); exit(1); } } while (0)
 #endif
 
 #endif // LAYEC_ASSERT_H
