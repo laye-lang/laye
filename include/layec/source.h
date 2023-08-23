@@ -1,6 +1,8 @@
 #ifndef LAYEC_SOURCE_H
 #define LAYEC_SOURCE_H
 
+typedef struct layec_context layec_context;
+
 typedef struct layec_location layec_location;
 typedef struct layec_source_buffer layec_source_buffer;
 
@@ -24,5 +26,7 @@ struct layec_source_buffer
     /// Nul-terminated string containing the source text for this buffer.
     const char* text;
 };
+
+void layec_location_print(layec_context* context, layec_location location);
 
 #endif // LAYEC_SOURCE_H

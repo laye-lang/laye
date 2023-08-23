@@ -67,25 +67,79 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id)
 
     layec_c_lexer_advance(&lexer, true);
 
-    layec_c_token_buffer tokens = {0};
+    layec_c_token_buffer token_buffer = {0};
+    while (!layec_c_lexer_at_eof(&lexer))
+    {
+        layec_c_token token = {0};
+        layec_c_lexer_read_token(&lexer, &token);
+        if (token.kind == LAYEC_CTK_EOF) break;
+        vector_push(token_buffer.tokens, token);
+    }
 
-    return tokens;
+    return token_buffer;
+}
+
+static void layec_c_lexer_eat_white_space(layec_c_lexer* lexer)
+{
+    while (is_space(lexer->current_char)) layec_c_lexer_advance(lexer, true);
 }
 
 static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c_token* out_token)
 {
+    layec_c_lexer_eat_white_space(lexer);
+
     layec_location start_location = layec_c_lexer_get_location(lexer);
-    switch (lexer->current_char)
+    out_token->location = start_location;
+
+    int cur = lexer->current_char;
+    switch (cur)
     {
+        case '(': case ')':
+        case '{': case '}':
+        {
+            out_token->kind = (layec_c_token_kind)cur;
+            layec_c_lexer_advance(lexer, true);
+        } break;
+
+        case 'a': case 'b': case 'c': case 'd': case 'e': 
+        case 'f': case 'g': case 'h': case 'i': case 'j': 
+        case 'k': case 'l': case 'm': case 'n': case 'o': 
+        case 'p': case 'q': case 'r': case 's': case 't': 
+        case 'u': case 'v': case 'w': case 'x': case 'y': 
+        case 'z':
+        
+        case 'A': case 'B': case 'C': case 'D': case 'E': 
+        case 'F': case 'G': case 'H': case 'I': case 'J': 
+        case 'K': case 'L': case 'M': case 'N': case 'O': 
+        case 'P': case 'Q': case 'R': case 'S': case 'T': 
+        case 'U': case 'V': case 'W': case 'X': case 'Y': 
+        case 'Z':
+
+        case '_':
+        {
+            out_token->kind = LAYEC_CTK_IDENT;
+            
+            while (is_alpha_numeric(lexer->current_char) || lexer->current_char == '_')
+                layec_c_lexer_advance(lexer, true);
+
+            layec_location ident_end_location = layec_c_lexer_get_location(lexer);
+            out_token->string_value = layec_string_view_create(lexer->source_buffer.text + start_location.offset,
+                ident_end_location.offset - start_location.offset);
+        } break;
+
         default:
         {
             layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                 start_location);
             printf("Invalid character in source text");
+            layec_c_lexer_advance(lexer, true);
             layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
                 start_location);
-        }
+        } break;
     }
+
+    layec_location end_location = layec_c_lexer_get_location(lexer);
+    out_token->location.length = end_location.offset - start_location.offset;
 }
 
 static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_token)

@@ -85,36 +85,6 @@ layec_source_buffer layec_context_get_source_buffer(layec_context* context, int 
     return context->sources[source_index];
 }
 
-static void get_line_from_source(const char* text, layec_location location,   
-    long long* line_number, long long* line_start_offset, long long* line_end_offset)
-{
-    assert(text);
-
-    /// Seek to the start of the line. Keep track of the line number.
-    long long line = 1;
-    long long line_start = 0;
-    for (long long i = (long long) location.offset; i > 0; --i) {
-        if (text[i] == '\n') {
-            if (!line_start)
-                line_start = i + 1;
-            line++;
-        }
-    }
-
-    /// Don’t include the newline in the line.
-    if (text[line_start] == '\n') ++line_start;
-
-    /// Seek to the end of the line.
-    long long line_end = location.offset;
-    while (text[line_end] != 0 && text[line_end] != '\n')
-        line_end++;
-
-    /// Return the results.
-    if (line_number) *line_number = line;
-    if (line_start_offset) *line_start_offset = line_start;
-    if (line_end_offset) *line_end_offset = line_end;
-}
-
 static const char *severity_names[LAYEC_SEV_COUNT] = {
     "Info",
     "Warning",
@@ -136,18 +106,12 @@ void layec_context_issue_diagnostic_prolog(layec_context* context, layec_diagnos
     assert(context);
     if (location.source_id <= 0) return;
 
+    layec_location_print(context, location);
+    printf(": %s%s" ANSI_COLOR_RESET ": ", severity_colors[severity], severity_names[severity]);
+
     layec_source_buffer source_buffer = layec_context_get_source_buffer(context, location.source_id);
     assert(source_buffer.name);
     assert(source_buffer.text);
-
-    long long line_number;
-    long long line_start_offset;
-    long long line_end_offset;
-    get_line_from_source(source_buffer.text, location, &line_number, &line_start_offset, &line_end_offset);
-
-    const char* file_name = source_buffer.name;
-    printf("%s:%lld:%lld: %s%s" ANSI_COLOR_RESET ": ", file_name, line_number, 1 + location.offset - line_start_offset,
-        severity_colors[severity], severity_names[severity]);
 }
 
 void layec_context_issue_diagnostic_epilog(layec_context* context, layec_diagnostic_severity severity, layec_location location)
