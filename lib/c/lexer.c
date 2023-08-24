@@ -41,6 +41,7 @@ struct layec_c_macro_expansion
 {
     layec_c_macro_def* def;
     long long body_position;
+    vector(vector(layec_c_token)) args;
     long long arg_index; // set to -1 when not expanding an argument
     long long arg_position;
 };
@@ -606,9 +607,20 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
     if (vector_count(lexer->macro_expansions) > 0)
     {
         layec_c_macro_expansion* macro_expansion = vector_back(lexer->macro_expansions);
-        if (macro_expansion->arg_index != -1)
+        if (macro_expansion->arg_index >= 0)
         {
-            assert(false && "not handling argument expansion just yet");
+            long long arg_position = macro_expansion->arg_position;
+            *out_token = macro_expansion->args[macro_expansion->arg_index][arg_position];
+            macro_expansion->arg_position++;
+
+            if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
+            {
+                macro_expansion->arg_index = -1;
+                macro_expansion->arg_position = 0;
+
+                if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                    vector_pop(lexer->macro_expansions);
+            }
         }
         else
         {
@@ -616,6 +628,16 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
             *out_token = macro_expansion->def->body[body_position];
             macro_expansion->body_position++;
 
+            if (out_token->is_macro_param)
+            {
+                macro_expansion->arg_index = out_token->macro_param_index;
+                macro_expansion->arg_position = 0;
+
+                *out_token = (layec_c_token){0};
+                layec_c_lexer_read_token(lexer, out_token);
+                return;
+            }
+            
             if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
                 vector_pop(lexer->macro_expansions);
         }
@@ -638,17 +660,79 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
         layec_c_macro_def* macro_def = layec_c_lexer_lookup_macro_def(lexer, out_token->string_value);
         if (macro_def != NULL)
         {
-            layec_c_macro_expansion macro_expansion =
+            if (macro_def->has_params)
             {
-                .def = macro_def,
-                .arg_index = -1,
-            };
+                layec_c_lexer lexer_cache = *lexer;
 
-            vector_push(lexer->macro_expansions, macro_expansion);
+                layec_c_token arg_token = {0};
+                layec_c_lexer_read_token_no_preprocess(lexer, &arg_token);
+                if (arg_token.kind != '(')
+                {
+                    *lexer = lexer_cache;
+                    goto not_a_macro;
+                }
+
+                vector(vector(layec_c_token)) args = NULL;
+                vector(layec_c_token) current_arg = NULL;
+                for (;;)
+                {
+                    if (layec_c_lexer_at_eof(lexer))
+                    {
+                        layec_location eof_location = layec_c_lexer_get_location(lexer);
+                        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                            eof_location);
+                        printf("expected ')' in macro argument list");
+                        layec_c_lexer_advance(lexer, true);
+                        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                            eof_location);
+                            
+                        out_token->kind = LAYEC_CTK_EOF;
+                        break;
+                    }
+
+                    layec_c_lexer_read_token_no_preprocess(lexer, &arg_token);
+                    if (arg_token.kind == ')')
+                    {
+                        vector_push(args, current_arg);
+                        current_arg = NULL;
+                        break;
+                    }
+                    else if (arg_token.kind == ',')
+                    {
+                        vector_push(args, current_arg);
+                        current_arg = NULL;
+                        continue;
+                    }
+
+                    vector_push(current_arg, arg_token);
+                }
+
+                layec_c_macro_expansion macro_expansion =
+                {
+                    .def = macro_def,
+                    .args = args,
+                    .arg_index = -1,
+                };
+
+                vector_push(lexer->macro_expansions, macro_expansion);
+            }
+            else
+            {
+                layec_c_macro_expansion macro_expansion =
+                {
+                    .def = macro_def,
+                    .arg_index = -1,
+                };
+
+                vector_push(lexer->macro_expansions, macro_expansion);
+            }
+            
+            *out_token = (layec_c_token){0};
             layec_c_lexer_read_token(lexer, out_token);
             return;
         }
         
+    not_a_macro:;
         for (int i = 0; c89_keywords[i].name != NULL; i++)
         {
             if (0 == strncmp(c89_keywords[i].name, out_token->string_value.data, (unsigned long long)out_token->string_value.length))
@@ -796,6 +880,7 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
 
     for (;;)
     {
+        token = (layec_c_token){0};
         layec_c_lexer_read_token_no_preprocess(lexer, &token);
         if (token.kind == LAYEC_CTK_INVALID)
         {
