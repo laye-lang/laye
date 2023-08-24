@@ -5,6 +5,8 @@ project(layec
     LANGUAGES C
 )
 
+set(C_EXTENSIONS OFF)
+
 if (MSVC)
     add_compile_options(
         /W4 # Enable all warnings.
