@@ -1,6 +1,6 @@
-#include <as/*df/t\est>
-#include "te//st"
-
-#define TEST_VALUE 69
-#define TEST_COMPUTE(a) (a + 35)
-int main(){}
+#define BLOCK {}
+#define VAR(A) int A = 10
+#define VAR2(A, V) int A = (V)
+int main() BLOCK
+void foo() { VAR(bar); }
+void foo() { VAR2(bar, 69); }

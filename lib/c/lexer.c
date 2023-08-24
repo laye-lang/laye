@@ -2,9 +2,12 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "layec/util.h"
 #include "layec/c/lexer.h"
 
 typedef struct layec_c_lexer layec_c_lexer;
+typedef struct layec_c_macro_def layec_c_macro_def;
+typedef struct layec_c_macro_expansion layec_c_macro_expansion;
 typedef struct keyword_info keyword_info;
 
 struct layec_c_lexer
@@ -21,6 +24,26 @@ struct layec_c_lexer
     bool at_start_of_line;
     bool is_in_preprocessor;
     bool is_in_include;
+
+    vector(layec_c_macro_def) macro_defs;
+    vector(layec_c_macro_expansion) macro_expansions;
+};
+
+struct layec_c_macro_def
+{
+    layec_string_view name;
+    bool has_params;
+    vector(layec_string_view) params;
+    vector(layec_c_token) body;
+};
+
+struct layec_c_macro_expansion
+{
+    layec_c_macro_def* def;
+    long long body_position;
+    vector(vector(layec_c_token)) args;
+    long long arg_index; // set to -1 when not expanding an argument
+    long long arg_position;
 };
 
 struct keyword_info
@@ -562,10 +585,66 @@ finish_token:;
     out_token->location.length = end_location.offset - start_location.offset;
 }
 
+static layec_c_macro_def* layec_c_lexer_lookup_macro_def(layec_c_lexer* lexer, layec_string_view macro_name)
+{
+    for (long long i = 0; i < vector_count(lexer->macro_defs); i++)
+    {
+        layec_c_macro_def* def = &lexer->macro_defs[i];
+        if (macro_name.length != def->name.length)
+            continue;
+        
+        if (0 == strncmp(macro_name.data, def->name.data, (unsigned long long)macro_name.length))
+            return def;
+    }
+
+    return NULL;
+}
+
 static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer);
 
 static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_token)
 {
+    if (vector_count(lexer->macro_expansions) > 0)
+    {
+        layec_c_macro_expansion* macro_expansion = vector_back(lexer->macro_expansions);
+        if (macro_expansion->arg_index >= 0)
+        {
+            long long arg_position = macro_expansion->arg_position;
+            *out_token = macro_expansion->args[macro_expansion->arg_index][arg_position];
+            macro_expansion->arg_position++;
+
+            if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
+            {
+                macro_expansion->arg_index = -1;
+                macro_expansion->arg_position = 0;
+
+                if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                    vector_pop(lexer->macro_expansions);
+            }
+        }
+        else
+        {
+            long long body_position = macro_expansion->body_position;
+            *out_token = macro_expansion->def->body[body_position];
+            macro_expansion->body_position++;
+
+            if (out_token->is_macro_param)
+            {
+                macro_expansion->arg_index = out_token->macro_param_index;
+                macro_expansion->arg_position = 0;
+
+                *out_token = (layec_c_token){0};
+                layec_c_lexer_read_token(lexer, out_token);
+                return;
+            }
+            
+            if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                vector_pop(lexer->macro_expansions);
+        }
+
+        return;
+    }
+
     layec_c_lexer_eat_white_space(lexer);
     while (lexer->at_start_of_line && lexer->current_char == '#')
     {
@@ -576,10 +655,84 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
     
     layec_c_lexer_read_token_no_preprocess(lexer, out_token);
 
-    /// TODO(local): move special handling of identifiers to here (like keywords) so the preprocessor can handle them first.
-
     if (out_token->kind == LAYEC_CTK_IDENT)
     {
+        layec_c_macro_def* macro_def = layec_c_lexer_lookup_macro_def(lexer, out_token->string_value);
+        if (macro_def != NULL)
+        {
+            if (macro_def->has_params)
+            {
+                layec_c_lexer lexer_cache = *lexer;
+
+                layec_c_token arg_token = {0};
+                layec_c_lexer_read_token_no_preprocess(lexer, &arg_token);
+                if (arg_token.kind != '(')
+                {
+                    *lexer = lexer_cache;
+                    goto not_a_macro;
+                }
+
+                vector(vector(layec_c_token)) args = NULL;
+                vector(layec_c_token) current_arg = NULL;
+                for (;;)
+                {
+                    if (layec_c_lexer_at_eof(lexer))
+                    {
+                        layec_location eof_location = layec_c_lexer_get_location(lexer);
+                        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                            eof_location);
+                        printf("expected ')' in macro argument list");
+                        layec_c_lexer_advance(lexer, true);
+                        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                            eof_location);
+                            
+                        out_token->kind = LAYEC_CTK_EOF;
+                        break;
+                    }
+
+                    layec_c_lexer_read_token_no_preprocess(lexer, &arg_token);
+                    if (arg_token.kind == ')')
+                    {
+                        vector_push(args, current_arg);
+                        current_arg = NULL;
+                        break;
+                    }
+                    else if (arg_token.kind == ',')
+                    {
+                        vector_push(args, current_arg);
+                        current_arg = NULL;
+                        continue;
+                    }
+
+                    vector_push(current_arg, arg_token);
+                }
+
+                layec_c_macro_expansion macro_expansion =
+                {
+                    .def = macro_def,
+                    .args = args,
+                    .arg_index = -1,
+                };
+
+                vector_push(lexer->macro_expansions, macro_expansion);
+            }
+            else
+            {
+                layec_c_macro_expansion macro_expansion =
+                {
+                    .def = macro_def,
+                    .arg_index = -1,
+                };
+
+                vector_push(lexer->macro_expansions, macro_expansion);
+            }
+            
+            *out_token = (layec_c_token){0};
+            layec_c_lexer_read_token(lexer, out_token);
+            return;
+        }
+        
+    not_a_macro:;
         for (int i = 0; c89_keywords[i].name != NULL; i++)
         {
             if (0 == strncmp(c89_keywords[i].name, out_token->string_value.data, (unsigned long long)out_token->string_value.length))
@@ -727,6 +880,7 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
 
     for (;;)
     {
+        token = (layec_c_token){0};
         layec_c_lexer_read_token_no_preprocess(lexer, &token);
         if (token.kind == LAYEC_CTK_INVALID)
         {
@@ -757,7 +911,16 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
     }
 
 store_macro_in_translation_unit:;
-    // TODO(local): store macro definitions in a translation unit
+    layec_c_macro_def def =
+    {
+        .name = macro_name,
+        .has_params = macro_has_params,
+        .params = macro_params,
+        .body = macro_body,
+    };
+
+    vector_push(lexer->macro_defs, def);
+
     lexer->is_in_preprocessor = false;
     lexer->is_in_include = false;
 }
