@@ -1,3 +1,6 @@
+// test line comment
 int _start() {
+    /* test /* nested
+    */ block comment */
     return 69;
 }
