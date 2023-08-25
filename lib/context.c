@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "layec/ansi.h"
 #include "layec/context.h"
 
 layec_context* layec_context_create(void)

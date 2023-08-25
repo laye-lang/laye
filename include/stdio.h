@@ -1,5 +1,5 @@
-#ifndef LAYEC_STDIO_H
-#define LAYEC_STDIO_H
+#ifndef LAYEC_LIBC_STDIO_H
+#define LAYEC_LIBC_STDIO_H
 
 typedef void FILE;
 
@@ -28,4 +28,4 @@ size_t fread(void* buffer, size_t size, size_t member_count, FILE* stream);
 int fseek(FILE* stream, long int offset, int whence);
 long int ftell(FILE* stream);
 
-#endif // LAYEC_STDIO_H
+#endif // LAYEC_LIBC_STDIO_H

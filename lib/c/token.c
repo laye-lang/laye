@@ -1,6 +1,5 @@
 #include <assert.h>
 
-#include "layec/util.h"
 #include "layec/c/token.h"
 
 const char* layec_c_token_kind_to_string(layec_c_token_kind kind)
@@ -38,23 +37,12 @@ void layec_c_token_print(layec_context* context, layec_c_token token)
         printf("%s", kind_name);
     else
     {
-        layec_string_view token_image = layec_c_token_get_source_image(context, token);
+        layec_string_view token_image = layec_location_get_source_image(context, token.location);
         printf("%s  ::  `%.*s`", kind_name, (int)token_image.length, token_image.data);
     }
 }
 
-layec_string_view layec_c_token_get_source_image(layec_context* context, layec_c_token token)
-{
-    assert(context);
-    assert(token.location.source_id);
-
-    layec_source_buffer source_buffer = layec_context_get_source_buffer(context, token.location.source_id);
-    assert(source_buffer.text);
-
-    return layec_string_view_create(source_buffer.text + token.location.offset, token.location.length);
-}
-
 void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer)
 {
-    vector_free(token_buffer->tokens);
+    vector_free(token_buffer->semantic_tokens);
 }

@@ -2,7 +2,6 @@
 #define LAYEC_C_LEXER_H
 
 #include "layec/context.h"
-#include "layec/util.h"
 #include "layec/c/token.h"
 
 /// Return a buffer of tokens as lexed from the input file.

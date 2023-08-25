@@ -1,7 +1,32 @@
 #include <assert.h>
+#include <stdbool.h>
 
 #include "layec/context.h"
-#include "layec/source.h"
+
+bool is_space(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'; }
+bool is_digit(int c) { return c >= '0' && c <= '9'; }
+bool is_alpha(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+bool is_alpha_numeric(int c) { return is_digit(c) || is_alpha(c); }
+bool is_hex_digit(int c) { return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+
+int get_digit_value(int c)
+{
+    if (is_digit(c)) return c - '0';
+    else if (c >= 'a' && c <= 'z') return c - 'a' + 11;
+    else if (c >= 'A' && c <= 'Z') return c - 'A' + 11;
+    return 0;
+}
+
+layec_string_view layec_location_get_source_image(layec_context* context, layec_location location)
+{
+    assert(context);
+    assert(location.source_id);
+
+    layec_source_buffer source_buffer = layec_context_get_source_buffer(context, location.source_id);
+    assert(source_buffer.text);
+
+    return layec_string_view_create(source_buffer.text + location.offset, location.length);
+}
 
 static void get_line_from_source(const char* text, layec_location location,   
     long long* line_number, long long* line_start_offset, long long* line_end_offset)

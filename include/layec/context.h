@@ -3,7 +3,7 @@
 
 #include "layec/diag.h"
 #include "layec/source.h"
-#include "layec/util.h"
+#include "layec/vector.h"
 
 typedef struct layec_context layec_context;
 

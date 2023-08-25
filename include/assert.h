@@ -1,5 +1,5 @@
-#ifndef LAYEC_ASSERT_H
-#define LAYEC_ASSERT_H
+#ifndef LAYEC_LIBC_ASSERT_H
+#define LAYEC_LIBC_ASSERT_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,4 +10,4 @@
 #  define assert(condition) do { if (!(condition)) { printf(__FILE__":%d: ASSERT FAIL: "  #condition "\n", __LINE__); exit(1); } } while (0)
 #endif
 
-#endif // LAYEC_ASSERT_H
+#endif // LAYEC_LIBC_ASSERT_H

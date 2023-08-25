@@ -2,7 +2,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "layec/util.h"
+#include "layec/string.h"
+#include "layec/vector.h"
 #include "layec/c/lexer.h"
 
 typedef struct layec_c_lexer layec_c_lexer;
@@ -98,20 +99,6 @@ static layec_location layec_c_lexer_get_location(layec_c_lexer *lexer)
     };
 }
 
-static bool is_space(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'; }
-static bool is_digit(int c) { return c >= '0' && c <= '9'; }
-static bool is_alpha(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-static bool is_alpha_numeric(int c) { return is_digit(c) || is_alpha(c); }
-static bool is_hex_digit(int c) { return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
-
-static int get_digit_value(int c)
-{
-    if (is_digit(c)) return c - '0';
-    else if (c >= 'a' && c <= 'z') return c - 'a' + 11;
-    else if (c >= 'A' && c <= 'Z') return c - 'A' + 11;
-    return 0;
-}
-
 static bool layec_c_lexer_at_eof(layec_c_lexer* lexer);
 static void layec_c_lexer_advance(layec_c_lexer* lexer, bool allow_comments);
 static int layec_c_lexer_peek_no_process(layec_c_lexer* lexer, int ahead);
@@ -141,7 +128,7 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id)
         layec_c_token token = {0};
         layec_c_lexer_read_token(&lexer, &token);
         if (token.kind == LAYEC_CTK_EOF) break;
-        vector_push(token_buffer.tokens, token);
+        vector_push(token_buffer.semantic_tokens, token);
     }
 
     return token_buffer;

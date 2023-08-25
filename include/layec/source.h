@@ -1,6 +1,10 @@
 #ifndef LAYEC_SOURCE_H
 #define LAYEC_SOURCE_H
 
+#include <stdbool.h>
+
+#include "layec/string.h"
+
 typedef struct layec_context layec_context;
 
 typedef struct layec_location layec_location;
@@ -27,6 +31,15 @@ struct layec_source_buffer
     const char* text;
 };
 
+bool is_space(int c);
+bool is_digit(int c);
+bool is_alpha(int c);
+bool is_alpha_numeric(int c);
+bool is_hex_digit(int c);
+int get_digit_value(int c);
+
+/// Return a view into the original source text at this location.
+layec_string_view layec_location_get_source_image(layec_context* context, layec_location location);
 void layec_location_print(layec_context* context, layec_location location);
 
 #endif // LAYEC_SOURCE_H

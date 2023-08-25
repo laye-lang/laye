@@ -1,19 +1,4 @@
-#include <assert.h>
-#include <stdlib.h>
-
-#include "layec/util.h"
-
-layec_string_view layec_string_view_create(const char* data, long long length)
-{
-    assert(length >= 0);
-    if (length != 0) assert(data);
-
-    return (layec_string_view)
-    {
-        .data = data,
-        .length = length,
-    };
-}
+#include "layec/vector.h"
 
 void layec_vector_maybe_expand(void** vector_ref, long long element_size, long long required_count)
 {

@@ -1,5 +1,5 @@
-#ifndef LAYEC_STDBOOL_H
-#define LAYEC_STDBOOL_H
+#ifndef LAYEC_LIBC_STDBOOL_H
+#define LAYEC_LIBC_STDBOOL_H
 
 #if __STDC_VERSION__ >= 199901L
 #define bool _Bool
@@ -8,4 +8,4 @@
 #define __bool_true_false_are_defined 1
 #endif
 
-#endif // LAYEC_STDBOOL_H
+#endif // LAYEC_LIBC_STDBOOL_H

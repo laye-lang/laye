@@ -5,7 +5,8 @@
 
 #include "layec/context.h"
 #include "layec/source.h"
-#include "layec/util.h"
+#include "layec/string.h"
+#include "layec/vector.h"
 
 typedef struct layec_c_token layec_c_token;
 typedef struct layec_c_token_buffer layec_c_token_buffer;
@@ -47,16 +48,13 @@ struct layec_c_token
 
 struct layec_c_token_buffer
 {
-    vector(layec_c_token) tokens;
+    vector(layec_c_token) syntactic_tokens;
+    vector(layec_c_token) semantic_tokens;
 };
 
 const char* layec_c_token_kind_to_string(layec_c_token_kind kind);
 
 void layec_c_token_print(layec_context* context, layec_c_token token);
-
-/// Return a view into the original source text at the location of this token.
-/// This is the literal text of the token as it appears in the source, not a processed version.
-layec_string_view layec_c_token_get_source_image(layec_context* context, layec_c_token token);
 
 void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer);
 
