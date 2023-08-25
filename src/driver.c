@@ -68,6 +68,10 @@ int main(int argc, char* argv[])
 
         layec_laye_token_buffer_destroy(&token_buffer);
     }
+    else
+    {
+        printf("Unknown file type\n");
+    }
 
     layec_context_destroy(context);
     return 0;
