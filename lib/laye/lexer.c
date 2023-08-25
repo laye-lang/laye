@@ -134,7 +134,48 @@ static void layec_laye_lexer_eat_white_space(layec_laye_lexer* lexer)
     {
         if (is_space(lexer->current_char))
             layec_laye_lexer_advance(lexer);
-        // TODO(local): eat up comments, too
+        else if (lexer->current_char == '/' && layec_laye_lexer_peek(lexer, 1) == '/')
+        {
+            while (!layec_laye_lexer_at_eof(lexer) && lexer->current_char != '\n')
+                layec_laye_lexer_advance(lexer);
+        }
+        else if (lexer->current_char == '/' && layec_laye_lexer_peek(lexer, 1) == '*')
+        {
+            layec_location start_location = layec_laye_lexer_get_location(lexer);
+
+            layec_laye_lexer_advance(lexer);
+            layec_laye_lexer_advance(lexer);
+
+            int stack = 1;
+            int lastc = 0;
+            while (stack > 0 && !layec_laye_lexer_at_eof(lexer))
+            {
+                int curc = lexer->current_char;
+                layec_laye_lexer_advance(lexer);
+
+                if (lastc == '*' && curc == '/')
+                {
+                    lastc = 0;
+                    stack--;
+                }
+                else if (lastc == '/' && curc == '*')
+                {
+                    lastc = 0;
+                    stack++;
+                }
+                else lastc = curc;
+            }
+
+            if (stack > 0)
+            {
+                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                    start_location);
+                printf("unfinished /* comment");
+                layec_laye_lexer_advance(lexer);
+                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                    start_location);
+            }
+        }
         else break;
     }
 }
