@@ -1,0 +1,91 @@
+// Assignment Operators
+LTK(PLUS_EQUAL, "+=")
+LTK(MINUS_EQUAL, "-=")
+LTK(STAR_EQUAL, "*=")
+LTK(SLASH_EQUAL, "/=")
+LTK(PERCENT_EQUAL, "%=")
+LTK(AMPERSAND_EQUAL, "&=")
+LTK(PIPE_EQUAL, "|=")
+LTK(TILDE_EQUAL, "~=")
+LTK(LESS_LESS_EQUAL, "<<=")
+LTK(GREATER_GREATER_EQUAL, ">>=")
+
+// Bitwise Operators
+LTK(LESS_LESS, "<<")
+LTK(GREATER_GREATER, ">>")
+
+// Equality Operators
+LTK(EQUAL_EQUAL, "==")
+LTK(BANG_EQUAL, "!=")
+
+// Relational Operators
+LTK(LESS_EQUAL, "<=")
+LTK(GREATER_EQUAL, ">=")
+
+// Misc "Operators"
+LTK(COLON_COLON, "::")
+LTK(EQUAL_GREATER, "=>")
+
+LTK(IDENT, "<ident>")
+LTK(LIT_RUNE, "<character literal>")
+LTK(LIT_STRING, "<string literal>")
+LTK(LIT_INT, "<int literal>")
+LTK(LIT_REAL, "<real literal>")
+
+// Laye 1.0 Keywords
+LTK(TRUE, "true")
+LTK(FALSE, "false")
+LTK(NIL, "nil")
+LTK(GLOBAL, "global")
+
+LTK(IF, "if")
+LTK(ElSE, "else")
+LTK(FOR, "for")
+LTK(DO, "do")
+LTK(SWITCH, "switch")
+LTK(CASE, "case")
+LTK(DEFAULT, "default")
+LTK(RETURN, "return")
+LTK(BREAK, "break")
+LTK(CONTINUE, "continue")
+LTK(DEFER, "defer")
+LTK(GOTO, "goto")
+
+LTK(IMPORT, "import")
+LTK(STRUCT, "struct")
+LTK(VARIANT, "variant")
+LTK(ENUM, "enum")
+LTK(TEST, "test")
+
+LTK(NEW, "new")
+LTK(DELETE, "delete")
+LTK(CAST, "cast")
+LTK(TRY, "try")
+LTK(CATCH, "catch")
+LTK(DISCARD, "discard")
+LTK(SIZEOF, "sizeof")
+LTK(ALIGNOF, "alignof")
+LTK(OFFSETOF, "offsetof")
+
+LTK(NOT, "not")
+LTK(AND, "and")
+LTK(OR, "or")
+LTK(XOR, "xor")
+
+LTK(VARARGS, "varargs")
+LTK(CONST, "const")
+LTK(EXPORT, "export")
+LTK(INLINE, "inline")
+LTK(FOREIGN, "foreign")
+LTK(CALLCONV, "callconv")
+
+LTK(READONLY, "readonly")
+LTK(WRITEONLY, "writeonly")
+LTK(VAR, "var")
+LTK(VOID, "void")
+LTK(NORETURN, "noreturn")
+LTK(RAWPTR, "rawptr")
+LTK(BOOL, "bool")
+LTK(INT, "int")
+LTK(UINT, "uint")
+LTK(FLOAT, "float")
