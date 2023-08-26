@@ -990,7 +990,7 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
             if (include_source_id > 0)
                 goto good_include_gogogo;
             
-            free(include_path2.data);
+            free((void*)include_path2.data);
         }
 
         for (long long i = 0; i < vector_count(lexer->context->include_dirs); i++)
@@ -1002,7 +1002,7 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
             if (include_source_id > 0)
                 goto good_include_gogogo;
             
-            free(include_path2.data);
+            free((void*)include_path2.data);
         }
 
         goto handle_include_error;
