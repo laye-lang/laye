@@ -1,19 +1,12 @@
 #include <assert.h>
-
 #include <stdio.h>
-
 #include <string.h>
 
 #include "layec/context.h"
-
 #include "layec/source.h"
-
 #include "layec/string.h"
-
 #include "layec/vector.h"
-
 #include "layec/c/lexer.h"
-
 #include "layec/laye/lexer.h"
 
 const char* usage_text = "Usage: layec [options] file...\n";
@@ -61,7 +54,6 @@ static void arg_shift(int* argc, char*** argv)
 
 static bool parse_args(layec_context* context, int argc, char** argv)
 {
-    printf("%d  %p\n", argc, argv);
     if (argc == 0) return true;
 
     const char* option = argv[0];
@@ -93,6 +85,7 @@ static void handle_input_file(layec_context* context, int source_id)
         layec_c_translation_unit* tu = calloc(1, sizeof *tu);
         layec_c_token_buffer token_buffer = layec_c_get_tokens(context, tu, source_id);
 
+#if false
         for (long long i = 0; i < vector_count(token_buffer.semantic_tokens); i++)
         {
             layec_c_token token = token_buffer.semantic_tokens[i];
@@ -101,6 +94,7 @@ static void handle_input_file(layec_context* context, int source_id)
             layec_c_token_print(context, token);
             printf("\n");
         }
+#endif
 
         layec_c_token_buffer_destroy(&token_buffer);
     }
