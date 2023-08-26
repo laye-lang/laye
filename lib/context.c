@@ -18,12 +18,13 @@ void layec_context_destroy(layec_context* context)
     free(context);
 }
 
-static const char* layec_read_file(const char* file_path)
+static const char* layec_read_file(layec_string_view file_path)
 {
-    assert(file_path);
+    const char* fp = layec_string_view_to_cstring(file_path);
+    assert(fp);
 
     /// TODO(local): file reading error handling
-    FILE* stream = fopen(file_path, "r");
+    FILE* stream = fopen(fp, "r");
     if (!stream) return NULL;
     fseek(stream, 0, SEEK_END);
     long file_length = ftell(stream);
@@ -37,33 +38,23 @@ static const char* layec_read_file(const char* file_path)
     return data;
 }
 
-int layec_context_get_or_add_source_buffer_from_file(layec_context* context, const char* file_path)
+int layec_context_get_or_add_source_buffer_from_file(layec_context* context, layec_string_view file_path)
 {
     assert(context);
-    if (!file_path)
-    {
-        printf("No input file path given\n");
-        return 0;
-    }
-
     for (long long i = 0; i < (long long)vector_count(context->sources); i++)
     {
-        if (0 == strcmp(file_path, context->sources[i].name))
+        if (layec_string_view_equals(file_path, context->sources[i].name))
             return (int)i + 1;
     }
     
     const char* file_source_text = layec_read_file(file_path);
-    if (!file_source_text)
-    {
-        printf("Could not read source file '%s'\n", file_path);
-        return 0;
-    }
+    if (!file_source_text) return 0;
 
     assert(file_source_text);
     layec_source_buffer source_buffer =
     {
         .name = file_path,
-        .text = file_source_text,
+        .text = layec_string_view_create(file_source_text, (long long)strlen(file_source_text)),
     };
 
     int source_id = (int)vector_count(context->sources) + 1;
@@ -77,11 +68,11 @@ layec_source_buffer layec_context_get_source_buffer(layec_context* context, int 
     assert(context);
 
     if (!context->sources)
-        return (layec_source_buffer){ .name = "<unknown>", .text = "" };
+        return (layec_source_buffer){ .name = LAYEC_STRING_VIEW_CONSTANT("<unknown>"), .text = LAYEC_STRING_VIEW_EMPTY };
 
     int source_index = source_id - 1;
     if (source_index >= vector_count(context->sources))
-        return (layec_source_buffer){ .name = "<unknown>", .text = "" };
+        return (layec_source_buffer){ .name = LAYEC_STRING_VIEW_CONSTANT("<unknown>"), .text = LAYEC_STRING_VIEW_EMPTY };
 
     return context->sources[source_index];
 }
@@ -110,9 +101,7 @@ void layec_context_issue_diagnostic_prolog(layec_context* context, layec_diagnos
     layec_location_print(context, location);
     printf(": %s%s" ANSI_COLOR_RESET ": ", severity_colors[severity], severity_names[severity]);
 
-    layec_source_buffer source_buffer = layec_context_get_source_buffer(context, location.source_id);
-    assert(source_buffer.name);
-    assert(source_buffer.text);
+    //layec_source_buffer source_buffer = layec_context_get_source_buffer(context, location.source_id);
 }
 
 void layec_context_issue_diagnostic_epilog(layec_context* context, layec_diagnostic_severity severity, layec_location location)
