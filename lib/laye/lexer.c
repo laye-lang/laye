@@ -86,7 +86,7 @@ static layec_location layec_laye_lexer_get_location(layec_laye_lexer *lexer)
     return (layec_location)
     {
         .source_id = lexer->source_id,
-        .offset = lexer->current_char_location - lexer->source_buffer.text,
+        .offset = lexer->current_char_location - lexer->source_buffer.text.data,
         .length = 1,
     };
 }
@@ -107,10 +107,8 @@ layec_laye_token_buffer layec_laye_get_tokens(layec_context* context, int source
     };
 
     lexer.source_buffer = layec_context_get_source_buffer(context, source_id);
-    assert(lexer.source_buffer.text);
-
-    lexer.cur = lexer.source_buffer.text;
-    lexer.end = lexer.cur + strlen(lexer.source_buffer.text);
+    lexer.cur = lexer.source_buffer.text.data;
+    lexer.end = lexer.cur + lexer.source_buffer.text.length;
 
     layec_laye_lexer_advance(&lexer);
 
@@ -429,7 +427,7 @@ static void layec_laye_lexer_read_token(layec_laye_lexer* lexer, layec_laye_toke
                 layec_laye_lexer_advance(lexer);
 
             layec_location ident_end_location = layec_laye_lexer_get_location(lexer);
-            out_token->string_value = layec_string_view_create(lexer->source_buffer.text + start_location.offset,
+            out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
                 ident_end_location.offset - start_location.offset);
                 
             for (int i = 0; laye1_keywords[i].name != NULL; i++)

@@ -3,12 +3,21 @@
 
 #include "layec/diag.h"
 #include "layec/source.h"
+#include "layec/string.h"
 #include "layec/vector.h"
 
 typedef struct layec_context layec_context;
 
 struct layec_context
 {
+    // input args
+    bool help;
+    bool verbose;
+
+    vector(layec_string_view) include_dirs;
+    vector(layec_string_view) input_file_names;
+
+    // data
     vector(layec_source_buffer) sources;
 };
 
@@ -19,7 +28,7 @@ void layec_context_destroy(layec_context* context);
 
 /// Get the ID of a layec_source_buffer for the given file if one has already been created, otherwise
 /// creates the layec_source_buffer and returns the new ID.
-int layec_context_get_or_add_source_buffer_from_file(layec_context* context, const char* file_path);
+int layec_context_get_or_add_source_buffer_from_file(layec_context* context, layec_string_view file_path);
 
 /// Get the layec_source_buffer associated with the given source ID.
 /// If an invlaid ID is given, an empty buffer is returned.

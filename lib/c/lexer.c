@@ -7,13 +7,13 @@
 #include "layec/c/lexer.h"
 
 typedef struct layec_c_lexer layec_c_lexer;
-typedef struct layec_c_macro_def layec_c_macro_def;
 typedef struct layec_c_macro_expansion layec_c_macro_expansion;
 typedef struct keyword_info keyword_info;
 
 struct layec_c_lexer
 {
     layec_context* context;
+    layec_c_translation_unit* tu;
     int source_id;
     layec_source_buffer source_buffer;
 
@@ -26,16 +26,7 @@ struct layec_c_lexer
     bool is_in_preprocessor;
     bool is_in_include;
 
-    vector(layec_c_macro_def) macro_defs;
     vector(layec_c_macro_expansion) macro_expansions;
-};
-
-struct layec_c_macro_def
-{
-    layec_string_view name;
-    bool has_params;
-    vector(layec_string_view) params;
-    vector(layec_c_token) body;
 };
 
 struct layec_c_macro_expansion
@@ -94,7 +85,7 @@ static layec_location layec_c_lexer_get_location(layec_c_lexer *lexer)
     return (layec_location)
     {
         .source_id = lexer->source_id,
-        .offset = lexer->current_char_location - lexer->source_buffer.text,
+        .offset = lexer->current_char_location - lexer->source_buffer.text.data,
         .length = 1,
     };
 }
@@ -104,21 +95,20 @@ static void layec_c_lexer_advance(layec_c_lexer* lexer, bool allow_comments);
 static int layec_c_lexer_peek_no_process(layec_c_lexer* lexer, int ahead);
 static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_token);
 
-layec_c_token_buffer layec_c_get_tokens(layec_context* context, int source_id)
+layec_c_token_buffer layec_c_get_tokens(layec_context* context, layec_c_translation_unit* tu, int source_id)
 {
     assert(context);
 
     layec_c_lexer lexer = {
         .context = context,
+        .tu = tu,
         .source_id = source_id,
         .at_start_of_line = true,
     };
 
     lexer.source_buffer = layec_context_get_source_buffer(context, source_id);
-    assert(lexer.source_buffer.text);
-
-    lexer.cur = lexer.source_buffer.text;
-    lexer.end = lexer.cur + strlen(lexer.source_buffer.text);
+    lexer.cur = lexer.source_buffer.text.data;
+    lexer.end = lexer.cur + lexer.source_buffer.text.length;
 
     layec_c_lexer_advance(&lexer, true);
 
@@ -423,7 +413,11 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             {
                 if (lexer->current_char == '\\')
                     out_token->int_value = layec_c_lexer_read_escape_sequence(lexer, false);
-                else layec_c_lexer_advance(lexer, false);
+                else
+                {
+                    out_token->int_value = lexer->current_char;
+                    layec_c_lexer_advance(lexer, false);
+                }
             }
 
             if (lexer->current_char != '\'')
@@ -442,8 +436,7 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
         {
         parse_string_literal:;
             char end_delim = lexer->current_char == '"' ? '"' : '>';
-            // TODO(local): When we write (or copy an old) UTF-8 encoder/decoder, do string building as well
-            vector(char) string_data = NULL;
+            layec_string_builder builder = {0};
 
             layec_c_lexer_advance(lexer, false);
             out_token->kind = LAYEC_CTK_LIT_STRING;
@@ -461,8 +454,12 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                     goto finish_token;
                 }
                 else if (lexer->current_char == '\\' && !lexer->is_in_include)
-                    layec_c_lexer_read_escape_sequence(lexer, false);
-                else layec_c_lexer_advance(lexer, false);
+                    layec_string_builder_append_rune(&builder, layec_c_lexer_read_escape_sequence(lexer, false));
+                else
+                {
+                    layec_string_builder_append_rune(&builder, lexer->current_char);
+                    layec_c_lexer_advance(lexer, false);
+                }
             }
 
             if (lexer->current_char != end_delim)
@@ -476,8 +473,10 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             }
             else layec_c_lexer_advance(lexer, false);
 
-            vector_push(string_data, 0);
-            out_token->string_value = layec_string_view_create(string_data, vector_count(string_data));
+            char* string_data = layec_string_builder_to_cstring(&builder);
+            layec_string_builder_destroy(&builder);
+            
+            out_token->string_value = layec_string_view_create(string_data, (long long)strlen(string_data));
         } break;
         
         case '0': case '1': case '2': case '3': case '4': 
@@ -513,7 +512,7 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                 do layec_c_lexer_advance(lexer, true);
                 while (is_alpha_numeric(lexer->current_char));
                 layec_location suffix_end_location = layec_c_lexer_get_location(lexer);
-                out_token->string_value = layec_string_view_create(lexer->source_buffer.text + suffix_location.offset,
+                out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, suffix_location.offset,
                     suffix_end_location.offset - suffix_location.offset);
             }
 
@@ -552,7 +551,7 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                 layec_c_lexer_advance(lexer, true);
 
             layec_location ident_end_location = layec_c_lexer_get_location(lexer);
-            out_token->string_value = layec_string_view_create(lexer->source_buffer.text + start_location.offset,
+            out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
                 ident_end_location.offset - start_location.offset);
         } break;
 
@@ -574,9 +573,9 @@ finish_token:;
 
 static layec_c_macro_def* layec_c_lexer_lookup_macro_def(layec_c_lexer* lexer, layec_string_view macro_name)
 {
-    for (long long i = 0; i < vector_count(lexer->macro_defs); i++)
+    for (long long i = 0; i < vector_count(lexer->tu->macro_defs); i++)
     {
-        layec_c_macro_def* def = &lexer->macro_defs[i];
+        layec_c_macro_def* def = lexer->tu->macro_defs[i];
         if (macro_name.length != def->name.length)
             continue;
         
@@ -591,9 +590,12 @@ static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer);
 
 static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_token)
 {
+    assert(lexer);
     if (vector_count(lexer->macro_expansions) > 0)
     {
         layec_c_macro_expansion* macro_expansion = vector_back(lexer->macro_expansions);
+        assert(macro_expansion);
+
         if (macro_expansion->arg_index >= 0)
         {
             long long arg_position = macro_expansion->arg_position;
@@ -611,7 +613,18 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
         }
         else
         {
+            assert(macro_expansion->def);
+            vector(layec_c_token) body = macro_expansion->def->body;
+            if (macro_expansion->body_position >= vector_count(body))
+            {
+                vector_pop(lexer->macro_expansions);
+                goto regular_lex_token;
+            }
+
             long long body_position = macro_expansion->body_position;
+            assert(body_position >= 0);
+            assert(macro_expansion->def->body);
+            assert(body_position < vector_count(macro_expansion->def->body));
             *out_token = macro_expansion->def->body[body_position];
             macro_expansion->body_position++;
 
@@ -632,6 +645,7 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
         return;
     }
 
+regular_lex_token:;
     layec_c_lexer_eat_white_space(lexer);
     while (lexer->at_start_of_line && lexer->current_char == '#')
     {
@@ -791,7 +805,7 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
     assert(lexer->cur < lexer->end);
 
     if (lexer->current_char == '(' &&
-        (lexer->current_char_location - lexer->source_buffer.text) == token.location.offset + token.location.length)
+        (lexer->current_char_location - lexer->source_buffer.text.data) == token.location.offset + token.location.length)
     {
         macro_has_params = true;
         layec_c_lexer_read_token_no_preprocess(lexer, &token);
@@ -898,15 +912,13 @@ static void layec_c_lexer_handle_define_directive(layec_c_lexer* lexer, layec_c_
     }
 
 store_macro_in_translation_unit:;
-    layec_c_macro_def def =
-    {
-        .name = macro_name,
-        .has_params = macro_has_params,
-        .params = macro_params,
-        .body = macro_body,
-    };
+    layec_c_macro_def* def = calloc(1, sizeof *def);
+    def->name = macro_name;
+    def->has_params = macro_has_params;
+    def->params = macro_params;
+    def->body = macro_body;
 
-    vector_push(lexer->macro_defs, def);
+    vector_push(lexer->tu->macro_defs, def);
 
     lexer->is_in_preprocessor = false;
     lexer->is_in_include = false;
@@ -919,9 +931,12 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
     assert(token.kind == LAYEC_CTK_IDENT &&
         0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length));
 
+    layec_location include_location = token.location;
+
     lexer->is_in_include = true;
     layec_c_lexer_read_token_no_preprocess(lexer, &token);
 
+    bool is_angle_string = false;
     layec_string_view include_path = {
         .data = "",
         .length = 0,
@@ -942,6 +957,7 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
     
     if (token.kind == LAYEC_CTK_LIT_STRING)
     {
+        is_angle_string = token.is_angle_string;
         include_path = token.string_value;
     }
     else
@@ -961,6 +977,63 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
     lexer->is_in_include = false;
 
     // TODO(local): process the include
+    int include_source_id = layec_context_get_or_add_source_buffer_from_file(lexer->context, include_path);
+    if (include_source_id <= 0)
+    {
+        // TODO(local): only do this for quote strings, not angle strings
+        if (!is_angle_string)
+        {
+            layec_string_view parent_dir = lexer->source_buffer.name;
+            layec_string_view include_path2 = layec_string_view_path_concat(parent_dir, include_path);
+
+            include_source_id = layec_context_get_or_add_source_buffer_from_file(lexer->context, include_path2);
+            if (include_source_id > 0)
+                goto good_include_gogogo;
+            
+            free(include_path2.data);
+        }
+
+        for (long long i = 0; i < vector_count(lexer->context->include_dirs); i++)
+        {
+            layec_string_view include_dir = lexer->context->include_dirs[i];
+            layec_string_view include_path2 = layec_string_view_path_concat(include_dir, include_path);
+            
+            include_source_id = layec_context_get_or_add_source_buffer_from_file(lexer->context, include_path2);
+            if (include_source_id > 0)
+                goto good_include_gogogo;
+            
+            free(include_path2.data);
+        }
+
+        goto handle_include_error;
+    }
+
+good_include_gogogo:;
+    layec_c_token_buffer include_token_buffer = layec_c_get_tokens(lexer->context, lexer->tu, include_source_id);
+    
+    layec_c_macro_def* include_macro_def = calloc(1, sizeof *include_macro_def);
+    include_macro_def->name = layec_string_view_create("< include >", strlen("< include >"));
+    include_macro_def->body = include_token_buffer.semantic_tokens;
+
+    vector_push(lexer->tu->macro_defs, include_macro_def);
+    layec_c_macro_def* include_macro_def_ptr = *vector_back(lexer->tu->macro_defs);
+
+    layec_c_macro_expansion macro_expansion =
+    {
+        .def = include_macro_def_ptr,
+        .arg_index = -1,
+    };
+
+    vector_push(lexer->macro_expansions, macro_expansion);
+    return;
+
+handle_include_error:;
+    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+        include_location);
+    printf("could not read included file '%.*s'", LAYEC_STRING_VIEW_EXPAND(include_path));
+    layec_c_lexer_advance(lexer, true);
+    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+        include_location);
 }
 
 static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer)
@@ -1061,7 +1134,7 @@ static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comment
                         layec_location location = (layec_location)
                         {
                             .source_id = lexer->source_id,
-                            .offset = lexer->cur - lexer->source_buffer.text,
+                            .offset = lexer->cur - lexer->source_buffer.text.data,
                             .length = 1,
                         };
                         layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_WARN,
@@ -1098,7 +1171,7 @@ static int layec_c_lexer_read_next_char(layec_c_lexer* lexer, bool allow_comment
                     layec_location location = (layec_location)
                     {
                         .source_id = lexer->source_id,
-                        .offset = lexer->cur - lexer->source_buffer.text,
+                        .offset = lexer->cur - lexer->source_buffer.text.data,
                         .length = 1,
                     };
                     layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_WARN,

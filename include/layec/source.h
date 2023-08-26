@@ -26,9 +26,9 @@ struct layec_location
 struct layec_source_buffer
 {
     /// The name of this buffer. This could come from the file path used to create it or be arbitrary for compiler-created buffers.
-    const char* name;
+    layec_string_view name;
     /// Nul-terminated string containing the source text for this buffer.
-    const char* text;
+    layec_string_view text;
 };
 
 bool is_space(int c);
