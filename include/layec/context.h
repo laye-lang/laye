@@ -13,7 +13,11 @@ struct layec_context
 {
     // input args
     bool help;
+    bool version;
     bool verbose;
+
+    bool parse_only;
+    bool print_ast;
 
     vector(layec_string_view) include_dirs;
     vector(layec_string_view) input_file_names;
