@@ -29,10 +29,10 @@ Contributions to this project are always welcome! If you want to add or change a
 
 High level goals, in roughly the order we aim to achieve them:
 
-1. [ ] Lex C source without a preprocessor.
-2. [ ] Apply a subset of the preprocessor to C while lexing.
+1. [X] Lex C source without a preprocessor.
+2. [X] Apply a subset of the preprocessor to C while lexing.
 3. [ ] Successfully lex the project's source.
-4. [ ] Lex Laye source.
+4. [X] Lex Laye source.
 5. [ ] Successfully lex the project's source again.
 6. [ ] Parse subset of C source necessary for a simple but complete C program.
 7. [ ] Successfully parse the project's source.
