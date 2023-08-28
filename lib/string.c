@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "layec/context.h"
 #include "layec/string.h"
 
 layec_string_view layec_string_view_create(const char* data, long long length)
@@ -61,19 +62,19 @@ bool layec_string_view_ends_with_cstring(layec_string_view s, const char* end)
     return 0 == strncmp(s.data + s.length - end_len, end, end_len);
 }
 
-layec_string_view layec_string_view_concat(layec_string_view s0, layec_string_view s1)
+layec_string_view layec_string_view_concat(layec_context* context, layec_string_view s0, layec_string_view s1)
 {
     layec_string_builder builder = {0};
     layec_string_builder_append_string_view(&builder, s0);
     layec_string_builder_append_string_view(&builder, s1);
 
-    layec_string_view result = layec_string_builder_to_string_view(&builder);
+    layec_string_view result = layec_context_intern_string_builder(context, builder);
     layec_string_builder_destroy(&builder);
 
     return result;
 }
 
-layec_string_view layec_string_view_path_concat(layec_string_view s0, layec_string_view s1)
+layec_string_view layec_string_view_path_concat(layec_context* context, layec_string_view s0, layec_string_view s1)
 {
     bool s0_has_slash = layec_string_view_ends_with_cstring(s0, "/") || layec_string_view_ends_with_cstring(s0, "\\");
     bool s1_has_slash = layec_string_view_starts_with_cstring(s1, "/") || layec_string_view_starts_with_cstring(s1, "\\");
@@ -93,7 +94,7 @@ layec_string_view layec_string_view_path_concat(layec_string_view s0, layec_stri
         layec_string_builder_append_string_view(&builder, s1);
     }
 
-    layec_string_view result = layec_string_builder_to_string_view(&builder);
+    layec_string_view result = layec_context_intern_string_builder(context, builder);
     layec_string_builder_destroy(&builder);
 
     return result;
@@ -113,6 +114,7 @@ layec_string_view layec_string_view_get_parent_path(layec_string_view s)
 void layec_string_builder_destroy(layec_string_builder* sb)
 {
     vector_free(sb->data);
+    sb->data = NULL;
 }
 
 void layec_string_builder_append_rune(layec_string_builder* sb, int rune)
@@ -127,16 +129,6 @@ void layec_string_builder_append_string_view(layec_string_builder* sb, layec_str
 {
     for (long long i = 0; i < s.length; i++)
         layec_string_builder_append_rune(sb, s.data[i]);
-}
-
-layec_string_view layec_string_builder_to_string_view(layec_string_builder* sb)
-{
-    assert(sb);
-    unsigned long long count = (unsigned long long)vector_count(sb->data);
-    char* result = malloc(count + 1);
-    result[count] = 0;
-    memcpy(result, sb->data, (unsigned long long)count);
-    return layec_string_view_create(result, (long long)count);
 }
 
 char* layec_string_builder_to_cstring(layec_string_builder* sb)

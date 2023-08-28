@@ -44,5 +44,7 @@ void layec_c_token_print(layec_context* context, layec_c_token token)
 
 void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer)
 {
+    vector_free(token_buffer->syntactic_tokens);
     vector_free(token_buffer->semantic_tokens);
+    *token_buffer = (layec_c_token_buffer){0};
 }

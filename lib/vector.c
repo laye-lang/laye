@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "layec/vector.h"
 
 void layec_vector_maybe_expand(void** vector_ref, long long element_size, long long required_count)

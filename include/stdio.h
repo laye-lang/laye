@@ -19,5 +19,6 @@ int fclose(FILE* stream);
 size_t fread(void* buffer, size_t size, size_t member_count, FILE* stream);
 int fseek(FILE* stream, long int offset, int whence);
 long int ftell(FILE* stream);
+int ferror(FILE* stream);
 
 #endif // LAYEC_LIBC_STDIO_H

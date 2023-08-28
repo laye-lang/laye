@@ -427,8 +427,9 @@ static void layec_laye_lexer_read_token(layec_laye_lexer* lexer, layec_laye_toke
                 layec_laye_lexer_advance(lexer);
 
             layec_location ident_end_location = layec_laye_lexer_get_location(lexer);
-            out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
-                ident_end_location.offset - start_location.offset);
+            out_token->string_value = layec_context_intern_string_view(lexer->context,
+                layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
+                    ident_end_location.offset - start_location.offset));
                 
             for (int i = 0; laye1_keywords[i].name != NULL; i++)
             {

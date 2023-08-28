@@ -21,4 +21,7 @@ struct layec_c_translation_unit
     vector(layec_c_macro_def*) macro_defs;
 };
 
+void layec_c_macro_def_destroy(layec_c_macro_def* def);
+void layec_c_translation_unit_destroy(layec_c_translation_unit* tu);
+
 #endif // LAYEC_C_TRANSLATION_UNIT_H
