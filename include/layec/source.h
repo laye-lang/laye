@@ -38,6 +38,8 @@ bool is_alpha_numeric(int c);
 bool is_hex_digit(int c);
 int get_digit_value(int c);
 
+layec_source_buffer layec_source_buffer_create(layec_string_view name, layec_string_view text);
+
 /// Return a view into the original source text at this location.
 layec_string_view layec_location_get_source_image(layec_context* context, layec_location location);
 void layec_location_print(layec_context* context, layec_location location);

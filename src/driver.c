@@ -85,7 +85,7 @@ static void handle_input_file(layec_context* context, int source_id)
         layec_c_translation_unit* tu = calloc(1, sizeof *tu);
         layec_c_token_buffer token_buffer = layec_c_get_tokens(context, tu, source_id);
 
-#if false
+#if true
         for (long long i = 0; i < vector_count(token_buffer.semantic_tokens); i++)
         {
             layec_c_token token = token_buffer.semantic_tokens[i];
@@ -97,6 +97,7 @@ static void handle_input_file(layec_context* context, int source_id)
 #endif
 
         layec_c_token_buffer_destroy(&token_buffer);
+        layec_c_translation_unit_destroy(tu);
     }
     else if (layec_string_view_ends_with_cstring(file_name, ".laye"))
     {

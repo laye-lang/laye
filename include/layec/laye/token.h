@@ -38,7 +38,6 @@ struct layec_laye_token_buffer
 };
 
 const char* layec_laye_token_kind_to_string(layec_laye_token_kind kind);
-
 void layec_laye_token_print(layec_context* context, layec_laye_token token);
 
 void layec_laye_token_buffer_destroy(layec_laye_token_buffer* token_buffer);

@@ -46,4 +46,5 @@ void layec_laye_token_print(layec_context* context, layec_laye_token token)
 void layec_laye_token_buffer_destroy(layec_laye_token_buffer* token_buffer)
 {
     vector_free(token_buffer->tokens);
+    *token_buffer = (layec_laye_token_buffer){0};
 }

@@ -17,6 +17,15 @@ int get_digit_value(int c)
     return 0;
 }
 
+layec_source_buffer layec_source_buffer_create(layec_string_view name, layec_string_view text)
+{
+    return (layec_source_buffer)
+    {
+        .name = name,
+        .text = text,
+    };
+}
+
 layec_string_view layec_location_get_source_image(layec_context* context, layec_location location)
 {
     assert(context);

@@ -38,6 +38,14 @@ struct layec_c_macro_expansion
     long long arg_position;
 };
 
+static void layec_c_macro_expansion_destroy(layec_c_macro_expansion* expansion)
+{
+    for (long long i = 0; i < vector_count(expansion->args); i++)
+        vector_free(expansion->args[i]);
+    vector_free(expansion->args);
+    *expansion = (layec_c_macro_expansion){0};
+}
+
 struct keyword_info
 {
     const char* name;
@@ -121,6 +129,7 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, layec_c_translat
         vector_push(token_buffer.semantic_tokens, token);
     }
 
+    vector_free(lexer.macro_expansions);
     return token_buffer;
 }
 
@@ -473,10 +482,10 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             }
             else layec_c_lexer_advance(lexer, false);
 
-            char* string_data = layec_string_builder_to_cstring(&builder);
+            layec_string_view string_value = layec_context_intern_string_builder(lexer->context, builder);
             layec_string_builder_destroy(&builder);
             
-            out_token->string_value = layec_string_view_create(string_data, (long long)strlen(string_data));
+            out_token->string_value = string_value;
         } break;
         
         case '0': case '1': case '2': case '3': case '4': 
@@ -512,8 +521,9 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                 do layec_c_lexer_advance(lexer, true);
                 while (is_alpha_numeric(lexer->current_char));
                 layec_location suffix_end_location = layec_c_lexer_get_location(lexer);
-                out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, suffix_location.offset,
-                    suffix_end_location.offset - suffix_location.offset);
+                out_token->string_value = layec_context_intern_string_view(lexer->context,
+                    layec_string_view_slice(lexer->source_buffer.text, suffix_location.offset,
+                        suffix_end_location.offset - suffix_location.offset));
             }
 
             if (suffix_view.length != 0)
@@ -551,8 +561,9 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
                 layec_c_lexer_advance(lexer, true);
 
             layec_location ident_end_location = layec_c_lexer_get_location(lexer);
-            out_token->string_value = layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
-                ident_end_location.offset - start_location.offset);
+            out_token->string_value = layec_context_intern_string_view(lexer->context,
+                layec_string_view_slice(lexer->source_buffer.text, start_location.offset,
+                    ident_end_location.offset - start_location.offset));
         } break;
 
         default:
@@ -608,7 +619,10 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                 macro_expansion->arg_position = 0;
 
                 if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                {
+                    layec_c_macro_expansion_destroy(macro_expansion);
                     vector_pop(lexer->macro_expansions);
+                }
             }
         }
         else
@@ -617,6 +631,7 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
             vector(layec_c_token) body = macro_expansion->def->body;
             if (macro_expansion->body_position >= vector_count(body))
             {
+                layec_c_macro_expansion_destroy(macro_expansion);
                 vector_pop(lexer->macro_expansions);
                 goto regular_lex_token;
             }
@@ -639,7 +654,10 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
             }
             
             if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+            {
+                layec_c_macro_expansion_destroy(macro_expansion);
                 vector_pop(lexer->macro_expansions);
+            }
         }
 
         return;
@@ -751,6 +769,7 @@ static void layec_c_lexer_skip_to_end_of_directive(layec_c_lexer* lexer, layec_c
     assert(lexer->is_in_preprocessor);
     while (token.kind != LAYEC_CTK_EOF && token.kind != '\n')
     {
+        token = (layec_c_token){0};
         layec_c_lexer_read_token_no_preprocess(lexer, &token);
     }
 
@@ -932,15 +951,11 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
         0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length));
 
     layec_location include_location = token.location;
-
-    lexer->is_in_include = true;
     layec_c_lexer_read_token_no_preprocess(lexer, &token);
+    lexer->is_in_include = true;
 
     bool is_angle_string = false;
-    layec_string_view include_path = {
-        .data = "",
-        .length = 0,
-    };
+    layec_string_view include_path = LAYEC_STRING_VIEW_EMPTY;
 
     if (token.kind == '\n')
     {
@@ -984,25 +999,21 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
         if (!is_angle_string)
         {
             layec_string_view parent_dir = lexer->source_buffer.name;
-            layec_string_view include_path2 = layec_string_view_path_concat(parent_dir, include_path);
+            layec_string_view include_path2 = layec_string_view_path_concat(lexer->context, parent_dir, include_path);
 
             include_source_id = layec_context_get_or_add_source_buffer_from_file(lexer->context, include_path2);
             if (include_source_id > 0)
                 goto good_include_gogogo;
-            
-            free((void*)include_path2.data);
         }
 
         for (long long i = 0; i < vector_count(lexer->context->include_dirs); i++)
         {
             layec_string_view include_dir = lexer->context->include_dirs[i];
-            layec_string_view include_path2 = layec_string_view_path_concat(include_dir, include_path);
+            layec_string_view include_path2 = layec_string_view_path_concat(lexer->context, include_dir, include_path);
             
             include_source_id = layec_context_get_or_add_source_buffer_from_file(lexer->context, include_path2);
             if (include_source_id > 0)
                 goto good_include_gogogo;
-            
-            free((void*)include_path2.data);
         }
 
         goto handle_include_error;
@@ -1012,7 +1023,7 @@ good_include_gogogo:;
     layec_c_token_buffer include_token_buffer = layec_c_get_tokens(lexer->context, lexer->tu, include_source_id);
     
     layec_c_macro_def* include_macro_def = calloc(1, sizeof *include_macro_def);
-    include_macro_def->name = layec_string_view_create("< include >", strlen("< include >"));
+    include_macro_def->name = LAYEC_STRING_VIEW_CONSTANT("< include >");
     include_macro_def->body = include_token_buffer.semantic_tokens;
 
     vector_push(lexer->tu->macro_defs, include_macro_def);

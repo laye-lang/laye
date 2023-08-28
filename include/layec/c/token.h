@@ -53,7 +53,6 @@ struct layec_c_token_buffer
 };
 
 const char* layec_c_token_kind_to_string(layec_c_token_kind kind);
-
 void layec_c_token_print(layec_context* context, layec_c_token token);
 
 void layec_c_token_buffer_destroy(layec_c_token_buffer* token_buffer);
