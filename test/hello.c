@@ -1,5 +1,5 @@
-#include "test/block.h"
-#include "test/var.h"
-int main() BLOCK
-void foo() { VAR(bar); }
-void foo() { VAR2(bar, 69); }
+
+#define NICE 69
+#define STR_(X) #X
+#define STR(X) STR_(X)
+const char* idk = STR(NICE);

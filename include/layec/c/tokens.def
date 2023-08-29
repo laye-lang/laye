@@ -1,5 +1,6 @@
 // Other Delimiters
 CTK(TRIPLE_DOT, "...")
+CTK(PP_HASH_HASH, "##")
 
 // Assignment Operators
 CTK(PLUS_EQUAL, "+=")

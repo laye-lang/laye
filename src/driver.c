@@ -57,7 +57,7 @@ int main(int argc, char** argv)
         int source_id = layec_context_get_or_add_source_buffer_from_file(context, file_path);
         if (source_id <= 0)
         {
-            printf("could not read included file '%.*s'", LAYEC_STRING_VIEW_EXPAND(file_path));
+            printf("could not read file '%.*s'\n", LAYEC_STRING_VIEW_EXPAND(file_path));
             layec_context_destroy(context);
             return 1;
         }

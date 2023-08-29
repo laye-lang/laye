@@ -207,6 +207,20 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             if (lexer->current_char != 0 && lexer->cur < lexer->end) assert(lexer->at_start_of_line);
         } break;
 
+        case '#':
+        {
+            if (!lexer->is_in_preprocessor)
+                goto default_case;
+            
+            layec_c_lexer_advance(lexer, true);
+            if (lexer->current_char == '#')
+            {
+                layec_c_lexer_advance(lexer, true);
+                out_token->kind = LAYEC_CTK_PP_HASH_HASH;
+            }
+            else out_token->kind = '#';
+        } break;
+
         case '~': case '?':
         case '(': case ')':
         case '[': case ']':
@@ -568,6 +582,7 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
 
         default:
         {
+        default_case:;
             layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                 start_location);
             printf("Invalid character in source text");
@@ -610,8 +625,122 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
         if (macro_expansion->arg_index >= 0)
         {
             long long arg_position = macro_expansion->arg_position;
+            assert(macro_expansion->arg_index < vector_count(macro_expansion->args));
+            assert(arg_position < vector_count(macro_expansion->args[macro_expansion->arg_index]));
             *out_token = macro_expansion->args[macro_expansion->arg_index][arg_position];
             macro_expansion->arg_position++;
+
+            if (out_token->kind == LAYEC_CTK_IDENT)
+            {
+                layec_c_macro_def* arg_macro_def = layec_c_lexer_lookup_macro_def(lexer, out_token->string_value);
+                if (arg_macro_def)
+                {
+                    if (arg_macro_def->has_params)
+                    {
+                        layec_c_token arg_token = {0};
+                        if (macro_expansion->arg_position < vector_count(macro_expansion->args[macro_expansion->arg_index]))
+                            arg_token = macro_expansion->args[macro_expansion->arg_index][macro_expansion->arg_position];
+
+                        if (arg_token.kind != '(')
+                            goto arg_not_a_macro;
+                            
+                        macro_expansion->arg_position++;
+
+                        vector(vector(layec_c_token)) args = NULL;
+                        vector(layec_c_token) current_arg = NULL;
+                        
+                        int paren_nesting = 0;
+                        for (;;)
+                        {
+                            if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
+                            {
+                                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                                    arg_token.location);
+                                printf("expected ')' in macro argument list");
+                                layec_c_lexer_advance(lexer, true);
+                                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                                    arg_token.location);
+                                    
+                                out_token->kind = LAYEC_CTK_EOF;
+                                break;
+                            }
+
+                            arg_token = macro_expansion->args[macro_expansion->arg_index][macro_expansion->arg_position];
+                            macro_expansion->arg_position++;
+
+                            if (arg_token.kind == ')')
+                            {
+                                if (paren_nesting == 0)
+                                {
+                                    vector_push(args, current_arg);
+                                    current_arg = NULL;
+                                    break;
+                                }
+                                else paren_nesting--;
+                            }
+                            else if (arg_token.kind == ',' && paren_nesting == 0)
+                            {
+                                vector_push(args, current_arg);
+                                current_arg = NULL;
+                                continue;
+                            }
+                            else if (arg_token.kind == '(')
+                                paren_nesting++;
+
+                            vector_push(current_arg, arg_token);
+                        }
+
+                        layec_c_macro_expansion arg_macro_expansion =
+                        {
+                            .def = arg_macro_def,
+                            .args = args,
+                            .arg_index = -1,
+                        };
+
+                        if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
+                        {
+                            macro_expansion->arg_index = -1;
+                            macro_expansion->arg_position = 0;
+
+                            if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                            {
+                                layec_c_macro_expansion_destroy(macro_expansion);
+                                vector_pop(lexer->macro_expansions);
+                            }
+                        }
+
+                        vector_push(lexer->macro_expansions, arg_macro_expansion);
+                    }
+                    else
+                    {
+                        layec_c_macro_expansion arg_macro_expansion =
+                        {
+                            .def = arg_macro_def,
+                            .arg_index = -1,
+                        };
+
+                        if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
+                        {
+                            macro_expansion->arg_index = -1;
+                            macro_expansion->arg_position = 0;
+
+                            if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                            {
+                                layec_c_macro_expansion_destroy(macro_expansion);
+                                vector_pop(lexer->macro_expansions);
+                            }
+                        }
+
+                        vector_push(lexer->macro_expansions, arg_macro_expansion);
+                    }
+                    
+                    *out_token = (layec_c_token){0};
+                    layec_c_lexer_read_token(lexer, out_token);
+                    return;
+                }
+
+            arg_not_a_macro:;
+            }
 
             if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
             {
@@ -643,16 +772,83 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
             *out_token = macro_expansion->def->body[body_position];
             macro_expansion->body_position++;
 
-            if (out_token->is_macro_param)
+            if (out_token->kind == '#')
             {
-                macro_expansion->arg_index = out_token->macro_param_index;
-                macro_expansion->arg_position = 0;
+                if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                {
+                    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                        out_token->location);
+                    printf("expected macro argument name");
+                    layec_c_lexer_advance(lexer, true);
+                    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                        out_token->location);
+                        
+                    layec_c_macro_expansion_destroy(macro_expansion);
+                    vector_pop(lexer->macro_expansions);
+                    goto regular_lex_token;
+                }
 
-                *out_token = (layec_c_token){0};
-                layec_c_lexer_read_token(lexer, out_token);
-                return;
+                *out_token = macro_expansion->def->body[macro_expansion->body_position];
+                macro_expansion->body_position++;
+
+                if (out_token->kind != LAYEC_CTK_IDENT)
+                {
+                    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                        out_token->location);
+                    printf("expected macro argument name");
+                    layec_c_lexer_advance(lexer, true);
+                    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                        out_token->location);
+                }
+                else
+                {
+                    if (!out_token->is_macro_param)
+                    {
+                        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                            out_token->location);
+                        printf("expected macro argument name");
+                        layec_c_lexer_advance(lexer, true);
+                        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                            out_token->location);
+                    }
+                    else
+                    {
+                        assert(out_token->macro_param_index < vector_count(macro_expansion->args));
+                        vector(layec_c_token) arg_tokens = macro_expansion->args[out_token->macro_param_index];
+
+                        layec_string_builder builder = {0};
+
+                        for (long long i = 0; i < vector_count(arg_tokens); i++)
+                        {
+                            if (i > 0) layec_string_builder_append_rune(&builder, ' ');
+                            layec_string_builder_append_string_view(&builder,
+                                layec_location_get_source_image(lexer->context, arg_tokens[i].location));
+                        }
+
+                        *out_token = (layec_c_token)
+                        {
+                            .kind = LAYEC_CTK_LIT_STRING,
+                            .location = out_token->location,
+                            .string_value = layec_context_intern_string_builder(lexer->context, builder),
+                        };
+
+                        layec_string_builder_destroy(&builder);
+                    }
+                }
             }
-            
+            else
+            {
+                if (out_token->is_macro_param)
+                {
+                    macro_expansion->arg_index = out_token->macro_param_index;
+                    macro_expansion->arg_position = 0;
+
+                    *out_token = (layec_c_token){0};
+                    layec_c_lexer_read_token(lexer, out_token);
+                    return;
+                }
+            }
+
             if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
             {
                 layec_c_macro_expansion_destroy(macro_expansion);
@@ -693,6 +889,8 @@ regular_lex_token:;
 
                 vector(vector(layec_c_token)) args = NULL;
                 vector(layec_c_token) current_arg = NULL;
+
+                int paren_nesting = 0;
                 for (;;)
                 {
                     if (layec_c_lexer_at_eof(lexer))
@@ -712,16 +910,22 @@ regular_lex_token:;
                     layec_c_lexer_read_token_no_preprocess(lexer, &arg_token);
                     if (arg_token.kind == ')')
                     {
-                        vector_push(args, current_arg);
-                        current_arg = NULL;
-                        break;
+                        if (paren_nesting == 0)
+                        {
+                            vector_push(args, current_arg);
+                            current_arg = NULL;
+                            break;
+                        }
+                        else paren_nesting--;
                     }
-                    else if (arg_token.kind == ',')
+                    else if (arg_token.kind == ',' && paren_nesting == 0)
                     {
                         vector_push(args, current_arg);
                         current_arg = NULL;
                         continue;
                     }
+                    else if (arg_token.kind == '(')
+                        paren_nesting++;
 
                     vector_push(current_arg, arg_token);
                 }
