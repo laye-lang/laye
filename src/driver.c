@@ -23,7 +23,7 @@ const char* usage_text =
 "--print-ast        Print parse trees for input source files\n"
 "--verbose          Enable verbose output\n"
 "--version          Print the compiler name and version information, then exit\n"
-;
+"\n";
 
 static bool parse_args(layec_context* context, int argc, char** argv);
 static void arg_shift(int* argc, char*** argv);
@@ -120,6 +120,7 @@ static void handle_input_file(layec_context* context, int source_id)
 
         if (context->print_ast)
         {
+            printf("----- tokens in source file %.*s\n", LAYEC_STRING_VIEW_EXPAND(file_name));
             for (long long i = 0; i < vector_count(token_buffer.semantic_tokens); i++)
             {
                 layec_c_token token = token_buffer.semantic_tokens[i];
@@ -128,6 +129,8 @@ static void handle_input_file(layec_context* context, int source_id)
                 layec_c_token_print(context, token);
                 printf("\n");
             }
+
+            printf("\n");
         }
 
         layec_c_token_buffer_destroy(&token_buffer);
@@ -139,6 +142,7 @@ static void handle_input_file(layec_context* context, int source_id)
 
         if (context->print_ast)
         {
+            printf("----- tokens in source file %.*s\n", LAYEC_STRING_VIEW_EXPAND(file_name));
             for (long long i = 0; i < vector_count(token_buffer.tokens); i++)
             {
                 layec_laye_token token = token_buffer.tokens[i];
@@ -147,6 +151,8 @@ static void handle_input_file(layec_context* context, int source_id)
                 layec_laye_token_print(context, token);
                 printf("\n");
             }
+            
+            printf("\n");
         }
 
         layec_laye_token_buffer_destroy(&token_buffer);
