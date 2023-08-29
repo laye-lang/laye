@@ -26,7 +26,7 @@ struct layec_c_lexer
     bool is_in_preprocessor;
     bool is_in_include;
 
-    vector(layec_c_macro_expansion) macro_expansions;
+    vector(layec_c_macro_expansion*) macro_expansions;
 };
 
 struct layec_c_macro_expansion
@@ -38,12 +38,22 @@ struct layec_c_macro_expansion
     long long arg_position;
 };
 
+static layec_c_macro_expansion* layec_c_macro_expansion_create(layec_c_macro_def* def, vector(vector(layec_c_token)) args, long long arg_index)
+{
+    layec_c_macro_expansion* expansion = calloc(1, sizeof *expansion);
+    expansion->def = def;
+    expansion->args = args;
+    expansion->arg_index = arg_index;
+    return expansion;
+}
+
 static void layec_c_macro_expansion_destroy(layec_c_macro_expansion* expansion)
 {
     for (long long i = 0; i < vector_count(expansion->args); i++)
         vector_free(expansion->args[i]);
     vector_free(expansion->args);
     *expansion = (layec_c_macro_expansion){0};
+    free(expansion);
 }
 
 struct keyword_info
@@ -619,7 +629,7 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
     assert(lexer);
     if (vector_count(lexer->macro_expansions) > 0)
     {
-        layec_c_macro_expansion* macro_expansion = vector_back(lexer->macro_expansions);
+        layec_c_macro_expansion* macro_expansion = *vector_back(lexer->macro_expansions);
         assert(macro_expansion);
 
         if (macro_expansion->arg_index >= 0)
@@ -686,17 +696,42 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                             }
                             else if (arg_token.kind == '(')
                                 paren_nesting++;
+                            else if (arg_token.kind == LAYEC_CTK_IDENT)
+                            {
+                                if (arg_token.is_macro_param)
+                                {
+                                    for (long long mpai = 0; mpai < vector_count(macro_expansion->args[arg_token.macro_param_index]); mpai++)
+                                    {
+                                        layec_c_token mpai_token = macro_expansion->args[arg_token.macro_param_index][mpai];
+                                        if (mpai_token.kind == LAYEC_CTK_IDENT)
+                                        {
+                                            layec_c_macro_def* mpai_macro_def = layec_c_lexer_lookup_macro_def(lexer, mpai_token.string_value);
+                                            if (mpai_macro_def && !mpai_macro_def->has_params)
+                                            {
+                                                for (long long wpai = 0; wpai < vector_count(mpai_macro_def->body); wpai++)
+                                                    vector_push(current_arg, mpai_macro_def->body[wpai]);
+                                            }
+                                            else vector_push(current_arg, mpai_token);
+                                        }
+                                        else vector_push(current_arg, mpai_token);
+                                    }
+                                    continue;
+                                }
+                                else
+                                {
+                                    layec_c_macro_def* within_arg_macro_def = layec_c_lexer_lookup_macro_def(lexer, arg_token.string_value);
+                                    if (within_arg_macro_def && !within_arg_macro_def->has_params)
+                                    {
+                                        for (long long wamdi = 0; wamdi < vector_count(within_arg_macro_def->body); wamdi++)
+                                            vector_push(current_arg, within_arg_macro_def->body[wamdi]);
+                                        continue;
+                                    }
+                                }
+                            }
 
                             vector_push(current_arg, arg_token);
                         }
 
-                        layec_c_macro_expansion arg_macro_expansion =
-                        {
-                            .def = arg_macro_def,
-                            .args = args,
-                            .arg_index = -1,
-                        };
-
                         if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
                         {
                             macro_expansion->arg_index = -1;
@@ -709,16 +744,11 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                             }
                         }
 
+                        layec_c_macro_expansion* arg_macro_expansion = layec_c_macro_expansion_create(arg_macro_def, args, -1);
                         vector_push(lexer->macro_expansions, arg_macro_expansion);
                     }
                     else
                     {
-                        layec_c_macro_expansion arg_macro_expansion =
-                        {
-                            .def = arg_macro_def,
-                            .arg_index = -1,
-                        };
-
                         if (macro_expansion->arg_position >= vector_count(macro_expansion->args[macro_expansion->arg_index]))
                         {
                             macro_expansion->arg_index = -1;
@@ -731,6 +761,7 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                             }
                         }
 
+                        layec_c_macro_expansion* arg_macro_expansion = layec_c_macro_expansion_create(arg_macro_def, NULL, -1);
                         vector_push(lexer->macro_expansions, arg_macro_expansion);
                     }
                     
@@ -818,11 +849,11 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
 
                         layec_string_builder builder = {0};
 
-                        for (long long i = 0; i < vector_count(arg_tokens); i++)
+                        for (long long ati = 0; ati < vector_count(arg_tokens); ati++)
                         {
-                            if (i > 0) layec_string_builder_append_rune(&builder, ' ');
+                            if (ati > 0) layec_string_builder_append_rune(&builder, ' ');
                             layec_string_builder_append_string_view(&builder,
-                                layec_location_get_source_image(lexer->context, arg_tokens[i].location));
+                                layec_location_get_source_image(lexer->context, arg_tokens[ati].location));
                         }
 
                         *out_token = (layec_c_token)
@@ -836,7 +867,7 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                     }
                 }
             }
-            else
+            else if (out_token->kind == LAYEC_CTK_IDENT)
             {
                 if (out_token->is_macro_param)
                 {
@@ -846,6 +877,126 @@ static void layec_c_lexer_read_token(layec_c_lexer* lexer, layec_c_token* out_to
                     *out_token = (layec_c_token){0};
                     layec_c_lexer_read_token(lexer, out_token);
                     return;
+                }
+                else
+                {
+                    layec_c_macro_def* arg_macro_def = layec_c_lexer_lookup_macro_def(lexer, out_token->string_value);
+                    if (arg_macro_def)
+                    {
+                        if (arg_macro_def->has_params)
+                        {
+                            layec_c_token arg_token = {0};
+                            if (macro_expansion->body_position < vector_count(macro_expansion->def->body))
+                                arg_token = macro_expansion->def->body[macro_expansion->body_position];
+
+                            if (arg_token.kind != '(')
+                                goto token_not_a_macro;
+                                
+                            macro_expansion->body_position++;
+
+                            vector(vector(layec_c_token)) args = NULL;
+                            vector(layec_c_token) current_arg = NULL;
+                            
+                            int paren_nesting = 0;
+                            for (;;)
+                            {
+                                if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                                {
+                                    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                                        arg_token.location);
+                                    printf("expected ')' in macro argument list");
+                                    layec_c_lexer_advance(lexer, true);
+                                    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                                        arg_token.location);
+                                        
+                                    out_token->kind = LAYEC_CTK_EOF;
+                                    break;
+                                }
+
+                                arg_token = macro_expansion->def->body[macro_expansion->body_position];
+                                macro_expansion->body_position++;
+
+                                if (arg_token.kind == ')')
+                                {
+                                    if (paren_nesting == 0)
+                                    {
+                                        vector_push(args, current_arg);
+                                        current_arg = NULL;
+                                        break;
+                                    }
+                                    else paren_nesting--;
+                                }
+                                else if (arg_token.kind == ',' && paren_nesting == 0)
+                                {
+                                    vector_push(args, current_arg);
+                                    current_arg = NULL;
+                                    continue;
+                                }
+                                else if (arg_token.kind == '(')
+                                    paren_nesting++;
+                                else if (arg_token.kind == LAYEC_CTK_IDENT)
+                                {
+                                    if (arg_token.is_macro_param)
+                                    {
+                                        for (long long mpai = 0; mpai < vector_count(macro_expansion->args[arg_token.macro_param_index]); mpai++)
+                                        {
+                                            layec_c_token mpai_token = macro_expansion->args[arg_token.macro_param_index][mpai];
+                                            if (mpai_token.kind == LAYEC_CTK_IDENT)
+                                            {
+                                                layec_c_macro_def* mpai_macro_def = layec_c_lexer_lookup_macro_def(lexer, mpai_token.string_value);
+                                                if (mpai_macro_def && !mpai_macro_def->has_params)
+                                                {
+                                                    for (long long wpai = 0; wpai < vector_count(mpai_macro_def->body); wpai++)
+                                                        vector_push(current_arg, mpai_macro_def->body[wpai]);
+                                                }
+                                                else vector_push(current_arg, mpai_token);
+                                            }
+                                            else vector_push(current_arg, mpai_token);
+                                        }
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        layec_c_macro_def* within_token_macro_def = layec_c_lexer_lookup_macro_def(lexer, arg_token.string_value);
+                                        if (within_token_macro_def && !within_token_macro_def->has_params)
+                                        {
+                                            for (long long wamdi = 0; wamdi < vector_count(within_token_macro_def->body); wamdi++)
+                                                vector_push(current_arg, within_token_macro_def->body[wamdi]);
+                                            continue;
+                                        }
+                                    }
+                                }
+
+                                vector_push(current_arg, arg_token);
+                            }
+
+                            if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                            {
+                                layec_c_macro_expansion_destroy(macro_expansion);
+                                vector_pop(lexer->macro_expansions);
+                            }
+
+                            layec_c_macro_expansion* token_macro_expansion = layec_c_macro_expansion_create(arg_macro_def, args, -1);
+                            vector_push(lexer->macro_expansions, token_macro_expansion);
+                        }
+                        else
+                        {
+                            if (macro_expansion->body_position >= vector_count(macro_expansion->def->body))
+                            {
+                                layec_c_macro_expansion_destroy(macro_expansion);
+                                vector_pop(lexer->macro_expansions);
+                            }
+
+                            layec_c_macro_expansion* token_macro_expansion = layec_c_macro_expansion_create(arg_macro_def, NULL, -1);
+                            vector_push(lexer->macro_expansions, token_macro_expansion);
+                        }
+                        
+                        *out_token = (layec_c_token){0};
+                        layec_c_lexer_read_token(lexer, out_token);
+                        return;
+                    }
+
+                token_not_a_macro:;
                 }
             }
 
@@ -930,23 +1081,12 @@ regular_lex_token:;
                     vector_push(current_arg, arg_token);
                 }
 
-                layec_c_macro_expansion macro_expansion =
-                {
-                    .def = macro_def,
-                    .args = args,
-                    .arg_index = -1,
-                };
-
+                layec_c_macro_expansion* macro_expansion = layec_c_macro_expansion_create(macro_def, args, -1);
                 vector_push(lexer->macro_expansions, macro_expansion);
             }
             else
             {
-                layec_c_macro_expansion macro_expansion =
-                {
-                    .def = macro_def,
-                    .arg_index = -1,
-                };
-
+                layec_c_macro_expansion* macro_expansion = layec_c_macro_expansion_create(macro_def, NULL, -1);
                 vector_push(lexer->macro_expansions, macro_expansion);
             }
             
@@ -1233,12 +1373,7 @@ good_include_gogogo:;
     vector_push(lexer->tu->macro_defs, include_macro_def);
     layec_c_macro_def* include_macro_def_ptr = *vector_back(lexer->tu->macro_defs);
 
-    layec_c_macro_expansion macro_expansion =
-    {
-        .def = include_macro_def_ptr,
-        .arg_index = -1,
-    };
-
+    layec_c_macro_expansion* macro_expansion = layec_c_macro_expansion_create(include_macro_def_ptr, NULL, -1);
     vector_push(lexer->macro_expansions, macro_expansion);
     return;
 

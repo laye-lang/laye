@@ -39,6 +39,8 @@ void layec_c_token_print(layec_context* context, layec_c_token token)
     {
         layec_string_view token_image = layec_location_get_source_image(context, token.location);
         printf("%s  ::  `%.*s`", kind_name, (int)token_image.length, token_image.data);
+        if (token.kind == LAYEC_CTK_LIT_STRING)
+            printf(" (%.*s)", LAYEC_STRING_VIEW_EXPAND(token.string_value));
     }
 }
 

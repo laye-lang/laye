@@ -1,5 +1,6 @@
 
 #define NICE 69
-#define STR_(X) #X
+#define STR_(Y) # Y
 #define STR(X) STR_(X)
-const char* idk = STR(NICE);
+const char* number = STR(NICE);
+const char* word = STR_(NICE);
