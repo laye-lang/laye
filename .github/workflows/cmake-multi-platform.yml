@@ -31,7 +31,7 @@ jobs:
           - os: windows-latest
             c_compiler: gcc
           - os: windows-latest
-            c_compiler: clang
+            c_compiler: cl
           - os: windows-latest
             generator: MinGW Makefiles
           - os: windows-latest
