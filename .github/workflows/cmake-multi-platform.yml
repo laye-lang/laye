@@ -27,27 +27,18 @@ jobs:
         build_type: [Release]
         c_compiler: [gcc, clang, cl]
         generator: [Ninja, MinGW Makefiles, Unix Makefiles]
-        include:
-          - os: windows-latest
-            c_compiler: cl
-            generator: Ninja
-          - os: windows-latest
-            c_compiler: clang
-            generator: Ninja
-          - os: ubuntu-latest
-            c_compiler: gcc
-            generator: Unix Makefiles
-          - os: ubuntu-latest
-            c_compiler: clang
-            generator: Unix Makefiles
         exclude:
           - os: windows-latest
             c_compiler: gcc
+          - os: windows-latest
+            c_compiler: clang
+          - os: windows-latest
             generator: MinGW Makefiles
           - os: windows-latest
             generator: Unix Makefiles
           - os: ubuntu-latest
             c_compiler: cl
+          - os: ubuntu-latest
             generator: Ninja
           - os: ubuntu-latest
             generator: MinGW Makefiles
@@ -69,7 +60,7 @@ jobs:
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -G ${{ matrix.generator }}
+        -G "${{ matrix.generator }}"
         -S ${{ github.workspace }}
 
     - name: Build
