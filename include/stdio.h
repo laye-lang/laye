@@ -12,6 +12,7 @@ typedef unsigned long long size_t;
 #define SEEK_CUR  (1)
 #define SEEK_END  (2)
 
+int puts(const char* str);
 int printf(const char* format, ...);
 
 FILE* fopen(const char* file_name, const char* mode);

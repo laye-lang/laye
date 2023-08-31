@@ -178,6 +178,48 @@ static void layec_laye_lexer_eat_white_space(layec_laye_lexer* lexer)
     }
 }
 
+static int layec_laye_lexer_read_escape_sequence(layec_laye_lexer* lexer)
+{
+    assert(lexer->current_char == '\\');
+    
+    layec_laye_lexer_advance(lexer);
+    if (layec_laye_lexer_at_eof(lexer))
+    {
+        layec_location location = layec_laye_lexer_get_location(lexer);
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            location);
+        printf("end of file reached when lexing escape sequence");
+        layec_laye_lexer_advance(lexer);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            location);
+        return 0;
+    }
+
+    switch (lexer->current_char)
+    {
+        default:
+        {
+            layec_location location = layec_laye_lexer_get_location(lexer);
+            layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                location);
+            printf("unrecognized escape sequence");
+            layec_laye_lexer_advance(lexer);
+            layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                location);
+            return 0;
+        }
+
+        case '0': return '\0';
+        case 'a': return '\a';
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+    }
+}
+
 static void layec_laye_lexer_read_token(layec_laye_lexer* lexer, layec_laye_token* out_token)
 {
     assert(lexer);
@@ -371,6 +413,51 @@ static void layec_laye_lexer_read_token(layec_laye_lexer* lexer, layec_laye_toke
                 out_token->kind = LAYEC_LTK_BANG_EQUAL;
             }
             else out_token->kind = '!';
+        } break;
+
+        case '"':
+        {
+            layec_string_builder builder = {0};
+
+            layec_laye_lexer_advance(lexer);
+            out_token->kind = LAYEC_LTK_LIT_STRING;
+
+            while (lexer->current_char != '"')
+            {
+                if (layec_laye_lexer_at_eof(lexer))
+                {
+                    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                        start_location);
+                    printf("unfinished string");
+                    layec_laye_lexer_advance(lexer);
+                    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                        start_location);
+                    goto finish_token;
+                }
+                else if (lexer->current_char == '\\')
+                    layec_string_builder_append_rune(&builder, layec_laye_lexer_read_escape_sequence(lexer));
+                else
+                {
+                    layec_string_builder_append_rune(&builder, lexer->current_char);
+                    layec_laye_lexer_advance(lexer);
+                }
+            }
+
+            if (lexer->current_char != '"')
+            {
+                layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                    start_location);
+                printf("missing closing quote");
+                layec_laye_lexer_advance(lexer);
+                layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                    start_location);
+            }
+            else layec_laye_lexer_advance(lexer);
+
+            layec_string_view string_value = layec_context_intern_string_builder(lexer->context, builder);
+            layec_string_builder_destroy(&builder);
+            
+            out_token->string_value = string_value;
         } break;
         
         case '0': case '1': case '2': case '3': case '4': 

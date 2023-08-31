@@ -72,5 +72,5 @@ void layec_location_print(layec_context* context, layec_location location)
     long long line_end_offset;
     get_line_from_source(source_buffer.text, location, &line_number, &line_start_offset, &line_end_offset);
 
-    printf("%.*s:%lld:%lld", LAYEC_STRING_VIEW_EXPAND(source_buffer.name), line_number + 1, 1 + location.offset - line_start_offset);
+    printf("%.*s:%lld:%lld", LAYEC_STRING_VIEW_EXPAND(source_buffer.name), line_number, 1 + location.offset - line_start_offset);
 }

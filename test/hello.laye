@@ -1,6 +1,7 @@
-// test line comment
-int _start() {
-    /* test /* nested
-    */ block comment */
-    return 69;
+import * from "stdio.h";
+
+i32 main()
+{
+    puts("Hello, hunter!");
+    return 0;
 }

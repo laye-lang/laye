@@ -25,6 +25,8 @@ struct layec_c_lexer
     bool at_start_of_line;
     bool is_in_preprocessor;
     bool is_in_include;
+    bool is_in_excluded_text;
+    vector(layec_location) pp_if_stack;
 
     vector(layec_c_macro_expansion*) macro_expansions;
 };
@@ -140,6 +142,8 @@ layec_c_token_buffer layec_c_get_tokens(layec_context* context, layec_c_translat
     }
 
     vector_free(lexer.macro_expansions);
+    vector_free(lexer.pp_if_stack);
+
     return token_buffer;
 }
 
@@ -162,7 +166,7 @@ static int layec_c_lexer_read_escape_sequence(layec_c_lexer* lexer, bool allow_c
         layec_location location = layec_c_lexer_get_location(lexer);
         layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
             location);
-        printf("End of file reached when lexing escape sequence");
+        printf("end of file reached when lexing escape sequence");
         layec_c_lexer_advance(lexer, true);
         layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
             location);
@@ -176,7 +180,7 @@ static int layec_c_lexer_read_escape_sequence(layec_c_lexer* lexer, bool allow_c
             layec_location location = layec_c_lexer_get_location(lexer);
             layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                 location);
-            printf("Unrecognized escape sequence");
+            printf("unrecognized escape sequence");
             layec_c_lexer_advance(lexer, true);
             layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
                 location);
@@ -554,7 +558,7 @@ static void layec_c_lexer_read_token_no_preprocess(layec_c_lexer* lexer, layec_c
             {
                 layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
                     start_location);
-                printf("Integer literal suffixes are not yet supported");
+                printf("integer literal suffixes are not yet supported");
                 layec_c_lexer_advance(lexer, true);
                 layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
                     start_location);
@@ -1131,6 +1135,142 @@ store_macro_in_translation_unit:;
     lexer->is_in_include = false;
 }
 
+static void layec_c_lexer_skip_to_matching_endif(layec_c_lexer* lexer, layec_c_token discard_token)
+{
+    lexer->is_in_excluded_text = true;
+
+    int nested_if_count = 0;
+    bool closed = false;
+
+    discard_token = (layec_c_token){0};
+    while (!layec_c_lexer_at_eof(lexer))
+    {
+        layec_c_lexer_eat_white_space(lexer);
+        while (lexer->at_start_of_line && lexer->current_char == '#')
+        {
+            lexer->is_in_preprocessor = true;
+            layec_c_lexer_advance(lexer, true);
+
+            layec_c_lexer_read_token_no_preprocess(lexer, &discard_token);
+            if (discard_token.kind == LAYEC_CTK_IDENT)
+            {
+                if (layec_string_view_equals(discard_token.string_value, LAYEC_STRING_VIEW_CONSTANT("if")) ||
+                    layec_string_view_equals(discard_token.string_value, LAYEC_STRING_VIEW_CONSTANT("ifdef")) ||
+                    layec_string_view_equals(discard_token.string_value, LAYEC_STRING_VIEW_CONSTANT("ifndef")))
+                {
+                    nested_if_count++;
+                }
+                else if (layec_string_view_equals(discard_token.string_value, LAYEC_STRING_VIEW_CONSTANT("endif")))
+                {
+                    if (nested_if_count == 0)
+                    {
+                        layec_c_lexer_skip_to_end_of_directive(lexer, discard_token);
+                        closed = true;
+                        break;
+                    }
+
+                    nested_if_count--;
+                }
+            }
+
+            layec_c_lexer_skip_to_end_of_directive(lexer, discard_token);
+            assert(!lexer->is_in_preprocessor);
+            
+            layec_c_lexer_eat_white_space(lexer);
+        }
+        
+        layec_c_lexer_read_token_no_preprocess(lexer, &discard_token);
+    }
+    
+    lexer->is_in_excluded_text = false;
+
+    if (!closed)
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            discard_token.location);
+        printf("expected #endif");
+        layec_c_lexer_advance(lexer, true);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            discard_token.location);
+    }
+}
+
+static void layec_c_lexer_handle_ifdef_directive(layec_c_lexer* lexer, layec_c_token token)
+{
+    assert(lexer);
+    assert(lexer->is_in_preprocessor);
+    assert(token.kind == LAYEC_CTK_IDENT &&
+        0 == strncmp(token.string_value.data, "ifdef", (unsigned long long)token.string_value.length));
+
+    layec_location if_location = token.location;
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+    layec_string_view macro_name = LAYEC_STRING_VIEW_EMPTY;
+    if (token.kind == LAYEC_CTK_IDENT)
+    {
+        macro_name = token.string_value;
+    }
+    else
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("expected a macro name");
+        layec_c_lexer_advance(lexer, true);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+    }
+        
+    layec_c_lexer_skip_to_end_of_directive(lexer, token);
+    assert(!lexer->is_in_preprocessor);
+    assert(lexer->at_start_of_line || layec_c_lexer_at_eof(lexer));
+
+    layec_c_macro_def* found_macro_def = layec_c_lexer_lookup_macro_def(lexer, macro_name);
+    if (found_macro_def)
+    {
+        vector_push(lexer->pp_if_stack, if_location);
+        return;
+    }
+    else layec_c_lexer_skip_to_matching_endif(lexer, token);
+}
+
+static void layec_c_lexer_handle_ifndef_directive(layec_c_lexer* lexer, layec_c_token token)
+{
+    assert(lexer);
+    assert(lexer->is_in_preprocessor);
+    assert(token.kind == LAYEC_CTK_IDENT &&
+        0 == strncmp(token.string_value.data, "ifndef", (unsigned long long)token.string_value.length));
+
+    layec_location if_location = token.location;
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
+
+    layec_string_view macro_name = LAYEC_STRING_VIEW_EMPTY;
+    if (token.kind == LAYEC_CTK_IDENT)
+    {
+        macro_name = token.string_value;
+    }
+    else
+    {
+        layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+        printf("expected a macro name");
+        layec_c_lexer_advance(lexer, true);
+        layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+            token.location);
+    }
+        
+    layec_c_lexer_skip_to_end_of_directive(lexer, token);
+    assert(!lexer->is_in_preprocessor);
+    assert(lexer->at_start_of_line || layec_c_lexer_at_eof(lexer));
+
+    layec_c_macro_def* found_macro_def = layec_c_lexer_lookup_macro_def(lexer, macro_name);
+    if (!found_macro_def)
+    {
+        vector_push(lexer->pp_if_stack, if_location);
+        return;
+    }
+    else layec_c_lexer_skip_to_matching_endif(lexer, token);
+}
+
 static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c_token token)
 {
     assert(lexer);
@@ -1139,8 +1279,9 @@ static void layec_c_lexer_handle_include_directive(layec_c_lexer* lexer, layec_c
         0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length));
 
     layec_location include_location = token.location;
-    layec_c_lexer_read_token_no_preprocess(lexer, &token);
     lexer->is_in_include = true;
+    
+    layec_c_lexer_read_token_no_preprocess(lexer, &token);
 
     bool is_angle_string = false;
     layec_string_view include_path = LAYEC_STRING_VIEW_EMPTY;
@@ -1266,6 +1407,25 @@ static void layec_c_lexer_handle_preprocessor_directive(layec_c_lexer* lexer)
                 layec_c_lexer_handle_define_directive(lexer, token);
             else if (0 == strncmp(token.string_value.data, "include", (unsigned long long)token.string_value.length))
                 layec_c_lexer_handle_include_directive(lexer, token);
+            else if (0 == strncmp(token.string_value.data, "ifdef", (unsigned long long)token.string_value.length))
+                layec_c_lexer_handle_ifdef_directive(lexer, token);
+            else if (0 == strncmp(token.string_value.data, "ifndef", (unsigned long long)token.string_value.length))
+                layec_c_lexer_handle_ifndef_directive(lexer, token);
+            else if (0 == strncmp(token.string_value.data, "endif", (unsigned long long)token.string_value.length))
+            {
+                if (vector_count(lexer->pp_if_stack) == 0)
+                {
+                    layec_context_issue_diagnostic_prolog(lexer->context, LAYEC_SEV_ERROR,
+                        token.location);
+                    printf("the #if for this directive is missing");
+                    layec_c_lexer_advance(lexer, true);
+                    layec_context_issue_diagnostic_epilog(lexer->context, LAYEC_SEV_ERROR,
+                        token.location);
+                }
+                else vector_pop(lexer->pp_if_stack);
+
+                layec_c_lexer_skip_to_end_of_directive(lexer, token);
+            }
             else goto invalid_preprocessing_directive;
         } break;
     }
