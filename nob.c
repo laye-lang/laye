@@ -1,4 +1,4 @@
-#define NOB_REBUILD_URSELF(binary_path, source_path) "clang", "-o", binary_path, "-std=c23", source_path
+#define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-o", binary_path, source_path
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
