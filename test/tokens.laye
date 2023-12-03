@@ -1,0 +1,13 @@
+~ ! % & * ( ) [ ] { } | - = + : ; , . / < > ? // comment here
+:: <= >= << >> == != += -= *= /= &= %= |= <<= >>= ~= =>
+main parse_node 3d_object f23
+123_456_789 3433141651 24601 -69 16#DEAD_BEEF 1.23 -0.5
+"Hello, $laye!" "r=\rn=\n \" t=\t v=\v \\"
+'\0' '\n' 'a' 'Z' '$'
+void var noreturn
+bool b32 b7 int uint i32 i27 u19 u64 float f32 f64 f16 f128
+true false nil global
+not and or xor new delete cast try catch nodiscard sizeof alignof offsetof
+varargs const foreign inline callconv(cdecl) 
+if else for do switch case default return break continue defer goto xyzzy
+struct variant enum alias test import export from as operator mut
