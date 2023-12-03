@@ -2,7 +2,7 @@
 
 # How to Build
 
-```
+```bash
 $ clang -o nob nob.c
 $ ./nob
 ```
