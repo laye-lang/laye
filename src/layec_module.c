@@ -16,9 +16,9 @@ layec_module* layec_module_create(layec_context* context, sourceid sourceid) {
 }
 
 void layec_module_destroy(layec_module* module) {
-    assert(module);
-    assert(module->context);
+    if (module == NULL) return;
 
+    assert(module->context);
     lca_allocator allocator = module->context->allocator;
 
     *module = (layec_module){};
