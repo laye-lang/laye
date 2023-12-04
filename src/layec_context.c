@@ -33,10 +33,10 @@ static string read_file_to_string(lca_allocator allocator, string file_path) {
     return string_from_data(allocator, data, count, count + 1);
 }
 
-sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path) {
+layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path) {
     assert(context != NULL);
 
-    sourceid sourceid = 0;
+    layec_sourceid sourceid = 0;
     for (; sourceid < arr_count(context->sources); sourceid++) {
         if (string_view_equals(SV(context->sources[sourceid].name), file_path))
             return sourceid;
@@ -56,7 +56,7 @@ sourceid layec_context_get_or_add_source_from_file(layec_context* context, strin
     return sourceid;
 }
 
-layec_source layec_context_get_source(layec_context* context, sourceid sourceid) {
+layec_source layec_context_get_source(layec_context* context, layec_sourceid sourceid) {
     assert(context != NULL);
     assert(sourceid >= 0 && sourceid < arr_count(context->sources));
     return context->sources[sourceid];

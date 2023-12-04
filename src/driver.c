@@ -10,16 +10,18 @@ int main(int argc, char** argv) {
 
     lca_temp_allocator_init(default_allocator, 1024 * 1024);
     layec_context* context = layec_context_create(default_allocator);
+    assert(context != NULL);
     context->use_color = true;
 
-    sourceid sourceid = layec_context_get_or_add_source_from_file(context, SV_CONSTANT("./test/tokens.laye"));
-    layec_source source = layec_context_get_source(context, sourceid);
+    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, SV_CONSTANT("./test/tokens.laye"));
+    laye_module* module = laye_parse(context, sourceid);
+    assert(module != NULL);
 
-    fprintf(stderr, "// %.*s\n", STR_EXPAND(source.name));
-    fprintf(stderr, "%.*s\n", STR_EXPAND(source.text));
-
+#ifndef NDEBUG
+    laye_module_destroy(module);
     layec_context_destroy(context);
     lca_temp_allocator_clear();
+#endif // !NDEBUG
 
     return 0;
 }

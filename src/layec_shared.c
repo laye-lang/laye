@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "layec.h"
 
 const char* layec_value_category_to_cstring(layec_value_category category) {

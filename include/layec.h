@@ -13,7 +13,7 @@
 
 #define COL(X) (use_color ? ANSI_COLOR_##X : "")
 
-typedef int64_t sourceid;
+typedef int64_t layec_sourceid;
 
 typedef struct layec_source {
     string name;
@@ -29,15 +29,8 @@ typedef struct layec_context {
     dynarr(string) include_directories;
 } layec_context;
 
-typedef struct layec_module {
-    layec_context* context;
-    sourceid sourceid;
-
-    lca_arena* arena;
-} layec_module;
-
 typedef struct layec_location {
-    sourceid sourceid;
+    layec_sourceid sourceid;
     int64_t offset;
     int64_t length;
 } layec_location;
@@ -64,6 +57,30 @@ typedef enum layec_value_category {
 } layec_value_category;
 
 // Laye
+
+typedef enum laye_attribute_flag {
+    LAYE_ATTRIB_FOREIGN = 1 << 0,
+    LAYE_ATTRIB_EXPORT = 1 << 1,
+    LAYE_ATTRIB_DISCARDABLE = 1 << 2,
+} laye_attribute_flag;
+
+typedef enum laye_calling_convention {
+    LAYE_CCC,
+    LAYE_LAYECC,
+} laye_calling_convention;
+
+typedef enum laye_varargs_style {
+    LAYE_VARARGS_NONE,
+    LAYE_VARARGS_C,
+    LAYE_VARARGS_LAYE,
+} laye_varargs_style;
+
+typedef struct laye_module {
+    layec_context* context;
+    layec_sourceid sourceid;
+
+    lca_arena* arena;
+} laye_module;
 
 #define LAYE_TOKEN_KINDS(X) \
     X(EOF)                  \
@@ -246,6 +263,7 @@ typedef struct laye_token {
     X(NEW)                      \
     X(TRY)                      \
     X(CATCH)                    \
+    X(DISCARD)                  \
     X(LITNIL)                   \
     X(LITBOOL)                  \
     X(LITINT)                   \
@@ -340,8 +358,8 @@ struct laye_node {
 layec_context* layec_context_create(lca_allocator allocator);
 void layec_context_destroy(layec_context* context);
 
-sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path);
-layec_source layec_context_get_source(layec_context* context, sourceid sourceid);
+layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path);
+layec_source layec_context_get_source(layec_context* context, layec_sourceid sourceid);
 
 bool layec_context_get_location_info(layec_context* context, layec_location location, string_view* out_name, int64_t* out_line, int64_t* out_column);
 void layec_context_print_location_info(layec_context* context, layec_location location, layec_status status, FILE* stream, bool use_color);
@@ -356,13 +374,6 @@ void layec_write_info(layec_context* context, layec_location location, const cha
 void layec_write_note(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_warn(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_error(layec_context* context, layec_location location, const char* format, ...);
-
-// ========== Module ==========
-
-layec_module* layec_module_create(layec_context* context, sourceid sourceid);
-void layec_module_destroy(layec_module* module);
-
-layec_source layec_module_get_source(layec_module* module);
 
 // ========== Shared Data ==========
 
@@ -388,5 +399,10 @@ bool laye_node_is_rvalue(laye_node* node);
 bool laye_node_is_modifiable_lvalue(laye_node* node);
 
 bool laye_type_is_modifiable(laye_node* node);
+
+laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
+void laye_module_destroy(laye_module* module);
+
+layec_source laye_module_get_source(laye_module* module);
 
 #endif // LAYEC_H
