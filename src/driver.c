@@ -17,6 +17,9 @@ int main(int argc, char** argv) {
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
+    // in release/unsafe builds, we don't need to worry about manually tearing
+    // down all of our allocations. these should always be run in debug/safe
+    // builds so the static analysers (like address sanitizer) can do their magic.
 #ifndef NDEBUG
     laye_module_destroy(module);
     layec_context_destroy(context);
