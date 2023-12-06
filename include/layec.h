@@ -1177,24 +1177,29 @@ void laye_module_destroy(laye_module* module);
 
 layec_source laye_module_get_source(laye_module* module);
 
-laye_scope* laye_scope_create(laye_module* module);
+laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location);
+laye_node* laye_expr_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type);
 
 void laye_node_set_sema_in_progress(laye_node* node);
 void laye_node_set_sema_errored(laye_node* node);
 void laye_node_set_sema_ok(laye_node* node);
 bool laye_node_is_sema_in_progress(laye_node* node);
+bool laye_node_is_sema_ok(laye_node* node);
 bool laye_node_is_sema_ok_or_errored(laye_node* node);
 
 bool laye_node_has_noreturn_semantics(laye_node* node);
 
-laye_node* laye_expr_type(laye_node* node);
-bool laye_expr_evaluate(laye_node* node, layec_evaluated_constant* out_constant, bool is_required);
-bool laye_expr_is_lvalue(laye_node* node);
-bool laye_expr_is_modifiable_lvalue(laye_node* node);
-void laye_expr_set_lvalue(bool is_lvalue);
+bool laye_decl_is_exported(laye_node* decl);
+bool laye_decl_is_template(laye_node* decl);
+
+laye_node* laye_expr_type(laye_node* expr);
+bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant, bool is_required);
+bool laye_expr_is_lvalue(laye_node* expr);
+bool laye_expr_is_modifiable_lvalue(laye_node* expr);
+void laye_expr_set_lvalue(laye_node* expr, bool is_lvalue);
 
 int laye_type_size_in_bits(laye_node* type);
 int laye_type_size_in_bytes(laye_node* type);
