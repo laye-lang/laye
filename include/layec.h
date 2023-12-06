@@ -435,6 +435,10 @@ typedef enum laye_node_kind {
     __LAYE_NODE_TYPE_START__,
     LAYE_NODE_TYPE_KINDS(X)
     __LAYE_NODE_TYPE_END__,
+
+    __LAYE_NODE_META_START__,
+    LAYE_NODE_META_KINDS(X)
+    __LAYE_NODE_META_END__,
 #undef X
 } laye_node_kind;
 // clang-format on
@@ -725,7 +729,7 @@ struct laye_node {
                     laye_node* condition;
                     // the for loop "increment" expression, if one is provided, else null.
                     // may be a statement or expression, but not a declaration.
-                    laye_node* initializer;
+                    laye_node* increment;
                     // if a label was specified on the pass body, it is stored here and
                     // should be handled accordingly. since the pass or fail statements
                     // must only be a single node, the case of labeling the node is handled
