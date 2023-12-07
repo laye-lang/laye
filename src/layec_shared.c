@@ -32,6 +32,6 @@ bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated
         case LAYEC_EVAL_BOOL: return a.bool_value == b.bool_value;
         case LAYEC_EVAL_INT: return a.int_value == b.int_value;
         case LAYEC_EVAL_FLOAT: return a.float_value == b.float_value;
-        case LAYEC_EVAL_STRING: return a.string_value == b.string_value;
+        case LAYEC_EVAL_STRING: return string_equals(a.string_value, b.string_value);
     }
 }
