@@ -258,6 +258,7 @@ typedef struct laye_scope {
     X(NEW)                  \
     X(DELETE)               \
     X(CAST)                 \
+    X(IS)                   \
     X(TRY)                  \
     X(CATCH)                \
     X(SIZEOF)               \
@@ -377,6 +378,7 @@ typedef struct laye_token {
     X(UNARY)                    \
     X(BINARY)                   \
     X(CAST)                     \
+    X(PATTERN_MATCH)            \
     X(UNWRAP_NILABLE)           \
     X(TRY)                      \
     X(CATCH)                    \
@@ -411,7 +413,8 @@ typedef struct laye_token {
     X(TYPE_STRICT_ALIAS)
 
 #define LAYE_NODE_META_KINDS(X) \
-    X(META_ATTRIBUTE)
+    X(META_ATTRIBUTE)           \
+    X(PATTERN)
 
 #define LAYE_NODE_KINDS(X) LAYE_NODE_DECL_KINDS(X) LAYE_NODE_STMT_KINDS(X) LAYE_NODE_EXPR_KINDS(X) LAYE_NODE_TYPE_KINDS(X) LAYE_NODE_META_KINDS(X)
 
@@ -802,7 +805,8 @@ struct laye_node {
                 } _switch;
 
                 struct {
-                    // the value of this case.
+                    bool is_pattern;
+                    // the expression value or pattern of this case.
                     laye_node* value;
                     // the body of this case.
                     // syntactically, a case can be followed by many declarations or statements,
@@ -1119,6 +1123,12 @@ struct laye_node {
                     // mangling scheme argument).
                     layec_mangling mangling;
                 } attribute;
+
+                struct {
+                    // will have to figure out what valid patterns we want and how
+                    // to represent them.
+                    int dummy;
+                } pattern;
             };
         } meta;
     };
@@ -1150,6 +1160,8 @@ void layec_write_error(layec_context* context, layec_location location, const ch
 
 const char* layec_status_to_cstring(layec_status status);
 const char* layec_value_category_to_cstring(layec_value_category category);
+
+bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated_constant b);
 
 // ========== Laye ==========
 

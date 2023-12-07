@@ -22,3 +22,16 @@ const char* layec_value_category_to_cstring(layec_value_category category) {
         case LAYEC_RVALUE: return "RVALUE";
     }
 }
+
+bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated_constant b) {
+    if (a.kind != b.kind) return false;
+    switch (a.kind) {
+        default: assert(false); return false;
+        case LAYEC_EVAL_NULL: return true;
+        case LAYEC_EVAL_VOID: return true;
+        case LAYEC_EVAL_BOOL: return a.bool_value == b.bool_value;
+        case LAYEC_EVAL_INT: return a.int_value == b.int_value;
+        case LAYEC_EVAL_FLOAT: return a.float_value == b.float_value;
+        case LAYEC_EVAL_STRING: return a.string_value == b.string_value;
+    }
+}

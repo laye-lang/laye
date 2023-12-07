@@ -119,8 +119,55 @@ bool laye_node_is_sema_ok_or_errored(laye_node* node) {
 bool laye_node_has_noreturn_semantics(laye_node* node) {
     assert(node != NULL);
     assert(false && "TODO: implement");
+
     switch (node->kind) {
         default: return false;
+
+        case LAYE_NODE_COMPOUND: {
+            for (int64_t i = 0, count = arr_count(node->stmt.compound.children); i < count; i++) {
+                laye_node* child = node->stmt.compound.children[i];
+                assert(child != NULL);
+
+                if (laye_node_has_noreturn_semantics(child))
+                    return true;
+            }
+
+            return false;
+        }
+
+        case LAYE_NODE_ASSIGNMENT: {
+            assert(node->stmt.assignment.lhs != NULL);
+            assert(node->stmt.assignment.rhs != NULL);
+            return laye_node_has_noreturn_semantics(node->stmt.assignment.lhs) || laye_node_has_noreturn_semantics(node->stmt.assignment.rhs);
+        }
+
+        case LAYE_NODE_DELETE: {
+            assert(node->stmt.delete.operand != NULL);
+            return laye_node_has_noreturn_semantics(node->stmt.delete.operand);
+        }
+
+        case LAYE_NODE_IF: {
+            assert(node->stmt._if.condition != NULL);
+            assert(node->stmt._if.pass != NULL);
+
+            if (node->stmt._if.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->stmt._if.condition->expr.evaluated_constant.result.kind == LAYEC_EVAL_BOOL) {
+                bool condition_value = node->stmt._if.condition->expr.evaluated_constant.result.bool_value;
+                if (condition_value)
+                    return laye_node_has_noreturn_semantics(node->stmt._if.pass);
+                else return laye_node_has_noreturn_semantics(node->stmt._if.fail);
+            }
+
+            if (laye_node_has_noreturn_semantics(node->stmt._if.condition))
+                return true;
+
+            if (node->stmt._if.fail == NULL)
+                return false;
+
+            return laye_node_has_noreturn_semantics(node->stmt._if.pass) && laye_node_has_noreturn_semantics(node->stmt._if.fail);
+        }
+
+        case LAYE_NODE_FOR: {
+        }
     }
 }
 
@@ -148,7 +195,7 @@ bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant,
     assert(laye_node_is_expr(expr));
     assert(out_constant != NULL);
     assert(!is_required || laye_node_is_sema_ok(expr) && "cannot evaluate ill-formed or unchecked expression");
-    
+
     switch (expr->kind) {
         default: return false;
 
@@ -386,10 +433,139 @@ laye_node* laye_type_strip_references(laye_node* type) {
 }
 
 bool laye_type_equals(laye_node* a, laye_node* b) {
+    assert(a != NULL);
+    assert(b != NULL);
+    assert(laye_node_is_type(a));
+    assert(laye_node_is_type(b));
+
     if (a == b) return true;
     if (a->kind != b->kind) return false;
-    assert(false && "TODO: implement");
-    return 0;
+    if (a->type.is_modifiable != b->type.is_modifiable) return false;
+
+    switch (a->kind) {
+        default: return false;
+
+        case LAYE_NODE_TYPE_POISON:
+        case LAYE_NODE_TYPE_VOID:
+        case LAYE_NODE_TYPE_NORETURN: {
+            return true;
+        }
+
+        case LAYE_NODE_TEMPLATE_PARAMETER: {
+            assert(a->type.template_parameter.declaration != NULL);
+            assert(b->type.template_parameter.declaration != NULL);
+            return a->type.template_parameter.declaration == b->type.template_parameter.declaration;
+        }
+
+        case LAYE_NODE_TYPE_BOOL:
+        case LAYE_NODE_TYPE_INT:
+        case LAYE_NODE_TYPE_FLOAT: {
+            if (a->type.primitive.is_platform_specified)
+                return b->type.primitive.is_platform_specified;
+            if (a->kind == LAYE_NODE_TYPE_INT && (a->type.primitive.is_signed != b->type.primitive.is_signed))
+                return false;
+            return a->type.primitive.bit_width == b->type.primitive.bit_width;
+        }
+
+        case LAYE_NODE_TYPE_ERROR_PAIR: {
+            assert(a->type.error_pair.value_type != NULL);
+            assert(b->type.error_pair.value_type != NULL);
+
+            if (a->type.error_pair.error_type != NULL) {
+                if (
+                    b->type.error_pair.error_type == NULL ||
+                    !laye_type_equals(a->type.error_pair.error_type, b->type.error_pair.error_type)
+                ) {
+                    return false;
+                }
+            } else if (b->type.error_pair.error_type != NULL)
+                return false;
+
+            return laye_type_equals(a->type.error_pair.value_type, b->type.error_pair.value_type);
+        }
+
+        case LAYE_NODE_TYPE_OVERLOADS:
+        case LAYE_NODE_TYPE_NAMEREF: {
+            return false;
+        }
+
+        case LAYE_NODE_TYPE_NILABLE:
+        case LAYE_NODE_TYPE_SLICE:
+        case LAYE_NODE_TYPE_REFERENCE:
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER: {
+            assert(a->type.container.element_type != NULL);
+            assert(b->type.container.element_type != NULL);
+            return laye_type_equals(a->type.container.element_type, b->type.container.element_type);
+        }
+
+        case LAYE_NODE_TYPE_ARRAY: {
+            assert(a->type.container.element_type != NULL);
+            assert(b->type.container.element_type != NULL);
+
+            if (arr_count(a->type.container.length_values) != arr_count(b->type.container.length_values))
+                return false;
+
+            for (int64_t i = 0, count = arr_count(a->type.container.length_values); i < count; i++) {
+                laye_node* a_expr = a->type.container.length_values[i];
+                laye_node* b_expr = b->type.container.length_values[i];
+
+                assert(a_expr != NULL);
+                assert(b_expr != NULL);
+
+                // can only compare equality of arrays if the length values have been resolved.
+                // otherwise, they are considered unequal by default.
+                if (a_expr->kind != LAYE_NODE_EVALUATED_CONSTANT || b_expr->kind != LAYE_NODE_EVALUATED_CONSTANT)
+                    return false;
+
+                // we don't want to consider erroneous evaluations, only integers are allowed
+                if (a_expr->expr.evaluated_constant.result.kind != LAYEC_EVAL_INT)
+                    return false;
+                if (b_expr->expr.evaluated_constant.result.kind != LAYEC_EVAL_INT)
+                    return false;
+
+                if (!layec_evaluated_constant_equals(a_expr->expr.evaluated_constant.result, b_expr->expr.evaluated_constant.result))
+                    return false;
+            }
+
+            return laye_type_equals(a->type.container.element_type, b->type.container.element_type);
+        }
+
+        case LAYE_NODE_TYPE_FUNCTION: {
+            assert(a->type.function.return_type != NULL);
+
+            if (a->type.function.calling_convention != b->type.function.calling_convention)
+                return false;
+            if (a->type.function.varargs_style != b->type.function.varargs_style)
+                return false;
+
+            if (arr_count(a->type.function.parameter_types) != arr_count(b->type.function.parameter_types))
+                return false;
+
+            if (!laye_type_equals(a->type.function.return_type, b->type.function.return_type))
+                return false;
+
+            for (int64_t i = 0, count = arr_count(a->type.function.parameter_types); i < count; i++) {
+                laye_node* a_type = a->type.function.parameter_types[i];
+                laye_node* b_type = b->type.function.parameter_types[i];
+
+                assert(a_type != NULL);
+                assert(b_type != NULL);
+
+                if (!laye_type_equals(a_type, b_type))
+                    return false;
+            }
+
+            return true;
+        }
+
+        case LAYE_NODE_TYPE_STRUCT:
+        case LAYE_NODE_TYPE_VARIANT:
+        case LAYE_NODE_TYPE_ENUM:
+        case LAYE_NODE_TYPE_STRICT_ALIAS: {
+            return false;
+        }
+    }
 }
 
 int laye_type_array_rank(laye_node* array_type) {
