@@ -305,10 +305,10 @@ static void laye_next_token(laye_parser* p) {
     laye_token token = {
         .kind = LAYE_TOKEN_INVALID,
         .location.sourceid = p->sourceid,
-        .location.offset = p->lexer_position,
     };
 
     token.leading_trivia = laye_read_trivia(p, true);
+    token.location.offset = p->lexer_position;
 
     if (p->lexer_position >= p->source.text.count) {
         token.kind = LAYE_TOKEN_EOF;
@@ -486,6 +486,130 @@ static void laye_next_token(laye_parser* p) {
         case '?': {
             laye_char_advance(p);
             token.kind = '?';
+        } break;
+
+        case '\'':
+        case '"': {
+            bool is_char = c == '\'';
+            if (is_char) {
+                token.kind = LAYE_TOKEN_LITRUNE;
+            } else {
+                token.kind = LAYE_TOKEN_LITSTRING;
+            }
+            char terminator = c;
+
+            laye_char_advance(p);
+
+            dynarr(char) string_data = NULL;
+
+            bool error_char = false;
+            while (p->current_char != 0 && p->current_char != terminator) {
+                char c = p->current_char;
+                assert(c != terminator);
+
+                if (is_char && string_data != NULL) {
+                    error_char = true;
+                }
+
+                if (c == '\\') {
+                    laye_char_advance(p);
+                    c = p->current_char;
+                    switch (c) {
+                        default: {
+                            // clang-format off
+                            layec_write_error(p->context, (layec_location) {
+                                .sourceid = token.location.sourceid,
+                                .offset = p->lexer_position,
+                                .length = 1,
+                            }, "Invalid character in escape string sequence");
+                            // clang-format on
+
+                            arr_push(string_data, c);
+                            laye_char_advance(p);
+                        } break;
+
+                        case '\\': {
+                            arr_push(string_data, '\\');
+                            laye_char_advance(p);
+                        } break;
+
+                        case '"': {
+                            arr_push(string_data, '"');
+                            laye_char_advance(p);
+                        } break;
+
+                        case '\'': {
+                            arr_push(string_data, '\'');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'a': {
+                            arr_push(string_data, '\a');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'b': {
+                            arr_push(string_data, '\b');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'f': {
+                            arr_push(string_data, '\f');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'n': {
+                            arr_push(string_data, '\n');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'r': {
+                            arr_push(string_data, '\r');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 't': {
+                            arr_push(string_data, '\t');
+                            laye_char_advance(p);
+                        } break;
+
+                        case 'v': {
+                            arr_push(string_data, '\v');
+                            laye_char_advance(p);
+                        } break;
+
+                        case '0': {
+                            arr_push(string_data, '\0');
+                            laye_char_advance(p);
+                        } break;
+                    }
+                } else {
+                    arr_push(string_data, c);
+                    laye_char_advance(p);
+                }
+            }
+
+            arr_push(string_data, 0);
+            arr_set_count(string_data, arr_count(string_data) - 1);
+
+            token.string_value = string_from_data(p->context->allocator, string_data, arr_count(string_data), arr_capacity(string_data));
+
+            arr_free(string_data);
+
+            if (p->current_char != terminator) {
+                token.location.length = p->lexer_position - token.location.offset;
+                layec_write_error(p->context, token.location, "Unterminated %s literal", (is_char ? "rune" : "string"));
+            } else {
+                laye_char_advance(p);
+            }
+
+            if (error_char) {
+                token.location.length = p->lexer_position - token.location.offset;
+                layec_write_error(p->context, token.location, "Too many characters in rune literal");
+            } else if (is_char && token.string_value.count == 0) {
+                token.location.length = p->lexer_position - token.location.offset;
+                layec_write_error(p->context, token.location, "Not enough characters in rune literal");
+            }
         } break;
 
         default: {

@@ -2,6 +2,8 @@
 #define LCA_DA_H
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 /// Header data for a light-weight implelentation of typed dynamic arrays.
 typedef struct lca_da_header {
@@ -26,6 +28,7 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
 #define lca_da(T)            T*
 #define lca_da_get_header(V) (((struct lca_da_header*)(V)) - 1)
 #define lca_da_count(V)      ((V) ? lca_da_get_header(V)->count : 0)
+#define lca_da_capacity(V)   ((V) ? lca_da_get_header(V)->capacity : 0)
 #define lca_da_reserve(V, N) \
     do { lca_da_maybe_expand((void**)&(V), (int64_t)sizeof *(V), N); } while (0)
 #define lca_da_set_count(V, N)                    \
@@ -67,6 +70,7 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
 #ifndef LCA_DA_NO_SHORT_NAMES
 #    define dynarr(T)                T*
 #    define arr_count(V)             lca_da_count(V)
+#    define arr_capacity(V)          lca_da_capacity(V)
 #    define arr_reserve(V, N)        lca_da_reserve(V, N)
 #    define arr_set_count(V, N)      lca_da_set_count(V, N)
 #    define arr_push(V, E)           lca_da_push(V, E)

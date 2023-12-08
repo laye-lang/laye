@@ -77,7 +77,7 @@ bool layec_context_get_location_info(layec_context* context, layec_location loca
     int64_t line_number = 1;
 
     char lastc = 0;
-    for (int64_t i = 0; i < location.offset; i++) {
+    for (int64_t i = 0; i <= location.offset; i++) {
         if (lastc == '\n') {
             last_line_start_offset = i;
             line_number++;
