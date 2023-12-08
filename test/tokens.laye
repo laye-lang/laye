@@ -11,3 +11,9 @@ not and or xor new delete cast try catch discard sizeof alignof offsetof
 varargs const foreign inline callconv(cdecl) discardable
 if else for do switch case default return break continue defer goto xyzzy
 struct variant enum alias test import export from as operator mut
+
+// a
+// b
+// c
++ /* d */ // e
+// f

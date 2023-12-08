@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
     nob_mkdir_if_not_exists("./out");
 
     Nob_Cmd driver_cmd = {};
-    nob_cmd_append(&driver_cmd, "clang", "-o", "./out/layec", "-I", "include", "-std=c23", "./src/layec_shared.c", "./src/layec_context.c", "./src/laye_data.c", "./src/laye_parser.c", "./src/driver.c");
+    nob_cmd_append(&driver_cmd, "clang", "-o", "./out/layec", "-I", "include", "-std=c23", "-ggdb", "./src/layec_shared.c", "./src/layec_context.c", "./src/laye_data.c", "./src/laye_parser.c", "./src/driver.c");
     nob_cmd_run_sync(driver_cmd);
 
     return 0;

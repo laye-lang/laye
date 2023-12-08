@@ -23,6 +23,7 @@ void* lca_reallocate(lca_allocator allocator, void* ptr, size_t n);
 
 void lca_temp_allocator_init(lca_allocator allocator, int64_t block_size);
 void lca_temp_allocator_clear(void);
+void lca_temp_allocator_dump(void);
 
 char* lca_temp_sprintf(const char* format, ...);
 char* lca_temp_vsprintf(const char* format, va_list v);
@@ -30,6 +31,7 @@ char* lca_temp_vsprintf(const char* format, va_list v);
 lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size);
 void* lca_arena_push(lca_arena* arena, size_t size);
 void lca_arena_clear(lca_arena* arena);
+void lca_arena_dump(lca_arena* arena);
 
 #ifdef LCA_MEM_IMPLEMENTATION
 
@@ -37,6 +39,8 @@ void lca_arena_clear(lca_arena* arena);
 #    include <stdio.h>
 #    include <stdlib.h>
 #    include <string.h>
+
+#    include "lcads.h"
 
 typedef struct lca_arena_block {
     void* memory;
@@ -46,11 +50,8 @@ typedef struct lca_arena_block {
 
 struct lca_arena {
     lca_allocator allocator;
-    lca_arena_block* blocks;
+    dynarr(lca_arena_block) blocks;
     int64_t block_size;
-    int64_t current_block_index;
-    int64_t blocks_count;
-    int64_t blocks_capacity;
 };
 
 void* lca_default_allocator_function(void* user_data, size_t count, void* ptr);
@@ -60,7 +61,7 @@ lca_allocator default_allocator = {
     .allocator_function = lca_default_allocator_function
 };
 
-lca_allocator temp_allocator;
+lca_allocator temp_allocator = {};
 
 void* lca_allocate(lca_allocator allocator, size_t n) {
     return allocator.allocator_function(allocator.user_data, n, NULL);
@@ -83,13 +84,6 @@ void* lca_default_allocator_function(void* user_data, size_t count, void* ptr) {
     else return realloc(ptr, count);
 }
 
-void arena_ensure_block_initialized(lca_arena* arena, lca_arena_block* block) {
-    if (block->memory != NULL) return;
-    block->capacity = arena->block_size;
-    block->memory = lca_allocate(arena->allocator, block->capacity);
-    memset(block->memory, 0, block->capacity);
-}
-
 void* lca_temp_allocator_function(void* user_data, size_t count, void* ptr) {
     lca_arena* temp_arena = temp_allocator.user_data;
     assert(temp_arena != NULL && "Where did the arena go? did you init it?");
@@ -100,29 +94,21 @@ void* lca_temp_allocator_function(void* user_data, size_t count, void* ptr) {
 void lca_temp_allocator_init(lca_allocator allocator, int64_t block_size) {
     assert(temp_allocator.user_data == NULL);
     temp_allocator = (lca_allocator){
-        .user_data = lca_allocate(allocator, sizeof(struct lca_arena)),
+        .user_data = lca_arena_create(allocator, block_size),
         .allocator_function = lca_temp_allocator_function,
     };
 
-    lca_arena* temp_arena = temp_allocator.user_data;
-    assert(temp_arena != NULL);
-
-    *temp_arena = (struct lca_arena){
-        .allocator = allocator,
-        .block_size = block_size,
-    };
-
-    temp_arena->blocks_capacity = 16;
-    temp_arena->blocks = lca_allocate(allocator, (size_t)temp_arena->blocks_capacity * sizeof *temp_arena->blocks);
-    assert(temp_arena->blocks != NULL);
-    memset(temp_arena->blocks, 0, (size_t)temp_arena->blocks_capacity * sizeof *temp_arena->blocks);
-
-    arena_ensure_block_initialized(temp_arena, &temp_arena->blocks[0]);
+    assert(temp_allocator.user_data != NULL);
 }
 
 void lca_temp_allocator_clear(void) {
     lca_arena* temp_arena = temp_allocator.user_data;
     lca_arena_clear(temp_arena);
+}
+
+void lca_temp_allocator_dump(void) {
+    lca_arena* temp_arena = temp_allocator.user_data;
+    lca_arena_dump(temp_arena);
 }
 
 char* lca_temp_sprintf(const char* format, ...) {
@@ -145,6 +131,13 @@ char* lca_temp_vsprintf(const char* format, va_list v) {
     return result;
 }
 
+lca_arena_block lca_arena_block_create(lca_arena* arena) {
+    return (lca_arena_block) {
+        .memory = lca_allocate(arena->allocator, arena->block_size),
+        .capacity = arena->block_size,
+    };
+}
+
 lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size) {
     lca_arena* arena = lca_allocate(allocator, block_size);
     *arena = (lca_arena){
@@ -152,12 +145,8 @@ lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size) {
         .block_size = block_size
     };
 
-    arena->blocks_capacity = 16;
-    arena->blocks = lca_allocate(allocator, (size_t)arena->blocks_capacity * sizeof *arena->blocks);
-    assert(arena->blocks != NULL);
-    memset(arena->blocks, 0, (size_t)arena->blocks_capacity * sizeof *arena->blocks);
-
-    arena_ensure_block_initialized(arena, &arena->blocks[0]);
+    lca_arena_block first_block = lca_arena_block_create(arena);
+    lca_da_push(arena->blocks, first_block);
 
     return arena;
 }
@@ -165,19 +154,11 @@ lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size) {
 void* lca_arena_push(lca_arena* arena, size_t count) {
     assert(count <= (size_t)arena->block_size && "Requested more memory than a temp arena block can hold :(");
 
-    lca_arena_block* block = &arena->blocks[arena->current_block_index];
-    if (block->capacity - block->allocated > (int64_t)count) {
-        arena->current_block_index++;
-        if (arena->current_block_index >= arena->blocks_capacity) {
-            int64_t new_capacity = arena->blocks_capacity * 2;
-            arena->blocks = lca_reallocate(arena->allocator, arena->blocks, arena->blocks_capacity);
-            memset(arena->blocks + arena->blocks_capacity, 0, (size_t)(new_capacity - arena->blocks_capacity) * sizeof *arena->blocks);
-            arena->blocks_capacity = new_capacity;
-        }
-
-        block = &arena->blocks[arena->current_block_index];
-        arena_ensure_block_initialized(arena, block);
-        assert(block->allocated == 0);
+    lca_arena_block* block = &arena->blocks[lca_da_count(arena->blocks) - 1];
+    if (block->capacity - block->allocated < (int64_t)count) {
+        lca_arena_block new_block = lca_arena_block_create(arena);
+        lca_da_push(arena->blocks, new_block);
+        block = &arena->blocks[lca_da_count(arena->blocks) - 1];
     }
 
     void* result = block->memory + block->allocated;
@@ -188,13 +169,37 @@ void* lca_arena_push(lca_arena* arena, size_t count) {
 }
 
 void lca_arena_clear(lca_arena* arena) {
-    for (int64_t b = 0; b < arena->blocks_count; b++) {
-        lca_arena_block* block = &arena->blocks[b];
-        block->allocated = 0;
+    for (int64_t i = 0, count = lca_da_count(arena->blocks); i < count; i++) {
+        lca_arena_block* block = &arena->blocks[i];
         memset(block->memory, 0, block->capacity);
+        lca_deallocate(arena->allocator, block->memory);
     }
 
-    arena->current_block_index = 0;
+    lca_da_free(arena->blocks);
+    arena->blocks = NULL;
+
+    lca_arena_block first_block = lca_arena_block_create(arena);
+    lca_da_push(arena->blocks, first_block);
+}
+
+void lca_arena_dump(lca_arena* arena) {
+    fprintf(stderr, "<Memory Arena %p>\n", (void*)arena);
+    fprintf(stderr, "  Block Count: %ld\n", lca_da_count(arena->blocks));
+    fprintf(stderr, "  Block Size: %ld\n", arena->block_size);
+    fprintf(stderr, "  Block Storage: %p\n", (void*)arena->blocks);
+    fprintf(stderr, "  Allocator:\n");
+    fprintf(stderr, "    User Data: %p\n", (void*)arena->allocator.user_data);
+    fprintf(stderr, "    Function: %p\n", (void*)arena->allocator.allocator_function);
+    fprintf(stderr, "  Blocks:\n");
+
+    for (int64_t i = 0, count = lca_da_count(arena->blocks); i < count; i++) {
+        fprintf(stderr, "    %ld:\n", i);
+        lca_arena_block block = arena->blocks[i];
+
+        fprintf(stderr, "      Memory: %p\n", (void*)block.memory);
+        fprintf(stderr, "      Allocated: %ld\n", block.allocated);
+        fprintf(stderr, "      Capacity: %ld\n", block.capacity);
+    }
 }
 
 #endif // LCA_MEM_IMPLEMENTATION

@@ -28,6 +28,7 @@ lca_string lca_string_create(lca_allocator allocator);
 lca_string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, int64_t capacity);
 char* lca_string_as_cstring(lca_string s);
 bool lca_string_equals(lca_string a, lca_string b);
+lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length);
 lca_string lca_string_format(const char* format, ...);
 lca_string lca_string_vformat(const char* format, va_list v);
 
@@ -47,8 +48,9 @@ typedef struct lca_string_view string_view;
 #    define string_from_data(A, D, L, C) lca_string_from_data(A, D, L, C)
 #    define string_as_cstring(S)         lca_string_as_cstring(S)
 #    define string_equals(A, B)          lca_string_equals(A, B)
+#    define string_slice(S, O, L)        lca_string_slice(S, O, L)
 #    define string_format(F, ...)        lca_string_format(F, __VA_ARGS__)
-#    define string_vformat(F, V)        lca_string_vformat(F, V)
+#    define string_vformat(F, V)         lca_string_vformat(F, V)
 #    define string_as_view(S)            lca_string_as_view(S)
 #    define string_view_equals(A, B)     lca_string_view_equals(A, B)
 #    define string_view_to_string(A, S)  lca_string_view_to_string(A, S)
@@ -95,6 +97,17 @@ bool lca_string_equals(lca_string a, lca_string b) {
             return false;
     }
     return true;
+}
+
+lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length) {
+    assert(offset >= 0);
+    assert(length >= 0);
+    assert(offset + length <= s.count);
+
+    return (lca_string_view) {
+        .data = s.data + offset,
+        .count = length,
+    };
 }
 
 lca_string lca_string_format(const char* format, ...) {

@@ -189,6 +189,10 @@ typedef struct laye_scope {
     dynarr(laye_node*) type_declarations;
 } laye_scope;
 
+#define LAYE_TRIVIA_KINDS(X) \
+    X(LINE_COMMENT)          \
+    X(DELIMITED_COMMENT)
+
 #define LAYE_TOKEN_KINDS(X) \
     X(EOF)                  \
     X(IDENT)                \
@@ -280,6 +284,22 @@ typedef struct laye_scope {
     X(NORETURN)
 
 // clang-format off
+typedef enum laye_trivia_kind {
+    LAYE_TRIVIA_NONE,
+
+#define X(N) LAYE_TRIVIA_ ## N,
+LAYE_TRIVIA_KINDS(X)
+#undef X
+} laye_trivia_kind;
+// clang-format on
+
+typedef struct laye_trivia {
+    laye_trivia_kind kind;
+    layec_location location;
+    string text;
+} laye_trivia;
+
+// clang-format off
 typedef enum laye_token_kind {
     LAYE_TOKEN_INVALID = 0,
 
@@ -316,9 +336,13 @@ typedef enum laye_token_kind {
 typedef struct laye_token {
     laye_token_kind kind;
     layec_location location;
-    int64_t int_value;
-    double float_value;
-    string string_value;
+    dynarr(laye_trivia) leading_trivia;
+    dynarr(laye_trivia) trailing_trivia;
+    union {
+        int64_t int_value;
+        double float_value;
+        string string_value;
+    };
 } laye_token;
 // clang-format on
 
@@ -1165,6 +1189,7 @@ bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated
 
 // ========== Laye ==========
 
+const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind);
 const char* laye_token_kind_to_cstring(laye_token_kind kind);
 const char* laye_node_kind_to_cstring(laye_node_kind kind);
 
