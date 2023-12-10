@@ -69,10 +69,6 @@ bool laye_node_kind_is_decl(laye_node_kind kind) {
     return kind > __LAYE_NODE_DECL_START__ && kind < __LAYE_NODE_DECL_END__;
 }
 
-bool laye_node_kind_is_stmt(laye_node_kind kind) {
-    return kind > __LAYE_NODE_STMT_START__ && kind < __LAYE_NODE_STMT_END__;
-}
-
 bool laye_node_kind_is_expr(laye_node_kind kind) {
     return kind > __LAYE_NODE_EXPR_START__ && kind < __LAYE_NODE_EXPR_END__;
 }
@@ -84,11 +80,6 @@ bool laye_node_kind_is_type(laye_node_kind kind) {
 bool laye_node_is_decl(laye_node* node) {
     assert(node != NULL);
     return laye_node_kind_is_decl(node->kind);
-}
-
-bool laye_node_is_stmt(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_kind_is_stmt(node->kind);
 }
 
 bool laye_node_is_expr(laye_node* node) {

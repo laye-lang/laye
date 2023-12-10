@@ -20,10 +20,46 @@ typedef struct layec_source {
     string text;
 } layec_source;
 
+typedef struct layec_target_info {
+    int size_of_pointer;
+    int align_of_pointer;
+
+    struct {
+        int size_of_bool;
+        int size_of_char;
+        int size_of_short;
+        int size_of_int;
+        int size_of_long;
+        int size_of_long_long;
+
+        int align_of_bool;
+        int align_of_char;
+        int align_of_short;
+        int align_of_int;
+        int align_of_long;
+        int align_of_long_long;
+
+        bool char_is_signed;
+    } c;
+
+    struct {
+        int size_of_bool;
+        int size_of_int;
+
+        int align_of_bool;
+        int align_of_int;
+    } laye;
+} layec_target_info;
+
+extern layec_target_info* layec_default_target;
+extern layec_target_info* layec_x86_64_linux;
+extern layec_target_info* layec_x86_64_windows;
+
 typedef struct laye_node laye_node;
 
 typedef struct layec_context {
     lca_allocator allocator;
+    layec_target_info* target;
 
     bool use_color;
 
@@ -38,6 +74,8 @@ typedef struct layec_context {
     // of an if statement or for loop to be convertible to type `bool`, or
     // when converting array indices into a platform integer type.
     struct {
+        laye_node* _void;
+        laye_node* noreturn;
         laye_node* _bool;
     } laye_types;
 } layec_context;
@@ -242,6 +280,7 @@ typedef struct laye_scope {
     X(BREAK)                \
     X(CONTINUE)             \
     X(FALLTHROUGH)          \
+    X(YIELD)                \
     X(UNREACHABLE)          \
     X(DEFER)                \
     X(GOTO)                 \
@@ -332,6 +371,7 @@ typedef enum laye_token_kind {
     LAYE_TOKEN_KINDS(X)
 #undef X
 } laye_token_kind;
+// clang-format on
 
 typedef struct laye_token {
     laye_token_kind kind;
@@ -344,7 +384,6 @@ typedef struct laye_token {
         string string_value;
     };
 } laye_token;
-// clang-format on
 
 #define LAYE_NODE_DECL_KINDS(X) \
     X(IMPORT)                   \
@@ -362,7 +401,7 @@ typedef struct laye_token {
     X(LABEL)                    \
     X(TEST)
 
-#define LAYE_NODE_STMT_KINDS(X) \
+#define LAYE_NODE_EXPR_KINDS(X) \
     X(EMPTY)                    \
     X(COMPOUND)                 \
     X(ASSIGNMENT)               \
@@ -377,15 +416,13 @@ typedef struct laye_token {
     X(BREAK)                    \
     X(CONTINUE)                 \
     X(FALLTHROUGH)              \
+    X(YIELD)                    \
     X(UNREACHABLE)              \
     X(DEFER)                    \
     X(DISCARD)                  \
     X(GOTO)                     \
     X(XYZZY)                    \
     X(ASSERT)                   \
-    X(EXPR)
-
-#define LAYE_NODE_EXPR_KINDS(X) \
     X(EVALUATED_CONSTANT)       \
     X(TEMPLATE_PARAMETER)       \
     X(SIZEOF)                   \
@@ -434,13 +471,14 @@ typedef struct laye_token {
     X(TYPE_STRUCT)              \
     X(TYPE_VARIANT)             \
     X(TYPE_ENUM)                \
+    X(TYPE_ALIAS)               \
     X(TYPE_STRICT_ALIAS)
 
 #define LAYE_NODE_META_KINDS(X) \
     X(META_ATTRIBUTE)           \
     X(PATTERN)
 
-#define LAYE_NODE_KINDS(X) LAYE_NODE_DECL_KINDS(X) LAYE_NODE_STMT_KINDS(X) LAYE_NODE_EXPR_KINDS(X) LAYE_NODE_TYPE_KINDS(X) LAYE_NODE_META_KINDS(X)
+#define LAYE_NODE_KINDS(X) LAYE_NODE_DECL_KINDS(X) LAYE_NODE_EXPR_KINDS(X) LAYE_NODE_TYPE_KINDS(X) LAYE_NODE_META_KINDS(X)
 
 // clang-format off
 typedef enum laye_node_kind {
@@ -450,10 +488,6 @@ typedef enum laye_node_kind {
     __LAYE_NODE_DECL_START__,
     LAYE_NODE_DECL_KINDS(X)
     __LAYE_NODE_DECL_END__,
-
-    __LAYE_NODE_STMT_START__,
-    LAYE_NODE_STMT_KINDS(X)
-    __LAYE_NODE_STMT_END__,
 
     __LAYE_NODE_EXPR_START__,
     LAYE_NODE_EXPR_KINDS(X)
@@ -488,8 +522,15 @@ typedef struct laye_nameref {
     dynarr(laye_token) pieces;
     // template arguments provided to this name for instantiation.
     dynarr(laye_node*) template_arguments;
+
     // the declaration this name references, once it has been resolved.
     laye_node* referenced_declaration;
+    // the type this name references, once it has been resolved.
+    laye_node* referenced_type;
+
+    // associated tokens
+    laye_token global_keyword_token;
+    dynarr(laye_token) coloncolon_tokens;
 } laye_nameref;
 
 typedef struct laye_struct_type_field {
@@ -695,6 +736,12 @@ struct laye_node {
         } decl;
 
         struct {
+            // the value category of this expression. i.e., is this an lvalue or rvalue expression?
+            layec_value_category value_category;
+            // the type of this expression.
+            // will be void if this type has no expression.
+            laye_node* type;
+
             union {
                 struct {
                     // the scope name for this compound block, if one was provided.
@@ -850,9 +897,6 @@ struct laye_node {
                     // applies to loops and switch which have a label associated with
                     // their primary "body".
                     string target;
-                    // in some expression contexts, a break statement can return a value.
-                    // this must also be used with the labeled break feature.
-                    laye_node* result_value;
                 } _break;
 
                 struct {
@@ -861,6 +905,17 @@ struct laye_node {
                     // their primary "body".
                     string target;
                 } _continue;
+
+                // note that yields basically only apply within compound expressions
+                // that aren't non-expression function bodies.
+                struct {
+                    // optionally, the labeled statement to yield from.
+                    // applies to loops and switch which have a label associated with
+                    // their primary "body".
+                    string target;
+                    // the value to yield from this compound expression.
+                    laye_node* result_value;
+                } yield;
 
                 struct {
                     // the statement to defer until scope exit.
@@ -881,22 +936,6 @@ struct laye_node {
                     laye_node* condition;
                 } _assert;
 
-                struct {
-                    // the expression this statement "wraps".
-                    // this usually results in a discard.
-                    laye_node* expr;
-                } expr;
-            };
-        } stmt;
-
-        struct {
-            // the value category of this expression. i.e., is this an lvalue or rvalue expression?
-            layec_value_category value_category;
-            // the type of this expression.
-            // will be void if this type has no expression.
-            laye_node* type;
-
-            union {
                 struct {
                     // the expression that was evaluated to get this result.
                     laye_node* expr;
@@ -1070,7 +1109,7 @@ struct laye_node {
             bool is_modifiable;
 
             union {
-                // shared structure for bool, int and float types
+                // shared structure for int and float types
                 struct {
                     int bit_width;
                     bool is_signed;
@@ -1126,7 +1165,7 @@ struct laye_node {
                 struct {
                     string name;
                     laye_node* underlying_type;
-                } strict_alias;
+                } alias;
             };
         } type;
 
@@ -1159,6 +1198,8 @@ struct laye_node {
 };
 
 // ========== Context ==========
+
+void layec_init_targets(lca_allocator allocator);
 
 layec_context* layec_context_create(lca_allocator allocator);
 void layec_context_destroy(layec_context* context);
@@ -1194,12 +1235,10 @@ const char* laye_token_kind_to_cstring(laye_token_kind kind);
 const char* laye_node_kind_to_cstring(laye_node_kind kind);
 
 bool laye_node_kind_is_decl(laye_node_kind kind);
-bool laye_node_kind_is_stmt(laye_node_kind kind);
 bool laye_node_kind_is_expr(laye_node_kind kind);
 bool laye_node_kind_is_type(laye_node_kind kind);
 
 bool laye_node_is_decl(laye_node* node);
-bool laye_node_is_stmt(laye_node* node);
 bool laye_node_is_expr(laye_node* node);
 bool laye_node_is_type(laye_node* node);
 
@@ -1218,6 +1257,7 @@ laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location);
+laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind);
 laye_node* laye_expr_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type);
 
 void laye_node_set_sema_in_progress(laye_node* node);
@@ -1264,6 +1304,7 @@ bool laye_type_is_function(laye_node* type);
 bool laye_type_is_struct(laye_node* type);
 bool laye_type_is_variant(laye_node* type);
 bool laye_type_is_enum(laye_node* type);
+bool laye_type_is_alias(laye_node* type);
 bool laye_type_is_strict_alias(laye_node* type);
 
 laye_node* laye_type_strip_pointers_and_references(laye_node* type);

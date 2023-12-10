@@ -4,10 +4,64 @@
 
 #include "layec.h"
 
+layec_target_info* layec_default_target;
+layec_target_info* layec_x86_64_linux;
+layec_target_info* layec_x86_64_windows;
+
+void layec_init_targets(lca_allocator allocator) {
+    layec_x86_64_linux = lca_allocate(allocator, sizeof(layec_target_info));
+    layec_x86_64_windows = lca_allocate(allocator, sizeof(layec_target_info));
+
+    assert(layec_x86_64_linux != NULL);
+    *layec_x86_64_linux = (layec_target_info) {
+        .c = {
+            .size_of_bool = 8,
+            .size_of_char = 8,
+            .size_of_short = 16,
+            .size_of_int = 32,
+            .size_of_long = 64,
+            .size_of_long_long = 64,
+
+            .align_of_bool = 8,
+            .align_of_char = 8,
+            .align_of_short = 16,
+            .align_of_int = 32,
+            .align_of_long = 64,
+            .align_of_long_long = 64,
+
+            .char_is_signed = true,
+        },
+
+        .laye = {
+            .size_of_bool = 8,
+            .size_of_int = 64,
+
+            .align_of_bool = 8,
+            .align_of_int = 64,
+        },
+
+        .size_of_pointer = 64,
+        .align_of_pointer = 64,
+    };
+
+    assert(layec_x86_64_windows != NULL);
+    memcpy(layec_x86_64_windows, layec_x86_64_linux, sizeof(layec_target_info));
+    layec_x86_64_windows->c.size_of_long = 32;
+    layec_x86_64_windows->c.align_of_long = 32;
+
+    layec_default_target = layec_x86_64_linux;
+
+    assert(layec_default_target != NULL);
+}
+
 layec_context* layec_context_create(lca_allocator allocator) {
     layec_context* context = lca_allocate(allocator, sizeof *context);
     assert(context != NULL);
     context->allocator = allocator;
+    context->target = layec_default_target;
+    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID);
+    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN);
+    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL);
     return context;
 }
 
