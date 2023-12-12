@@ -1183,6 +1183,8 @@ void layec_write_note(layec_context* context, layec_location location, const cha
 void layec_write_warn(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_error(layec_context* context, layec_location location, const char* format, ...);
 
+string layec_context_intern_string_view(layec_context* context, string_view s);
+
 // ========== Shared Data ==========
 
 const char* layec_status_to_cstring(layec_status status);

@@ -279,6 +279,83 @@ exit_loop:;
     return trivia;
 }
 
+struct keyword_info {
+    string_view text;
+    laye_token_kind kind;
+};
+
+static struct keyword_info laye_keywords[] = {
+    {LCA_SV_CONSTANT("bool"), LAYE_TOKEN_BOOL},
+    {LCA_SV_CONSTANT("boolsized"), LAYE_TOKEN_BOOLSIZED},
+    {LCA_SV_CONSTANT("int"), LAYE_TOKEN_INT},
+    {LCA_SV_CONSTANT("intsized"), LAYE_TOKEN_INTSIZED},
+    {LCA_SV_CONSTANT("uint"), LAYE_TOKEN_UINT},
+    {LCA_SV_CONSTANT("uintsized"), LAYE_TOKEN_UINTSIZED},
+    {LCA_SV_CONSTANT("float"), LAYE_TOKEN_FLOAT},
+    {LCA_SV_CONSTANT("floatsized"), LAYE_TOKEN_FLOATSIZED},
+    {LCA_SV_CONSTANT("true"), LAYE_TOKEN_TRUE},
+    {LCA_SV_CONSTANT("false"), LAYE_TOKEN_FALSE},
+    {LCA_SV_CONSTANT("nil"), LAYE_TOKEN_NIL},
+    {LCA_SV_CONSTANT("global"), LAYE_TOKEN_GLOBAL},
+    {LCA_SV_CONSTANT("if"), LAYE_TOKEN_IF},
+    {LCA_SV_CONSTANT("else"), LAYE_TOKEN_ELSE},
+    {LCA_SV_CONSTANT("for"), LAYE_TOKEN_FOR},
+    {LCA_SV_CONSTANT("do"), LAYE_TOKEN_DO},
+    {LCA_SV_CONSTANT("switch"), LAYE_TOKEN_SWITCH},
+    {LCA_SV_CONSTANT("case"), LAYE_TOKEN_CASE},
+    {LCA_SV_CONSTANT("default"), LAYE_TOKEN_DEFAULT},
+    {LCA_SV_CONSTANT("return"), LAYE_TOKEN_RETURN},
+    {LCA_SV_CONSTANT("break"), LAYE_TOKEN_BREAK},
+    {LCA_SV_CONSTANT("continue"), LAYE_TOKEN_CONTINUE},
+    {LCA_SV_CONSTANT("fallthrough"), LAYE_TOKEN_FALLTHROUGH},
+    {LCA_SV_CONSTANT("yield"), LAYE_TOKEN_YIELD},
+    {LCA_SV_CONSTANT("unreachable"), LAYE_TOKEN_UNREACHABLE},
+    {LCA_SV_CONSTANT("defer"), LAYE_TOKEN_DEFER},
+    {LCA_SV_CONSTANT("goto"), LAYE_TOKEN_GOTO},
+    {LCA_SV_CONSTANT("xyzzy"), LAYE_TOKEN_XYZZY},
+    {LCA_SV_CONSTANT("assert"), LAYE_TOKEN_ASSERT},
+    {LCA_SV_CONSTANT("struct"), LAYE_TOKEN_STRUCT},
+    {LCA_SV_CONSTANT("variant"), LAYE_TOKEN_VARIANT},
+    {LCA_SV_CONSTANT("enum"), LAYE_TOKEN_ENUM},
+    {LCA_SV_CONSTANT("strict"), LAYE_TOKEN_STRICT},
+    {LCA_SV_CONSTANT("alias"), LAYE_TOKEN_ALIAS},
+    {LCA_SV_CONSTANT("test"), LAYE_TOKEN_TEST},
+    {LCA_SV_CONSTANT("import"), LAYE_TOKEN_IMPORT},
+    {LCA_SV_CONSTANT("export"), LAYE_TOKEN_EXPORT},
+    {LCA_SV_CONSTANT("from"), LAYE_TOKEN_FROM},
+    {LCA_SV_CONSTANT("as"), LAYE_TOKEN_AS},
+    {LCA_SV_CONSTANT("operator"), LAYE_TOKEN_OPERATOR},
+    {LCA_SV_CONSTANT("mut"), LAYE_TOKEN_MUT},
+    {LCA_SV_CONSTANT("new"), LAYE_TOKEN_NEW},
+    {LCA_SV_CONSTANT("delete"), LAYE_TOKEN_DELETE},
+    {LCA_SV_CONSTANT("cast"), LAYE_TOKEN_CAST},
+    {LCA_SV_CONSTANT("is"), LAYE_TOKEN_IS},
+    {LCA_SV_CONSTANT("try"), LAYE_TOKEN_TRY},
+    {LCA_SV_CONSTANT("catch"), LAYE_TOKEN_CATCH},
+    {LCA_SV_CONSTANT("sizeof"), LAYE_TOKEN_SIZEOF},
+    {LCA_SV_CONSTANT("alignof"), LAYE_TOKEN_ALIGNOF},
+    {LCA_SV_CONSTANT("offsetof"), LAYE_TOKEN_OFFSETOF},
+    {LCA_SV_CONSTANT("not"), LAYE_TOKEN_NOT},
+    {LCA_SV_CONSTANT("and"), LAYE_TOKEN_AND},
+    {LCA_SV_CONSTANT("or"), LAYE_TOKEN_OR},
+    {LCA_SV_CONSTANT("xor"), LAYE_TOKEN_XOR},
+    {LCA_SV_CONSTANT("varargs"), LAYE_TOKEN_VARARGS},
+    {LCA_SV_CONSTANT("const"), LAYE_TOKEN_CONST},
+    {LCA_SV_CONSTANT("foreign"), LAYE_TOKEN_FOREIGN},
+    {LCA_SV_CONSTANT("inline"), LAYE_TOKEN_INLINE},
+    {LCA_SV_CONSTANT("callconv"), LAYE_TOKEN_CALLCONV},
+    {LCA_SV_CONSTANT("impure"), LAYE_TOKEN_IMPURE},
+    {LCA_SV_CONSTANT("nodiscard"), LAYE_TOKEN_NODISCARD},
+    {LCA_SV_CONSTANT("void"), LAYE_TOKEN_VOID},
+    {LCA_SV_CONSTANT("var"), LAYE_TOKEN_VAR},
+    {LCA_SV_CONSTANT("noreturn"), LAYE_TOKEN_NORETURN},
+    {0}
+};
+
+static bool is_identifier_char(int c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
+}
+
 static void laye_next_token(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -594,6 +671,111 @@ static void laye_next_token(laye_parser* p) {
             }
         } break;
 
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+            int64_t integer_value = 0;
+            while (p->current_char >= '0' && p->current_char <= '9') {
+                int64_t digit_value = (int64_t)(p->current_char - '0');
+                assert(digit_value >= 0 && digit_value <= 9);
+
+                // TODO(local): overflow check on integer parse
+                integer_value = digit_value + integer_value * 10;
+
+                laye_char_advance(p);
+            }
+
+            // TODO(local): radix literals, floats, identifiers
+
+            if (is_identifier_char(p->current_char)) {
+                assert(token.location.offset >= 0 && token.location.offset < p->source.text.count);
+                p->lexer_position = token.location.offset;
+                p->current_char = p->source.text.data[p->lexer_position];
+                goto identfier_lex_fast_path;
+            }
+
+            token.kind = LAYE_TOKEN_LITINT;
+        } break;
+
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+        case 'g':
+        case 'h':
+        case 'i':
+        case 'j':
+        case 'k':
+        case 'l':
+        case 'm':
+        case 'n':
+        case 'o':
+        case 'p':
+        case 'q':
+        case 'r':
+        case 's':
+        case 't':
+        case 'u':
+        case 'v':
+        case 'w':
+        case 'x':
+        case 'y':
+        case 'z':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+        case 'G':
+        case 'H':
+        case 'I':
+        case 'J':
+        case 'K':
+        case 'L':
+        case 'M':
+        case 'N':
+        case 'O':
+        case 'P':
+        case 'Q':
+        case 'R':
+        case 'S':
+        case 'T':
+        case 'U':
+        case 'V':
+        case 'W':
+        case 'X':
+        case 'Y':
+        case 'Z':
+        case '_': {
+        identfier_lex_fast_path:;
+            while (is_identifier_char(p->current_char)) {
+                laye_char_advance(p);
+            }
+
+            token.location.length = p->lexer_position - token.location.offset;
+            string_view identifier_source_view = string_slice(p->source.text, token.location.offset, token.location.length);
+
+            for (int64_t i = 0; laye_keywords[i].kind != 0; i++) {
+                if (string_view_equals(laye_keywords[i].text, identifier_source_view)) {
+                    token.kind = laye_keywords[i].kind;
+                    goto token_finished;
+                }
+            }
+
+            token.string_value = layec_context_intern_string_view(p->context, identifier_source_view);
+            token.kind = LAYE_TOKEN_IDENT;
+        } break;
+
         default: {
             laye_char_advance(p);
 
@@ -605,6 +787,7 @@ static void laye_next_token(laye_parser* p) {
         }
     }
 
+token_finished:;
     assert(token.kind != LAYE_TOKEN_INVALID && "tokenization routines failed to update the kind of the token");
 
     token.location.length = p->lexer_position - token.location.offset;

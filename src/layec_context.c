@@ -247,5 +247,9 @@ void layec_write_error(layec_context* context, layec_location location, const ch
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
 }
 
-
 #undef GET_MESSAGE
+
+string layec_context_intern_string_view(layec_context* context, string_view s) {
+    // TODO(local): actually intern strings
+    return string_view_to_string(context->allocator, s);
+}
