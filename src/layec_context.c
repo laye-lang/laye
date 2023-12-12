@@ -59,9 +59,11 @@ layec_context* layec_context_create(lca_allocator allocator) {
     assert(context != NULL);
     context->allocator = allocator;
     context->target = layec_default_target;
-    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID);
-    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN);
-    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL);
+    context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, NULL);
+    context->laye_types.type->type = context->laye_types.type;
+    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, context->laye_types.type);
+    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, context->laye_types.type);
+    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, context->laye_types.type);
     return context;
 }
 

@@ -5,25 +5,8 @@
 #define LCA_STR_IMPLEMENTATION
 #include "layec.h"
 
-void test_mem(void) {
-    layec_context* context = layec_context_create(default_allocator);
-    arr_push(context->sources, (layec_source){});
-
-    for (int i = 0; i < 100000; i++) {
-        void* x = lca_allocate(temp_allocator, 256);
-        lca_temp_allocator_dump();
-        assert(context->sources != NULL);
-        assert(arr_count(context->sources) != 0);
-    }
-
-    lca_temp_allocator_clear();
-}
-
 int main(int argc, char** argv) {
     lca_temp_allocator_init(default_allocator, 1024 * 1024);
-
-    //test_mem();
-    //return 0;
 
     fprintf(stderr, "layec " LAYEC_VERSION "\n");
 

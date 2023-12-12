@@ -66,25 +66,16 @@ const char* laye_node_kind_to_cstring(laye_node_kind kind) {
 }
 
 bool laye_node_kind_is_decl(laye_node_kind kind) {
-    return kind > __LAYE_NODE_DECL_START__ && kind < __LAYE_NODE_DECL_END__;
-}
-
-bool laye_node_kind_is_expr(laye_node_kind kind) {
-    return kind > __LAYE_NODE_EXPR_START__ && kind < __LAYE_NODE_EXPR_END__;
+    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_TEMPLATE_VALUE;
 }
 
 bool laye_node_kind_is_type(laye_node_kind kind) {
-    return kind > __LAYE_NODE_TYPE_START__ && kind < __LAYE_NODE_TYPE_END__;
+    return kind > LAYE_NODE_TYPE_POISON && kind <= LAYE_NODE_TYPE_STRICT_ALIAS;
 }
 
 bool laye_node_is_decl(laye_node* node) {
     assert(node != NULL);
     return laye_node_kind_is_decl(node->kind);
-}
-
-bool laye_node_is_expr(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_kind_is_expr(node->kind);
 }
 
 bool laye_node_is_type(laye_node* node) {
@@ -94,22 +85,22 @@ bool laye_node_is_type(laye_node* node) {
 
 bool laye_node_is_lvalue(laye_node* node) {
     assert(node != NULL);
-    return laye_node_is_expr(node) && node->expr.value_category == LAYEC_LVALUE;
+    return node->value_category == LAYEC_LVALUE;
 }
 
 bool laye_node_is_rvalue(laye_node* node) {
     assert(node != NULL);
-    return laye_node_is_expr(node) && node->expr.value_category == LAYEC_RVALUE;
+    return node->value_category == LAYEC_RVALUE;
 }
 
 bool laye_node_is_modifiable_lvalue(laye_node* node) {
     assert(node != NULL);
-    return laye_node_is_lvalue(node) && laye_type_is_modifiable(node->expr.type);
+    return laye_node_is_lvalue(node) && laye_type_is_modifiable(node->type);
 }
 
 bool laye_type_is_modifiable(laye_node* node) {
     assert(node != NULL);
-    return laye_node_is_type(node) && node->type.is_modifiable;
+    return laye_node_is_type(node) && node->type_is_modifiable;
 }
 
 static void laye_next_token(laye_parser* p);
