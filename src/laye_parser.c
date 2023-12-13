@@ -134,7 +134,14 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     laye_next_token(&p);
 
     while (p.token.kind != LAYE_TOKEN_EOF) {
-        layec_write_note(context, p.token.location, "%s", laye_token_kind_to_cstring(p.token.kind));
+        string_view token_text = string_slice(p.source.text, p.token.location.offset, p.token.location.length);
+        layec_write_note(
+            context,
+            p.token.location,
+            "%s %.*s",
+            laye_token_kind_to_cstring(p.token.kind),
+            STR_EXPAND(token_text)
+        );
         laye_next_token(&p);
     }
 
@@ -178,6 +185,14 @@ static char laye_char_peek(laye_parser* p) {
     }
 
     return p->source.text.data[peek_position];
+}
+
+static layec_location laye_char_location(laye_parser* p) {
+    return (layec_location){
+        .sourceid = p->sourceid,
+        .offset = p->lexer_position,
+        .length = 1,
+    };
 }
 
 static dynarr(laye_trivia) laye_read_trivia(laye_parser* p, bool leading) {
@@ -354,6 +369,25 @@ static struct keyword_info laye_keywords[] = {
 
 static bool is_identifier_char(int c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
+}
+
+static int64_t digit_value_in_any_radix(int c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    else if (c >= 'a' && c <= 'z')
+        return c - 'a';
+    else if (c >= 'A' && c <= 'Z')
+        return c - 'A';
+    else return -1;
+}
+
+static bool is_digit_char_in_any_radix(int c) {
+    return -1 != digit_value_in_any_radix(c);
+}
+
+static bool is_digit_char(int c, int radix) {
+    int64_t digit_value = digit_value_in_any_radix(c);
+    return radix > digit_value && digit_value != -1;
 }
 
 static void laye_next_token(laye_parser* p) {
@@ -671,93 +705,157 @@ static void laye_next_token(laye_parser* p) {
             }
         } break;
 
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9': {
+            // clang-format off
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': case '8': case '9': {
+            // clang-format on
             int64_t integer_value = 0;
-            while (p->current_char >= '0' && p->current_char <= '9') {
-                int64_t digit_value = (int64_t)(p->current_char - '0');
-                assert(digit_value >= 0 && digit_value <= 9);
-
-                // TODO(local): overflow check on integer parse
-                integer_value = digit_value + integer_value * 10;
+            while ((p->current_char >= '0' && p->current_char <= '9') || p->current_char == '_') {
+                if (p->current_char != '_') {
+                    int64_t digit_value = (int64_t)(p->current_char - '0');
+                    assert(digit_value >= 0 && digit_value <= 9);
+                    // TODO(local): overflow check on integer parse
+                    integer_value = digit_value + integer_value * 10;
+                } else {
+                    // a number literal that starts or ends with an underscore is not actually a number literal
+                    if (laye_char_peek(p) < '0' || laye_char_peek(p) > '9') {
+                        goto change_int_to_ident;
+                    }
+                }
 
                 laye_char_advance(p);
             }
 
-            // TODO(local): radix literals, floats, identifiers
+            int radix = 10;
+            bool has_explicit_radix = false;
 
-            if (is_identifier_char(p->current_char)) {
+            // TODO(local): radix literals, floats, identifiers
+            if (p->current_char == '#') {
+                has_explicit_radix = true;
+
+                layec_location radix_location = token.location;
+                radix_location.length = p->lexer_position - radix_location.offset;
+
+                if (integer_value < 2 || integer_value > 36) {
+                    layec_write_error(p->context, radix_location, "Integer base must be between 2 and 36 inclusive");
+                    if (integer_value < 2) {
+                        radix = 2;
+                    } else radix = 36;
+                } else radix = (int)integer_value;
+
+                laye_char_advance(p);
+                if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
+                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d", radix);
+                    goto end_literal_integer_radix;
+                }
+
+                if (p->current_char == '_') {
+                    layec_write_error(p->context, laye_char_location(p), "Integer literals cannot begin wtih an underscore");
+                }
+
+                integer_value = 0;
+                while (is_digit_char_in_any_radix(p->current_char) || p->current_char == '_') {
+                    if (p->current_char != '_') {
+                        int64_t digit_value = digit_value_in_any_radix(p->current_char);
+                        if (!is_digit_char(p->current_char, radix)) {
+                            digit_value = radix - 1;
+                            layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d", p->current_char, radix);
+                        }
+
+                        assert(digit_value >= 0 && digit_value < radix);
+                        // TODO(local): overflow check on integer parse
+                        integer_value = digit_value + integer_value * radix;
+                    } else {
+                        // a number literal that starts or ends with an underscore is not actually a number literal
+                        // in this case, we can't fall back to the identifier parser, so we do actually error it.
+                        if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
+                            laye_char_advance(p);
+                            layec_write_error(p->context, laye_char_location(p), "Integer literals cannot end in an underscore");
+                            continue;
+                        }
+                    }
+
+                    laye_char_advance(p);
+                }
+
+                if (p->current_char == '.') {
+                    goto continue_float_literal;
+                }
+
+            end_literal_integer_radix:;
+                token.int_value = integer_value;
+                token.kind = LAYE_TOKEN_LITINT;
+            } else if (p->current_char == '.') {
+            continue_float_literal:;
+                assert(radix >= 2 && radix <= 36);
+                assert(p->current_char == '.');
+
+                double fractional_value = 0;
+
+                laye_char_advance(p);
+                if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
+                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d", radix);
+                    goto end_literal_float;
+                }
+
+                if (p->current_char == '_') {
+                    layec_write_error(p->context, laye_char_location(p), "The fractional part of a float literal cannot begin with an underscore");
+                }
+
+                while (is_digit_char_in_any_radix(p->current_char) || p->current_char == '_') {
+                    if (p->current_char != '_') {
+                        int64_t digit_value = digit_value_in_any_radix(p->current_char);
+                        if (!is_digit_char(p->current_char, radix)) {
+                            digit_value = radix - 1;
+                            layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d", p->current_char, radix);
+                        }
+
+                        assert(digit_value >= 0 && digit_value < radix);
+                        // TODO(local): overflow/underflow check on float parse
+                        fractional_value = (digit_value + fractional_value) / radix;
+                    } else {
+                        // a number literal that starts or ends with an underscore is not actually a number literal
+                        // in this case, we can't fall back to the identifier parser, so we do actually error it.
+                        if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
+                            laye_char_advance(p);
+                            layec_write_error(p->context, laye_char_location(p), "Float literals cannot end in an underscore");
+                            continue;
+                        }
+                    }
+
+                    laye_char_advance(p);
+                }
+
+            end_literal_float:;
+                token.float_value = integer_value + fractional_value;
+                token.kind = LAYE_TOKEN_LITFLOAT;
+            } else if (is_identifier_char(p->current_char)) {
+            change_int_to_ident:;
                 assert(token.location.offset >= 0 && token.location.offset < p->source.text.count);
                 p->lexer_position = token.location.offset;
                 p->current_char = p->source.text.data[p->lexer_position];
-                goto identfier_lex_fast_path;
+                goto identfier_lex;
+            } else {
+                token.kind = LAYE_TOKEN_LITINT;
             }
-
-            token.kind = LAYE_TOKEN_LITINT;
         } break;
 
-        case 'a':
-        case 'b':
-        case 'c':
-        case 'd':
-        case 'e':
-        case 'f':
-        case 'g':
-        case 'h':
-        case 'i':
-        case 'j':
-        case 'k':
-        case 'l':
-        case 'm':
-        case 'n':
-        case 'o':
-        case 'p':
-        case 'q':
-        case 'r':
-        case 's':
-        case 't':
-        case 'u':
-        case 'v':
-        case 'w':
-        case 'x':
-        case 'y':
+            // clang-format off
+        case 'a': case 'b': case 'c': case 'd': case 'e':
+        case 'f': case 'g': case 'h': case 'i': case 'j':
+        case 'k': case 'l': case 'm': case 'n': case 'o':
+        case 'p': case 'q': case 'r': case 's': case 't':
+        case 'u': case 'v': case 'w': case 'x': case 'y':
         case 'z':
-        case 'A':
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'E':
-        case 'F':
-        case 'G':
-        case 'H':
-        case 'I':
-        case 'J':
-        case 'K':
-        case 'L':
-        case 'M':
-        case 'N':
-        case 'O':
-        case 'P':
-        case 'Q':
-        case 'R':
-        case 'S':
-        case 'T':
-        case 'U':
-        case 'V':
-        case 'W':
-        case 'X':
-        case 'Y':
+        case 'A': case 'B': case 'C': case 'D': case 'E':
+        case 'F': case 'G': case 'H': case 'I': case 'J':
+        case 'K': case 'L': case 'M': case 'N': case 'O':
+        case 'P': case 'Q': case 'R': case 'S': case 'T':
+        case 'U': case 'V': case 'W': case 'X': case 'Y':
         case 'Z':
+        // clang-format on
         case '_': {
-        identfier_lex_fast_path:;
+        identfier_lex:;
             while (is_identifier_char(p->current_char)) {
                 laye_char_advance(p);
             }
