@@ -301,13 +301,9 @@ struct keyword_info {
 
 static struct keyword_info laye_keywords[] = {
     {LCA_SV_CONSTANT("bool"), LAYE_TOKEN_BOOL},
-    {LCA_SV_CONSTANT("boolsized"), LAYE_TOKEN_BOOLSIZED},
     {LCA_SV_CONSTANT("int"), LAYE_TOKEN_INT},
-    {LCA_SV_CONSTANT("intsized"), LAYE_TOKEN_INTSIZED},
     {LCA_SV_CONSTANT("uint"), LAYE_TOKEN_UINT},
-    {LCA_SV_CONSTANT("uintsized"), LAYE_TOKEN_UINTSIZED},
     {LCA_SV_CONSTANT("float"), LAYE_TOKEN_FLOAT},
-    {LCA_SV_CONSTANT("floatsized"), LAYE_TOKEN_FLOATSIZED},
     {LCA_SV_CONSTANT("true"), LAYE_TOKEN_TRUE},
     {LCA_SV_CONSTANT("false"), LAYE_TOKEN_FALSE},
     {LCA_SV_CONSTANT("nil"), LAYE_TOKEN_NIL},

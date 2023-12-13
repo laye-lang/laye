@@ -259,7 +259,6 @@ typedef struct laye_scope {
     X(LESSMINUS)            \
     X(COLONCOLON)           \
     X(BOOL)                 \
-    X(BOOLSIZED)            \
     X(INT)                  \
     X(INTSIZED)             \
     X(UINT)                 \
