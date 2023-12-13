@@ -209,6 +209,10 @@ typedef struct laye_module {
     layec_sourceid sourceid;
 
     lca_arena* arena;
+
+    dynarr(laye_node*) top_level_nodes;
+
+    dynarr(laye_node*) _all_nodes;
 } laye_module;
 
 typedef struct laye_scope {
@@ -233,6 +237,7 @@ typedef struct laye_scope {
     X(DELIMITED_COMMENT)
 
 #define LAYE_TOKEN_KINDS(X) \
+    X(UNKNOWN)              \
     X(EOF)                  \
     X(IDENT)                \
     X(LITINT)               \

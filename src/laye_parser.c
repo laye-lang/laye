@@ -134,6 +134,7 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     laye_next_token(&p);
 
     while (p.token.kind != LAYE_TOKEN_EOF) {
+        /*
         string_view token_text = string_slice(p.source.text, p.token.location.offset, p.token.location.length);
         layec_write_note(
             context,
@@ -143,6 +144,12 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
             STR_EXPAND(token_text)
         );
         laye_next_token(&p);
+        */
+
+        laye_node* top_level_node = laye_parse_top_level_node(&p);
+        assert(top_level_node != NULL);
+
+        arr_push(module->top_level_nodes, top_level_node);
     }
 
     return module;
@@ -159,8 +166,20 @@ static laye_node* laye_parse_top_level_node(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    assert(false);
+    switch (p->token.kind) {
+        case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return NULL;
+
+        default: {
+            laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types._void);
+            layec_write_error(p->context, p->token.location, "Unexpected token at top level. Expected 'import', 'struct', 'enum', or a function declaration.");
+            laye_next_token(p);
+            return invalid_node;
+        }
+    }
+
+    assert(false && "todo");
     return NULL;
 }
 
@@ -277,7 +296,7 @@ try_again:;
                     block_trivia.text = string_view_to_string(p->context->allocator, block_comment_text);
 
                     if (nesting_count > 0) {
-                        layec_write_error(p->context, block_trivia.location, "Unterminated delimimted comment");
+                        layec_write_error(p->context, block_trivia.location, "Unterminated delimimted comment.");
                     }
 
                     arr_push(trivia, block_trivia);
@@ -610,7 +629,7 @@ static void laye_next_token(laye_parser* p) {
                                 .sourceid = token.location.sourceid,
                                 .offset = p->lexer_position,
                                 .length = 1,
-                            }, "Invalid character in escape string sequence");
+                            }, "Invalid character in escape string sequence.");
                             // clang-format on
 
                             arr_push(string_data, c);
@@ -687,17 +706,17 @@ static void laye_next_token(laye_parser* p) {
 
             if (p->current_char != terminator) {
                 token.location.length = p->lexer_position - token.location.offset;
-                layec_write_error(p->context, token.location, "Unterminated %s literal", (is_char ? "rune" : "string"));
+                layec_write_error(p->context, token.location, "Unterminated %s literal.", (is_char ? "rune" : "string"));
             } else {
                 laye_char_advance(p);
             }
 
             if (error_char) {
                 token.location.length = p->lexer_position - token.location.offset;
-                layec_write_error(p->context, token.location, "Too many characters in rune literal");
+                layec_write_error(p->context, token.location, "Too many characters in rune literal.");
             } else if (is_char && token.string_value.count == 0) {
                 token.location.length = p->lexer_position - token.location.offset;
-                layec_write_error(p->context, token.location, "Not enough characters in rune literal");
+                layec_write_error(p->context, token.location, "Not enough characters in rune literal.");
             }
         } break;
 
@@ -733,7 +752,7 @@ static void laye_next_token(laye_parser* p) {
                 radix_location.length = p->lexer_position - radix_location.offset;
 
                 if (integer_value < 2 || integer_value > 36) {
-                    layec_write_error(p->context, radix_location, "Integer base must be between 2 and 36 inclusive");
+                    layec_write_error(p->context, radix_location, "Integer base must be between 2 and 36 inclusive.");
                     if (integer_value < 2) {
                         radix = 2;
                     } else radix = 36;
@@ -741,21 +760,26 @@ static void laye_next_token(laye_parser* p) {
 
                 laye_char_advance(p);
                 if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
-                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d", radix);
+                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d.", radix);
                     goto end_literal_integer_radix;
                 }
 
                 if (p->current_char == '_') {
-                    layec_write_error(p->context, laye_char_location(p), "Integer literals cannot begin wtih an underscore");
+                    layec_write_error(p->context, laye_char_location(p), "Integer literals cannot begin wtih an underscore.");
                 }
 
                 integer_value = 0;
+
+                bool should_report_invalid_digits = false;
+                int64_t integer_value_start_position = p->lexer_position;
+
                 while (is_digit_char_in_any_radix(p->current_char) || p->current_char == '_') {
                     if (p->current_char != '_') {
                         int64_t digit_value = digit_value_in_any_radix(p->current_char);
                         if (!is_digit_char(p->current_char, radix)) {
                             digit_value = radix - 1;
-                            layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d", p->current_char, radix);
+                            // layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d.", p->current_char, radix);
+                            should_report_invalid_digits = true;
                         }
 
                         assert(digit_value >= 0 && digit_value < radix);
@@ -766,7 +790,7 @@ static void laye_next_token(laye_parser* p) {
                         // in this case, we can't fall back to the identifier parser, so we do actually error it.
                         if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
                             laye_char_advance(p);
-                            layec_write_error(p->context, laye_char_location(p), "Integer literals cannot end in an underscore");
+                            layec_write_error(p->context, laye_char_location(p), "Integer literals cannot end in an underscore.");
                             continue;
                         }
                     }
@@ -774,7 +798,20 @@ static void laye_next_token(laye_parser* p) {
                     laye_char_advance(p);
                 }
 
-                if (p->current_char == '.') {
+                bool will_be_float = p->current_char == '.';
+                if (should_report_invalid_digits) {
+                    layec_location integer_value_location = (layec_location){
+                        .sourceid = p->sourceid,
+                        .offset = integer_value_start_position,
+                        .length = p->lexer_position - integer_value_start_position,
+                    };
+
+                    if (will_be_float)
+                        layec_write_error(p->context, integer_value_location, "Float value contains digits outside its specified base.");
+                    else layec_write_error(p->context, integer_value_location, "Integer value contains digits outside its specified base.");
+                }
+
+                if (will_be_float) {
                     goto continue_float_literal;
                 }
 
@@ -790,20 +827,23 @@ static void laye_next_token(laye_parser* p) {
 
                 laye_char_advance(p);
                 if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
-                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d", radix);
+                    layec_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d.", radix);
                     goto end_literal_float;
                 }
 
                 if (p->current_char == '_') {
-                    layec_write_error(p->context, laye_char_location(p), "The fractional part of a float literal cannot begin with an underscore");
+                    layec_write_error(p->context, laye_char_location(p), "The fractional part of a float literal cannot begin with an underscore.");
                 }
+
+                bool should_report_invalid_digits = false;
+                int64_t fractional_value_start_position = p->lexer_position;
 
                 while (is_digit_char_in_any_radix(p->current_char) || p->current_char == '_') {
                     if (p->current_char != '_') {
                         int64_t digit_value = digit_value_in_any_radix(p->current_char);
                         if (!is_digit_char(p->current_char, radix)) {
                             digit_value = radix - 1;
-                            layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d", p->current_char, radix);
+                            layec_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d.", p->current_char, radix);
                         }
 
                         assert(digit_value >= 0 && digit_value < radix);
@@ -814,12 +854,21 @@ static void laye_next_token(laye_parser* p) {
                         // in this case, we can't fall back to the identifier parser, so we do actually error it.
                         if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
                             laye_char_advance(p);
-                            layec_write_error(p->context, laye_char_location(p), "Float literals cannot end in an underscore");
+                            layec_write_error(p->context, laye_char_location(p), "Float literals cannot end in an underscore.");
                             continue;
                         }
                     }
 
                     laye_char_advance(p);
+                }
+
+                if (should_report_invalid_digits) {
+                    layec_location integer_value_location = (layec_location){
+                        .sourceid = p->sourceid,
+                        .offset = fractional_value_start_position,
+                        .length = p->lexer_position - fractional_value_start_position,
+                    };
+                    layec_write_error(p->context, integer_value_location, "Float value contains digits outside its specified base.");
                 }
 
             end_literal_float:;
@@ -857,12 +906,22 @@ static void laye_next_token(laye_parser* p) {
             }
 
             token.location.length = p->lexer_position - token.location.offset;
+            assert(token.location.length > 0);
             string_view identifier_source_view = string_slice(p->source.text, token.location.offset, token.location.length);
 
             for (int64_t i = 0; laye_keywords[i].kind != 0; i++) {
                 if (string_view_equals(laye_keywords[i].text, identifier_source_view)) {
                     token.kind = laye_keywords[i].kind;
                     goto token_finished;
+                }
+            }
+
+            if (identifier_source_view.data[0] == 'i' || identifier_source_view.data[0] == 'u' || identifier_source_view.data[0] == 'f') {
+                bool are_remaining_characters_digits = true;
+                for (int64_t i = 1; are_remaining_characters_digits && i < identifier_source_view.count; i++) {
+                    char c = identifier_source_view.data[i];
+                    if (c < '0' || c > '9')
+                        are_remaining_characters_digits = false;
                 }
             }
 
@@ -873,8 +932,9 @@ static void laye_next_token(laye_parser* p) {
         default: {
             laye_char_advance(p);
 
+            token.kind = LAYE_TOKEN_UNKNOWN;
             token.location.length = p->lexer_position - token.location.offset;
-            layec_write_error(p->context, token.location, "Invalid character in Laye source file");
+            layec_write_error(p->context, token.location, "Invalid character in Laye source file.");
 
             laye_next_token(p);
             return;

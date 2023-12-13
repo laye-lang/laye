@@ -68,6 +68,7 @@ laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_loca
     assert(laye_node_is_type(type));
     laye_node* node = lca_arena_push(module->arena, sizeof *node);
     assert(node != NULL);
+    arr_push(module->_all_nodes, node);
     node->module = module;
     node->kind = kind;
     node->location = location;
