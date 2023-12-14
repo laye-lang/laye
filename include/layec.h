@@ -288,6 +288,7 @@ typedef struct laye_scope {
     X(YIELD)                \
     X(UNREACHABLE)          \
     X(DEFER)                \
+    X(DISCARD)              \
     X(GOTO)                 \
     X(XYZZY)                \
     X(ASSERT)               \
@@ -322,7 +323,7 @@ typedef struct laye_scope {
     X(INLINE)               \
     X(CALLCONV)             \
     X(IMPURE)               \
-    X(NODISCARD)            \
+    X(DISCARDABLE)          \
     X(VOID)                 \
     X(VAR)                  \
     X(NORETURN)
@@ -511,10 +512,6 @@ typedef struct laye_nameref {
     laye_node* referenced_declaration;
     // the type this name references, once it has been resolved.
     laye_node* referenced_type;
-
-    // associated tokens
-    laye_token global_keyword_token;
-    dynarr(laye_token) coloncolon_tokens;
 } laye_nameref;
 
 typedef struct laye_struct_type_field {

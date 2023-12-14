@@ -12,6 +12,7 @@ typedef struct laye_parser {
     int current_char;
 
     laye_token token;
+    laye_token next_token;
 } laye_parser;
 
 const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind) {
@@ -134,20 +135,11 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     laye_next_token(&p);
 
     while (p.token.kind != LAYE_TOKEN_EOF) {
-        /*
-        string_view token_text = string_slice(p.source.text, p.token.location.offset, p.token.location.length);
-        layec_write_note(
-            context,
-            p.token.location,
-            "%s %.*s",
-            laye_token_kind_to_cstring(p.token.kind),
-            STR_EXPAND(token_text)
-        );
-        laye_next_token(&p);
-        */
+        layec_location node_start_location = p.token.location;
 
         laye_node* top_level_node = laye_parse_top_level_node(&p);
         assert(top_level_node != NULL);
+        assert(p.token.location.offset != node_start_location.offset);
 
         arr_push(module->top_level_nodes, top_level_node);
     }
@@ -157,12 +149,253 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
 
 // ========== Parser ==========
 
-static bool laye_parser_is_eof(laye_parser* p) {
+struct laye_parser_mark {
+    laye_token token;
+    laye_token next_token;
+    int64_t lexer_position;
+};
+
+static struct laye_parser_mark laye_parser_mark(laye_parser* p) {
     assert(p != NULL);
-    return p->token.kind == LAYE_TOKEN_EOF;
+    return (struct laye_parser_mark){
+        .token = p->token,
+        .next_token = p->next_token,
+        .lexer_position = p->lexer_position,
+    };
 }
 
+static void laye_parser_reset_to_mark(laye_parser* p, struct laye_parser_mark mark) {
+    assert(p != NULL);
+    p->token = mark.token;
+    p->next_token = mark.next_token;
+    p->lexer_position = mark.lexer_position;
+    assert(mark.lexer_position >= 0 && mark.lexer_position < p->source.text.count);
+    p->current_char = p->source.text.data[mark.lexer_position];
+}
+
+static bool laye_parser_at(laye_parser* p, laye_token_kind kind) {
+    assert(p != NULL);
+    return p->token.kind == kind;
+}
+
+static bool laye_parser_at2(laye_parser* p, laye_token_kind kind1, laye_token_kind kind2) {
+    assert(p != NULL);
+    return p->token.kind == kind1 || p->token.kind == kind2;
+}
+
+static bool laye_parser_is_eof(laye_parser* p) {
+    assert(p != NULL);
+    return laye_parser_at(p, LAYE_TOKEN_EOF);
+}
+
+static void laye_parser_peek(laye_parser* p) {
+    assert(p != NULL);
+
+    if (p->next_token.kind != LAYE_TOKEN_INVALID)
+        return;
+
+    laye_token current_token = p->token;
+    laye_next_token(p);
+
+    p->next_token = p->token;
+    p->token = current_token;
+}
+
+static bool laye_parser_consume(laye_parser* p, laye_token_kind kind) {
+    assert(p != NULL);
+
+    if (laye_parser_at(p, kind)) {
+        laye_next_token(p);
+        return true;
+    }
+
+    return false;
+}
+
+static void laye_parser_try_synchronize(laye_parser* p, laye_token_kind kind) {
+    assert(p != NULL);
+    while (!laye_parser_at2(p, LAYE_TOKEN_EOF, kind)) {
+        laye_next_token(p);
+    }
+}
+
+static void laye_parser_try_synchronize_to_next_expression(laye_parser* p) {
+    assert(p != NULL);
+    while (!laye_parser_at(p, LAYE_TOKEN_EOF) && !laye_parser_at2(p, '}', ';')) {
+        laye_next_token(p);
+    }
+}
+
+static dynarr(laye_node*) laye_parse_attributes(laye_parser* p);
+static laye_node* laye_parse_type(laye_parser* p);
+static laye_node* laye_parse_declaration(laye_parser* p);
+
 static laye_node* laye_parse_top_level_node(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    laye_node* top_level_declaration = laye_parse_declaration(p);
+    assert(top_level_declaration != NULL);
+
+    return top_level_declaration;
+}
+
+static laye_node* laye_try_parse_type(laye_parser* p, bool allocate) {
+    assert(false && "todo");
+    return NULL;
+}
+
+static laye_node* laye_parse_type(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    assert(false && "todo");
+    return NULL;
+}
+
+static void laye_apply_attributes(laye_node* node, dynarr(laye_node*) attributes) {
+    assert(node != NULL);
+    assert(laye_node_is_decl(node));
+
+    node->attribute_nodes = attributes;
+
+    for (int64_t i = 0, count = arr_count(attributes); i < count; i++) {
+        laye_node* attribute = attributes[i];
+        assert(attribute != NULL);
+
+        switch (attribute->meta_attribute.kind) {
+            default: assert(false && "unreachable"); break;
+
+            case LAYE_TOKEN_EXPORT: {
+                node->linkage = LAYEC_LINK_EXPORTED;
+            } break;
+
+            case LAYE_TOKEN_FOREIGN: {
+                node->mangling = LAYEC_MANGLE_NONE;
+                node->foreign_name = attribute->meta_attribute.foreign_name;
+            } break;
+        }
+    }
+}
+
+static dynarr(laye_node*) laye_parse_attributes(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    dynarr(laye_node*) attributes = NULL;
+
+    int64_t last_iteration_token_position = p->token.location.offset;
+    while (p->token.kind != LAYE_TOKEN_EOF) {
+        last_iteration_token_position = p->token.location.offset;
+        switch (p->token.kind) {
+            default: goto done_parsing_attributes;
+
+            case LAYE_TOKEN_EXPORT:
+            case LAYE_TOKEN_DISCARDABLE:
+            case LAYE_TOKEN_INLINE: {
+                laye_node* simple_attribute_node = laye_node_create(p->module, LAYE_NODE_META_ATTRIBUTE, p->token.location, p->context->laye_types._void);
+                assert(simple_attribute_node != NULL);
+                simple_attribute_node->meta_attribute.kind = p->token.kind;
+                arr_push(attributes, simple_attribute_node);
+            } break;
+
+            case LAYE_TOKEN_FOREIGN: {
+                laye_node* foreign_node = laye_node_create(p->module, LAYE_NODE_META_ATTRIBUTE, p->token.location, p->context->laye_types._void);
+                assert(foreign_node != NULL);
+                arr_push(attributes, foreign_node);
+
+                if (laye_parser_consume(p, '(')) {
+                    if (p->token.kind == LAYE_TOKEN_IDENT) {
+                        string_view mangling_kind_name = string_as_view(p->token.string_value);
+                        if (string_view_equals(mangling_kind_name, SV_CONSTANT("none"))) {
+                            foreign_node->meta_attribute.mangling = LAYEC_MANGLE_NONE;
+                        } else if (string_view_equals(mangling_kind_name, SV_CONSTANT("laye"))) {
+                            foreign_node->meta_attribute.mangling = LAYEC_MANGLE_LAYE;
+                        } else {
+                            layec_write_error(
+                                p->context,
+                                p->token.location,
+                                "Unknown name mangling kind '%.*s'. Expected one of 'none' or 'laye'.",
+                                STR_EXPAND(mangling_kind_name)
+                            );
+                        }
+
+                        laye_next_token(p);
+                    } else {
+                        layec_write_error(
+                            p->context,
+                            p->token.location,
+                            "Expected an identifier as the foreign name mangling kind. Expected one of 'none' or 'laye'."
+                        );
+
+                        laye_parser_try_synchronize(p, ')');
+                    }
+
+                    if (!laye_parser_consume(p, ')')) {
+                        layec_write_error(p->context, p->token.location, "Expected ')' to close foreign name mangling kind parameter");
+                    }
+
+                    if (laye_parser_at(p, LAYE_TOKEN_LITSTRING)) {
+                        string foreign_name_value = p->token.string_value;
+                        foreign_node->meta_attribute.foreign_name = foreign_name_value;
+                        laye_next_token(p);
+                    }
+                }
+            } break;
+
+            case LAYE_TOKEN_CALLCONV: {
+                laye_node* callconv_node = laye_node_create(p->module, LAYE_NODE_META_ATTRIBUTE, p->token.location, p->context->laye_types._void);
+                assert(callconv_node != NULL);
+                arr_push(attributes, callconv_node);
+
+                if (laye_parser_consume(p, '(')) {
+                    if (p->token.kind == LAYE_TOKEN_IDENT) {
+                        string_view callconv_kind_name = string_as_view(p->token.string_value);
+                        if (string_view_equals(callconv_kind_name, SV_CONSTANT("none"))) {
+                            callconv_node->meta_attribute.mangling = LAYEC_MANGLE_NONE;
+                        } else if (string_view_equals(callconv_kind_name, SV_CONSTANT("laye"))) {
+                            callconv_node->meta_attribute.mangling = LAYEC_MANGLE_LAYE;
+                        } else {
+                            layec_write_error(
+                                p->context,
+                                p->token.location,
+                                "Unknown calling convention kind '%.*s'. Expected one of 'cdecl' or 'laye'.",
+                                STR_EXPAND(callconv_kind_name)
+                            );
+                        }
+
+                        laye_next_token(p);
+                    } else {
+                        layec_write_error(
+                            p->context,
+                            p->token.location,
+                            "Expected an identifier as the calling convention kind. Expected one of 'cdecl' or 'laye'."
+                        );
+
+                        laye_parser_try_synchronize(p, ')');
+                    }
+
+                    if (!laye_parser_consume(p, ')')) {
+                        layec_write_error(p->context, p->token.location, "Expected ')' to close calling convention kind parameter");
+                    }
+                }
+            } break;
+        }
+
+        assert(p->token.location.offset != last_iteration_token_position);
+    }
+
+done_parsing_attributes:;
+    return attributes;
+}
+
+static laye_node* laye_parse_declaration(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -173,13 +406,13 @@ static laye_node* laye_parse_top_level_node(laye_parser* p) {
 
         default: {
             laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types._void);
-            layec_write_error(p->context, p->token.location, "Unexpected token at top level. Expected 'import', 'struct', 'enum', or a function declaration.");
+            layec_write_error(p->context, p->token.location, "Expected 'import', 'struct', 'enum', or a function declaration.");
             laye_next_token(p);
             return invalid_node;
         }
     }
 
-    assert(false && "todo");
+    assert(false && "unreachable");
     return NULL;
 }
 
@@ -375,7 +608,7 @@ static struct keyword_info laye_keywords[] = {
     {LCA_SV_CONSTANT("inline"), LAYE_TOKEN_INLINE},
     {LCA_SV_CONSTANT("callconv"), LAYE_TOKEN_CALLCONV},
     {LCA_SV_CONSTANT("impure"), LAYE_TOKEN_IMPURE},
-    {LCA_SV_CONSTANT("nodiscard"), LAYE_TOKEN_NODISCARD},
+    {LCA_SV_CONSTANT("discardable"), LAYE_TOKEN_DISCARDABLE},
     {LCA_SV_CONSTANT("void"), LAYE_TOKEN_VOID},
     {LCA_SV_CONSTANT("var"), LAYE_TOKEN_VAR},
     {LCA_SV_CONSTANT("noreturn"), LAYE_TOKEN_NORETURN},
@@ -414,6 +647,12 @@ static void laye_next_token(laye_parser* p) {
         .kind = LAYE_TOKEN_INVALID,
         .location.sourceid = p->sourceid,
     };
+
+    if (p->next_token.kind != LAYE_TOKEN_INVALID) {
+        p->token = p->next_token;
+        p->next_token = token;
+        return;
+    }
 
     token.leading_trivia = laye_read_trivia(p, true);
     token.location.offset = p->lexer_position;

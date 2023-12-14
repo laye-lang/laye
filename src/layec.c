@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     assert(context != NULL);
     context->use_color = true;
 
-    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, SV_CONSTANT("./test/tokens.laye"));
+    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, SV_CONSTANT("./test/exit_code.laye"));
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
