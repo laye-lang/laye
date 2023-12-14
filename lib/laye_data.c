@@ -125,7 +125,7 @@ bool laye_node_has_noreturn_semantics(laye_node* node) {
 bool laye_decl_is_exported(laye_node* decl) {
     assert(decl != NULL);
     assert(laye_node_is_decl(decl));
-    return decl->linkage == LAYEC_LINK_EXPORTED || decl->linkage == LAYEC_LINK_REEXPORTED;
+    return decl->attributes.linkage == LAYEC_LINK_EXPORTED || decl->attributes.linkage == LAYEC_LINK_REEXPORTED;
 }
 
 bool laye_decl_is_template(laye_node* decl) {

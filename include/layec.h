@@ -132,11 +132,11 @@ typedef enum layec_linkage {
 
 typedef enum layec_calling_convention {
     // Whatever the default is for the declaration or type.
-    LAYE_DEFAULTCC,
+    LAYEC_DEFAULTCC,
     // Explicitly `cdecl` calling convention.
-    LAYE_CCC,
+    LAYEC_CCC,
     // Laye calling convention.
-    LAYE_LAYECC,
+    LAYEC_LAYECC,
 } layec_calling_convention;
 
 typedef enum layec_sema_state {
@@ -174,10 +174,24 @@ typedef struct layec_evaluated_constant {
 typedef struct laye_scope laye_scope;
 
 typedef struct laye_attributes {
+    // if a declaration is marked as `foreign` *and* a name was specified,
+    // this field represents that name. `foreign` also controls name mangling.
+    string foreign_name;
+    // the linkage for this declaration.
+    layec_linkage linkage;
+    // the name mangling strategy to use for this declaration, if any.
+    // can be controled by the `foreign` Laye attribute.
+    layec_mangling mangling;
+    // the calling convention for this declaration, if any.
+    // used only on functions.
+    layec_calling_convention calling_convention;
     // by default, a function return value cannot be implicitly discarded.
     // when a function is marked `discardable`, it can be implicitly discarded.
     // a return value may be *explicitly* discarded in either case.
-    bool is_discardable : 1;
+    bool is_discardable;
+    // true if this declaration should be inlined, false otherwise.
+    // used only on functions.
+    bool is_inline;
 } laye_attributes;
 
 typedef enum laye_varargs_style {
@@ -571,14 +585,6 @@ struct laye_node {
     // contains values, then this is assumed to be empty except for to report a syntax
     // error when used imporperly.
     string declared_name;
-    // if a declaration is marked as `foreign` *and* a name was specified,
-    // this field represents that name. `foreign` also controls name mangling.
-    string foreign_name;
-    // the linkage for this declaration.
-    layec_linkage linkage;
-    // the name mangling strategy to use for this declaration, if any.
-    // can be controled by the `foreign` Laye attribute.
-    layec_mangling mangling;
     // attributes for this declaration that aren't covered by other standard cases.
     laye_attributes attributes;
     // template parameters for this declaration, if there are any.
@@ -1150,6 +1156,8 @@ struct laye_node {
             // it is specified here. (usually just the `foreign` attribute with a
             // mangling scheme argument).
             layec_mangling mangling;
+
+            laye_token keyword_token;
         } meta_attribute;
 
         struct {
