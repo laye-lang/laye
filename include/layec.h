@@ -66,6 +66,11 @@ typedef struct layec_context {
     dynarr(layec_source) sources;
     dynarr(string) include_directories;
 
+    int64_t max_interned_string_size;
+    lca_arena* string_arena;
+    dynarr(string) _interned_strings;
+    dynarr(string) allocated_strings;
+
     // types for use in Laye semantic analysis.
     // should not be stored within syntax nodes that have explicit
     // type syntax in the source code, since source location information
@@ -74,6 +79,8 @@ typedef struct layec_context {
     // of an if statement or for loop to be convertible to type `bool`, or
     // when converting array indices into a platform integer type.
     struct {
+        laye_node* poison;
+        laye_node* unknown;
         laye_node* type;
         laye_node* _void;
         laye_node* noreturn;
@@ -172,6 +179,7 @@ typedef struct layec_evaluated_constant {
 // Laye
 
 typedef struct laye_scope laye_scope;
+typedef struct laye_token laye_token;
 
 typedef struct laye_attributes {
     // if a declaration is marked as `foreign` *and* a name was specified,
@@ -226,10 +234,12 @@ typedef struct laye_module {
 
     dynarr(laye_node*) top_level_nodes;
 
+    dynarr(laye_token) _all_tokens;
     dynarr(laye_node*) _all_nodes;
+    dynarr(laye_scope*) _all_scopes;
 } laye_module;
 
-typedef struct laye_scope {
+struct laye_scope {
     // the module this scope is defined in.
     laye_module* module;
     // this scope's parent.
@@ -244,7 +254,7 @@ typedef struct laye_scope {
     dynarr(laye_node*) value_declarations;
     // types declared in this scope.
     dynarr(laye_node*) type_declarations;
-} laye_scope;
+};
 
 #define LAYE_TRIVIA_KINDS(X) \
     X(LINE_COMMENT)          \
@@ -393,7 +403,7 @@ typedef enum laye_token_kind {
 } laye_token_kind;
 // clang-format on
 
-typedef struct laye_token {
+struct laye_token {
     laye_token_kind kind;
     layec_location location;
     dynarr(laye_trivia) leading_trivia;
@@ -403,7 +413,7 @@ typedef struct laye_token {
         double float_value;
         string string_value;
     };
-} laye_token;
+};
 
 #define LAYE_NODE_KINDS(X)     \
     X(DECL_IMPORT)             \
@@ -418,8 +428,8 @@ typedef struct laye_token {
     X(DECL_ALIAS)              \
     X(DECL_TEMPLATE_TYPE)      \
     X(DECL_TEMPLATE_VALUE)     \
+    X(DECL_TEST)               \
     X(LABEL)                   \
-    X(TEST)                    \
     X(EMPTY)                   \
     X(COMPOUND)                \
     X(ASSIGNMENT)              \
@@ -468,6 +478,7 @@ typedef struct laye_token {
     X(LITSTRING)               \
     X(LITRUNE)                 \
     X(TYPE_POISON)             \
+    X(TYPE_UNKNOWN)            \
     X(TYPE_TYPE)               \
     X(TYPE_VOID)               \
     X(TYPE_NORETURN)           \
@@ -903,7 +914,7 @@ struct laye_node {
             // their primary "body".
             string target;
             // the value to yield from this compound expression.
-            laye_node* result_value;
+            laye_node* value;
         } yield;
 
         struct {
@@ -1225,10 +1236,12 @@ void laye_module_destroy(laye_module* module);
 layec_source laye_module_get_source(laye_module* module);
 
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
+void laye_scope_destroy(laye_scope* scope);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type);
 laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind, laye_node* type);
+void laye_node_destroy(laye_node* node);
 
 void laye_node_set_sema_in_progress(laye_node* node);
 void laye_node_set_sema_errored(laye_node* node);

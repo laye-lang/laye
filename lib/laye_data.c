@@ -8,6 +8,32 @@ void laye_module_destroy(laye_module* module) {
     assert(module->context != NULL);
     lca_allocator allocator = module->context->allocator;
 
+    for (int64_t i = 0, count = arr_count(module->_all_tokens); i < count; i++) {
+        laye_token token = module->_all_tokens[i];
+        arr_free(token.leading_trivia);
+        arr_free(token.trailing_trivia);
+    }
+
+    for (int64_t i = 0, count = arr_count(module->_all_nodes); i < count; i++) {
+        laye_node* node = module->_all_nodes[i];
+        assert(node != NULL);
+        laye_node_destroy(node);
+    }
+
+    for (int64_t i = 0, count = arr_count(module->_all_scopes); i < count; i++) {
+        laye_scope* scope = module->_all_scopes[i];
+        assert(scope != NULL);
+        laye_scope_destroy(scope);
+    }
+
+    arr_free(module->_all_tokens);
+    arr_free(module->_all_nodes);
+    arr_free(module->_all_scopes);
+
+    arr_free(module->top_level_nodes);
+
+    lca_arena_destroy(module->arena);
+
     *module = (laye_module){};
     lca_deallocate(allocator, module);
 }
@@ -26,7 +52,15 @@ laye_scope* laye_scope_create(laye_module* module, laye_scope* parent) {
     assert(scope != NULL);
     scope->module = module;
     scope->parent = parent;
+    arr_push(module->_all_scopes, scope);
     return scope;
+}
+
+void laye_scope_destroy(laye_scope* scope) {
+    if (scope == NULL) return;
+    arr_free(scope->type_declarations);
+    arr_free(scope->value_declarations);
+    *scope = (laye_scope){};
 }
 
 void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
@@ -84,6 +118,94 @@ laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind ki
     node->kind = kind;
     node->type = type;
     return node;
+}
+
+void laye_node_destroy(laye_node* node) {
+    if (node == NULL) return;
+
+    arr_free(node->template_parameters);
+    arr_free(node->attribute_nodes);
+
+    switch (node->kind) {
+        default: break;
+
+        case LAYE_NODE_DECL_IMPORT: {
+            arr_free(node->decl_import.imported_names);
+        } break;
+
+        case LAYE_NODE_DECL_OVERLOADS: {
+            arr_free(node->decl_overloads.declarations);
+        } break;
+
+        case LAYE_NODE_DECL_FUNCTION: {
+            arr_free(node->decl_function.parameter_declarations);
+        } break;
+
+        case LAYE_NODE_DECL_STRUCT: {
+            arr_free(node->decl_struct.field_declarations);
+            arr_free(node->decl_struct.variant_declarations);
+        } break;
+
+        case LAYE_NODE_DECL_ENUM: {
+            arr_free(node->decl_enum.variants);
+        } break;
+
+        case LAYE_NODE_COMPOUND: {
+            arr_free(node->compound.children);
+        } break;
+
+        case LAYE_NODE_SWITCH: {
+            arr_free(node->_switch.cases);
+        } break;
+
+        case LAYE_NODE_NAMEREF:
+        case LAYE_NODE_TYPE_NAMEREF: {
+            arr_free(node->nameref.pieces);
+            arr_free(node->nameref.template_arguments);
+        } break;
+
+        case LAYE_NODE_INDEX: {
+            arr_free(node->index.indices);
+        } break;
+
+        case LAYE_NODE_CALL: {
+            arr_free(node->call.arguments);
+        } break;
+
+        case LAYE_NODE_CTOR: {
+            arr_free(node->ctor.initializers);
+        } break;
+
+        case LAYE_NODE_NEW: {
+            arr_free(node->new.arguments);
+            arr_free(node->new.initializers);
+        } break;
+
+        case LAYE_NODE_TYPE_NILABLE:
+        case LAYE_NODE_TYPE_ARRAY:
+        case LAYE_NODE_TYPE_SLICE:
+        case LAYE_NODE_TYPE_REFERENCE:
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER: {
+            arr_free(node->type_container.length_values);
+        } break;
+
+        case LAYE_NODE_TYPE_FUNCTION: {
+            arr_free(node->type_function.parameter_types);
+        } break;
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            arr_free(node->type_struct.fields);
+            arr_free(node->type_struct.variants);
+        } break;
+
+        case LAYE_NODE_TYPE_ENUM: {
+            arr_free(node->type_enum.variants);
+        } break;
+    }
+
+    *node = (laye_node){};
+    // don't free the node, since it's arena allocated
 }
 
 void laye_node_set_sema_in_progress(laye_node* node) {
@@ -509,7 +631,7 @@ bool laye_type_equals(laye_node* a, laye_node* b) {
             assert(b->type_template_parameter.declaration != NULL);
             return a->type_template_parameter.declaration == b->type_template_parameter.declaration;
         }
-        
+
         case LAYE_NODE_TYPE_INT:
         case LAYE_NODE_TYPE_FLOAT: {
             if (a->type_primitive.is_platform_specified)

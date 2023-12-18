@@ -59,8 +59,12 @@ layec_context* layec_context_create(lca_allocator allocator) {
     assert(context != NULL);
     context->allocator = allocator;
     context->target = layec_default_target;
+    context->max_interned_string_size = 1024 * 1024;
+    context->string_arena = lca_arena_create(allocator, context->max_interned_string_size);
     context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, NULL);
     context->laye_types.type->type = context->laye_types.type;
+    context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, context->laye_types.type);
+    context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, context->laye_types.type);
     context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, context->laye_types.type);
     context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, context->laye_types.type);
     context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, context->laye_types.type);
@@ -71,6 +75,32 @@ void layec_context_destroy(layec_context* context) {
     if (context == NULL) return;
 
     lca_allocator allocator = context->allocator;
+
+    for (int64_t i = 0, count = arr_count(context->sources); i < count; i++) {
+        layec_source* source = &context->sources[i];
+        string_destroy(&source->name);
+        string_destroy(&source->text);
+    }
+
+    arr_free(context->sources);
+    arr_free(context->include_directories);
+
+    lca_arena_destroy(context->string_arena);
+    arr_free(context->_interned_strings);
+
+    for (int64_t i = 0, count = arr_count(context->allocated_strings); i < count; i++) {
+        string* string = &context->allocated_strings[i];
+        string_destroy(string);
+    }
+
+    arr_free(context->allocated_strings);
+
+    lca_deallocate(allocator, context->laye_types.poison);
+    lca_deallocate(allocator, context->laye_types.unknown);
+    lca_deallocate(allocator, context->laye_types.type);
+    lca_deallocate(allocator, context->laye_types._void);
+    lca_deallocate(allocator, context->laye_types.noreturn);
+    lca_deallocate(allocator, context->laye_types._bool);
 
     *context = (layec_context){};
     lca_deallocate(allocator, context);
@@ -250,6 +280,18 @@ void layec_write_error(layec_context* context, layec_location location, const ch
 #undef GET_MESSAGE
 
 string layec_context_intern_string_view(layec_context* context, string_view s) {
-    // TODO(local): actually intern strings
-    return string_view_to_string(context->allocator, s);
+    if (s.count + 1 > context->max_interned_string_size) {
+        string allocated_string = string_view_to_string(context->allocator, s);
+        arr_push(context->allocated_strings, allocated_string);
+        return allocated_string;
+    }
+
+    // TODO(local): these aren't properly interned yet, do that eventually.
+
+    char* arena_string_data = lca_arena_push(context->string_arena, s.count + 1);
+    memcpy(arena_string_data, s.data, (size_t)s.count);
+    
+    string arena_string = string_from_data(context->allocator, arena_string_data, s.count, s.count + 1);
+
+    return arena_string;
 }

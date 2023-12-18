@@ -495,8 +495,58 @@ done_parsing_attributes:;
     return attributes;
 }
 
+static laye_node* laye_parse_expression(laye_parser* p, bool statement_like);
+
+static laye_node* laye_parse_compound_expression(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == '{');
+
+    layec_location start_location = p->token.location;
+    laye_next_token(p);
+
+    dynarr(laye_node*) children = NULL;
+
+    while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
+        laye_node* child_expr = laye_parse_expression(p, true);
+        assert(child_expr != NULL);
+
+        arr_push(children, child_expr);
+    }
+
+    layec_location end_location = {};
+    laye_token closing_token = {};
+
+    if (laye_parser_consume(p, '}', &closing_token)) {
+        assert(closing_token.kind == '}');
+        end_location = closing_token.location;
+    } else {
+        if (arr_count(children) == 0) {
+            end_location = start_location;
+        } else {
+            end_location = (*arr_back(children))->location;
+        }
+
+        layec_write_error(p->context, p->token.location, "Expected '}'.");
+    }
+
+    layec_location total_location = start_location;
+    assert(end_location.offset >= start_location.offset);
+    total_location.length = (end_location.offset + end_location.length) - start_location.offset;
+    assert(total_location.length >= start_location.length);
+
+    // for now, assume void; see if we can't deduce the need for a type + what it would be, so far, syntactically.
+    laye_node* compound_type = p->context->laye_types._void;
+    laye_node* compound_expression = laye_node_create(p->module, LAYE_NODE_COMPOUND, total_location, compound_type);
+    compound_expression->compound.children = children;
+
+    return compound_expression;
+}
+
 static laye_node* laye_parser_create_invalid_node_from_token(laye_parser* p) {
     assert(p != NULL);
+    assert(p->context != NULL);
     assert(p->module != NULL);
 
     laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types._void);
@@ -567,7 +617,37 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
         laye_node* function_body = NULL;
         if (!laye_parser_consume(p, ';', NULL)) {
-            assert(false && "todo");
+            if (laye_parser_consume(p, LAYE_TOKEN_EQUALGREATER, NULL)) {
+                laye_node* function_body_expr = laye_parse_expression(p, false);
+                assert(function_body_expr != NULL);
+
+                if (!laye_parser_consume(p, ';', NULL)) {
+                    layec_write_error(p->context, p->token.location, "Expected ';'.");
+                }
+
+                laye_node* implicit_return_node = laye_node_create(p->module, LAYE_NODE_RETURN, function_body_expr->location, p->context->laye_types._void);
+                assert(implicit_return_node != NULL);
+                implicit_return_node->compiler_generated = true;
+                implicit_return_node->_return.value = function_body_expr;
+
+                function_body = laye_node_create(p->module, LAYE_NODE_COMPOUND, function_body_expr->location, p->context->laye_types._void);
+                assert(function_body != NULL);
+                function_body->compiler_generated = true;
+                function_body->compound.scope_name = name_token.string_value;
+                arr_push(function_body->compound.children, implicit_return_node);
+                assert(1 == arr_count(function_body->compound.children));
+            } else {
+                if (!laye_parser_at(p, '{')) {
+                    layec_write_error(p->context, p->token.location, "Expected '{'.");
+                    function_body = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types.poison);
+                    assert(function_body != NULL);
+                } else {
+                    function_body = laye_parse_compound_expression(p);
+                    assert(function_body != NULL);
+                }
+            }
+
+            assert(function_body != NULL);
         }
 
         function_node->decl_function.body = function_body;
@@ -614,6 +694,100 @@ static laye_node* laye_parse_declaration(laye_parser* p) {
 
     assert(false && "unreachable");
     return NULL;
+}
+
+static laye_node* laye_parse_primary_expression_continue(laye_parser* p, laye_node* primary_expr) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+    assert(primary_expr != NULL);
+
+    switch (p->token.kind) {
+        default: {
+            return primary_expr;
+        }
+
+        case '(': {
+            laye_next_token(p);
+
+            dynarr(laye_node*) arguments = NULL;
+
+            if (!laye_parser_at(p, ')')) {
+                do {
+                    laye_node* argument_expr = laye_parse_expression(p, false);
+                    assert(argument_expr != NULL);
+                    arr_push(arguments, argument_expr);
+                } while (laye_parser_consume(p, ',', NULL));
+            }
+
+            if (!laye_parser_consume(p, ')', NULL)) {
+                layec_write_error(p->context, p->token.location, "Expected ')'.");
+            }
+
+            laye_node* call_expr = laye_node_create(p->module, LAYE_NODE_CALL, primary_expr->location, p->context->laye_types.unknown);
+            assert(call_expr != NULL);
+            call_expr->call.callee = primary_expr;
+            call_expr->call.arguments = arguments;
+
+            return laye_parse_primary_expression_continue(p, call_expr);
+        }
+    }
+
+    assert(false && "unreachable");
+    return NULL;
+}
+
+static laye_node* laye_parse_primary_expression(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    switch (p->token.kind) {
+        default: {
+            laye_node* invalid_expr = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types.poison);
+            assert(invalid_expr != NULL);
+            layec_write_error(p->context, p->token.location, "Unexpected token. Expected an expression.");
+            laye_next_token(p);
+            return invalid_expr;
+        }
+
+        case LAYE_TOKEN_IDENT: {
+            laye_node* nameref_expr = laye_node_create(p->module, LAYE_NODE_NAMEREF, p->token.location, p->context->laye_types.unknown);
+            assert(nameref_expr != NULL);
+            laye_next_token(p);
+            return laye_parse_primary_expression_continue(p, nameref_expr);
+        }
+
+        case LAYE_TOKEN_LITINT: {
+            laye_node* litint_expr = laye_node_create(p->module, LAYE_NODE_LITINT, p->token.location, p->context->laye_types.unknown);
+            assert(litint_expr != NULL);
+            laye_next_token(p);
+            return laye_parse_primary_expression_continue(p, litint_expr);
+        }
+    }
+
+    assert(false && "unreachable");
+    return NULL;
+}
+
+static laye_node* laye_parse_expression(laye_parser* p, bool statement_like) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    laye_node* primary_expr = laye_parse_primary_expression(p);
+    assert(primary_expr != NULL);
+
+    if (statement_like) {
+        if (!laye_parser_consume(p, ';', NULL)) {
+            layec_write_error(p->context, p->token.location, "Expected ';'.");
+        }
+    }
+    
+    return primary_expr;
 }
 
 // ========== Lexer ==========
@@ -685,7 +859,7 @@ try_again:;
                     string_view line_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     line_trivia.location.length = line_comment_text.count - 2;
-                    line_trivia.text = string_view_to_string(p->context->allocator, line_comment_text);
+                    line_trivia.text = layec_context_intern_string_view(p->context, line_comment_text);
 
                     arr_push(trivia, line_trivia);
 
@@ -726,7 +900,7 @@ try_again:;
                     string_view block_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     block_trivia.location.length = p->lexer_position - block_trivia.location.offset;
-                    block_trivia.text = string_view_to_string(p->context->allocator, block_comment_text);
+                    block_trivia.text = layec_context_intern_string_view(p->context, block_comment_text);
 
                     if (nesting_count > 0) {
                         layec_write_error(p->context, block_trivia.location, "Unterminated delimimted comment.");
@@ -1396,6 +1570,8 @@ static void laye_next_token(laye_parser* p) {
             token.location.length = p->lexer_position - token.location.offset;
             layec_write_error(p->context, token.location, "Invalid character in Laye source file.");
 
+            arr_push(p->module->_all_tokens, token);
+
             laye_next_token(p);
             return;
         }
@@ -1409,4 +1585,6 @@ token_finished:;
 
     token.trailing_trivia = laye_read_trivia(p, false);
     p->token = token;
+
+    arr_push(p->module->_all_tokens, token);
 }

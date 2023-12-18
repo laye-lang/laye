@@ -26,6 +26,7 @@ typedef struct lca_string_view {
 
 lca_string lca_string_create(lca_allocator allocator);
 lca_string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, int64_t capacity);
+void lca_string_destroy(lca_string* s);
 char* lca_string_as_cstring(lca_string s);
 bool lca_string_equals(lca_string a, lca_string b);
 lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length);
@@ -46,6 +47,7 @@ typedef struct lca_string string;
 typedef struct lca_string_view string_view;
 #    define string_create(A)             lca_string_create(A)
 #    define string_from_data(A, D, L, C) lca_string_from_data(A, D, L, C)
+#    define string_destroy(S)            lca_string_destroy(S)
 #    define string_as_cstring(S)         lca_string_as_cstring(S)
 #    define string_equals(A, B)          lca_string_equals(A, B)
 #    define string_slice(S, O, L)        lca_string_slice(S, O, L)
@@ -84,6 +86,12 @@ string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, 
     };
 }
 
+void lca_string_destroy(lca_string* s) {
+    if (s == NULL) return;
+    lca_deallocate(s->allocator, s->data);
+    *s = (string){};
+}
+
 char* lca_string_as_cstring(lca_string s) {
     assert(s.count < s.capacity);
     assert(s.data[s.count] == 0);
@@ -104,7 +112,7 @@ lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length) {
     assert(length >= 0);
     assert(offset + length <= s.count);
 
-    return (lca_string_view) {
+    return (lca_string_view){
         .data = s.data + offset,
         .count = length,
     };

@@ -29,6 +29,7 @@ char* lca_temp_sprintf(const char* format, ...);
 char* lca_temp_vsprintf(const char* format, va_list v);
 
 lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size);
+void lca_arena_destroy(lca_arena* arena);
 void* lca_arena_push(lca_arena* arena, size_t size);
 void lca_arena_clear(lca_arena* arena);
 void lca_arena_dump(lca_arena* arena);
@@ -149,6 +150,23 @@ lca_arena* lca_arena_create(lca_allocator allocator, size_t block_size) {
     lca_da_push(arena->blocks, first_block);
 
     return arena;
+}
+
+void lca_arena_destroy(lca_arena* arena) {
+    if (arena == NULL) return;
+
+    lca_allocator allocator = arena->allocator;
+
+    for (int64_t i = 0, count = arr_count(arena->blocks); i < count; i++) {
+        lca_arena_block* block = &arena->blocks[i];
+        lca_deallocate(allocator, block->memory);
+        *block = (lca_arena_block){};
+    }
+
+    arr_free(arena->blocks);
+
+    *arena = (lca_arena){};
+    lca_deallocate(allocator, arena);
 }
 
 void* lca_arena_push(lca_arena* arena, size_t count) {
