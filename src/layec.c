@@ -18,6 +18,10 @@ int main(int argc, char** argv) {
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
+    string module_string = laye_module_debug_print(module);
+    fprintf(stderr, "%.*s", STR_EXPAND(module_string));
+    string_destroy(&module_string);
+
     // in release/unsafe builds, we don't need to worry about manually tearing
     // down all of our allocations. these should always be run in debug/safe
     // builds so the static analysers (like address sanitizer) can do their magic.

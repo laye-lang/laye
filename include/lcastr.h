@@ -32,6 +32,8 @@ bool lca_string_equals(lca_string a, lca_string b);
 lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length);
 lca_string lca_string_format(const char* format, ...);
 lca_string lca_string_vformat(const char* format, va_list v);
+void lca_string_append_format(lca_string* s, const char* format, ...);
+void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 
 lca_string_view lca_string_as_view(lca_string s);
 bool lca_string_view_equals(lca_string_view a, lca_string_view b);
@@ -45,18 +47,20 @@ lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s)
 #    define STR_EXPAND(S)  LCA_STR_EXPAND(S)
 typedef struct lca_string string;
 typedef struct lca_string_view string_view;
-#    define string_create(A)             lca_string_create(A)
-#    define string_from_data(A, D, L, C) lca_string_from_data(A, D, L, C)
-#    define string_destroy(S)            lca_string_destroy(S)
-#    define string_as_cstring(S)         lca_string_as_cstring(S)
-#    define string_equals(A, B)          lca_string_equals(A, B)
-#    define string_slice(S, O, L)        lca_string_slice(S, O, L)
-#    define string_format(F, ...)        lca_string_format(F, __VA_ARGS__)
-#    define string_vformat(F, V)         lca_string_vformat(F, V)
-#    define string_as_view(S)            lca_string_as_view(S)
-#    define string_view_equals(A, B)     lca_string_view_equals(A, B)
-#    define string_view_to_string(A, S)  lca_string_view_to_string(A, S)
-#    define SV(S)                        LCA_SV(S)
+#    define string_create(A)                lca_string_create(A)
+#    define string_from_data(A, D, L, C)    lca_string_from_data(A, D, L, C)
+#    define string_destroy(S)               lca_string_destroy(S)
+#    define string_as_cstring(S)            lca_string_as_cstring(S)
+#    define string_equals(A, B)             lca_string_equals(A, B)
+#    define string_slice(S, O, L)           lca_string_slice(S, O, L)
+#    define string_format(F, ...)           lca_string_format(F, __VA_ARGS__)
+#    define string_vformat(F, V)            lca_string_vformat(F, V)
+#    define string_append_format(S, F, ...) lca_string_append_format(S, F, __VA_ARGS__)
+#    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
+#    define string_as_view(S)               lca_string_as_view(S)
+#    define string_view_equals(A, B)        lca_string_view_equals(A, B)
+#    define string_view_to_string(A, S)     lca_string_view_to_string(A, S)
+#    define SV(S)                           LCA_SV(S)
 #endif // !LCA_STR_NO_SHORT_NAMES
 
 #ifdef LCA_STR_IMPLEMENTATION
@@ -130,6 +134,45 @@ lca_string lca_string_vformat(const char* format, va_list v) {
     char* buffer = lca_temp_vsprintf(format, v);
     int64_t count = strlen(buffer);
     return lca_string_from_data(temp_allocator, buffer, count, count + 1);
+}
+
+static void lca_string_ensure_capacity(lca_string* s, int64_t min_capacity) {
+    if (s == NULL) return;
+    if (s->capacity >= min_capacity) return;
+
+    int64_t new_capacity = s->capacity;
+    if (new_capacity == 0) {
+        new_capacity = min_capacity;
+    } else {
+        while (new_capacity < min_capacity) {
+            new_capacity <<= 1;
+        }
+    }
+
+    s->data = lca_reallocate(s->allocator, s->data, new_capacity);
+    s->capacity = new_capacity;
+}
+
+void lca_string_append_format(lca_string* s, const char* format, ...) {
+    assert(s != NULL);
+    va_list v;
+    va_start(v, format);
+    lca_string_append_vformat(s, format, v);
+    va_end(v);
+}
+
+void lca_string_append_vformat(lca_string* s, const char* format, va_list v) {
+    assert(s != NULL);
+
+    va_list v1;
+    va_copy(v1, v);
+    int n = vsnprintf(NULL, 0, format, v1);
+    va_end(v1);
+
+    lca_string_ensure_capacity(s, s->capacity + n);
+    vsnprintf(s->data + s->count, n + 1, format, v);
+
+    s->count += n;
 }
 
 lca_string_view lca_string_as_view(lca_string s) {

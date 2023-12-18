@@ -11,7 +11,8 @@
 
 #define LAYEC_VERSION "0.1.1"
 
-#define COL(X) (use_color ? ANSI_COLOR_##X : "")
+#define COLCAT(A, B) A ## B
+#define COL(X) (use_color ? COLCAT(ANSI_COLOR_, X) : "")
 
 typedef int64_t layec_sourceid;
 
@@ -1235,6 +1236,8 @@ void laye_module_destroy(laye_module* module);
 
 layec_source laye_module_get_source(laye_module* module);
 
+string laye_module_debug_print(laye_module* module);
+
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_destroy(laye_scope* scope);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
@@ -1294,6 +1297,8 @@ laye_node* laye_type_strip_pointers_and_references(laye_node* type);
 laye_node* laye_type_strip_references(laye_node* type);
 
 bool laye_type_equals(laye_node* a, laye_node* b);
+
+void laye_type_print_to_string(laye_node* type, string* s, bool use_color);
 
 int laye_type_array_rank(laye_node* array_type);
 
