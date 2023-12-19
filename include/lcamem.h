@@ -36,12 +36,12 @@ void lca_arena_dump(lca_arena* arena);
 
 #ifdef LCA_MEM_IMPLEMENTATION
 
+#    include "lcads.h"
+
 #    include <assert.h>
 #    include <stdio.h>
 #    include <stdlib.h>
 #    include <string.h>
-
-#    include "lcads.h"
 
 typedef struct lca_arena_block {
     void* memory;
@@ -80,9 +80,15 @@ void* lca_default_allocator_function(void* user_data, size_t count, void* ptr) {
     if (count == 0) {
         free(ptr);
         return NULL;
-    } else if (ptr == NULL)
-        return calloc(1, count);
-    else return realloc(ptr, count);
+    } else if (ptr == NULL) {
+        void* data = calloc(1, count);
+        assert(data != NULL);
+        return data;
+    } else {
+        void* data = realloc(ptr, count);
+        assert(data != NULL);
+        return data;
+    }
 }
 
 void* lca_temp_allocator_function(void* user_data, size_t count, void* ptr) {
@@ -133,7 +139,7 @@ char* lca_temp_vsprintf(const char* format, va_list v) {
 }
 
 lca_arena_block lca_arena_block_create(lca_arena* arena) {
-    return (lca_arena_block) {
+    return (lca_arena_block){
         .memory = lca_allocate(arena->allocator, arena->block_size),
         .capacity = arena->block_size,
     };

@@ -150,6 +150,7 @@ static void lca_string_ensure_capacity(lca_string* s, int64_t min_capacity) {
     }
 
     s->data = lca_reallocate(s->allocator, s->data, new_capacity);
+    assert(s->data != NULL);
     s->capacity = new_capacity;
 }
 
@@ -169,7 +170,7 @@ void lca_string_append_vformat(lca_string* s, const char* format, va_list v) {
     int n = vsnprintf(NULL, 0, format, v1);
     va_end(v1);
 
-    lca_string_ensure_capacity(s, s->capacity + n);
+    lca_string_ensure_capacity(s, s->count + n + 1);
     vsnprintf(s->data + s->count, n + 1, format, v);
 
     s->count += n;

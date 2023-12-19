@@ -402,6 +402,7 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p) {
                 assert(foreign_node != NULL);
                 foreign_node->meta_attribute.kind = p->token.kind;
                 foreign_node->meta_attribute.keyword_token = p->token;
+                foreign_node->meta_attribute.mangling = LAYEC_MANGLE_NONE;
 
                 laye_next_token(p);
                 arr_push(attributes, foreign_node);
@@ -756,6 +757,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
         case LAYE_TOKEN_IDENT: {
             laye_node* nameref_expr = laye_node_create(p->module, LAYE_NODE_NAMEREF, p->token.location, p->context->laye_types.unknown);
             assert(nameref_expr != NULL);
+            arr_push(nameref_expr->nameref.pieces, p->token);
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, nameref_expr);
         }
