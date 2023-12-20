@@ -59,15 +59,25 @@ layec_context* layec_context_create(lca_allocator allocator) {
     assert(context != NULL);
     context->allocator = allocator;
     context->target = layec_default_target;
+    assert(context->target != NULL);
     context->max_interned_string_size = 1024 * 1024;
     context->string_arena = lca_arena_create(allocator, context->max_interned_string_size);
+    assert(context->string_arena != NULL);
     context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, NULL);
+    assert(context->laye_types.type != NULL);
     context->laye_types.type->type = context->laye_types.type;
     context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, context->laye_types.type);
+    assert(context->laye_types.poison != NULL);
     context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, context->laye_types.type);
+    assert(context->laye_types.unknown != NULL);
     context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, context->laye_types.type);
+    assert(context->laye_types._void != NULL);
     context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, context->laye_types.type);
+    assert(context->laye_types.noreturn != NULL);
     context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, context->laye_types.type);
+    assert(context->laye_types._bool != NULL);
+    context->laye_dependencies = layec_dependency_graph_create_in_context(context);
+    assert(context->laye_dependencies != NULL);
     return context;
 }
 
@@ -101,6 +111,12 @@ void layec_context_destroy(layec_context* context) {
     lca_deallocate(allocator, context->laye_types._void);
     lca_deallocate(allocator, context->laye_types.noreturn);
     lca_deallocate(allocator, context->laye_types._bool);
+
+    for (int64_t i = 0, count = arr_count(context->_all_depgraphs); i < count; i++) {
+        layec_dependency_graph_destroy(context->_all_depgraphs[i]);
+    }
+
+    arr_free(context->_all_depgraphs);
 
     *context = (layec_context){};
     lca_deallocate(allocator, context);

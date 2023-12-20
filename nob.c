@@ -16,9 +16,11 @@ int main(int argc, char** argv) {
     nob_cmd_append(&driver_cmd, "-fsanitize=address");
     nob_cmd_append(&driver_cmd, "./lib/layec_shared.c");
     nob_cmd_append(&driver_cmd, "./lib/layec_context.c");
+    nob_cmd_append(&driver_cmd, "./lib/layec_depgraph.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_data.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_debug.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_parser.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye_sema.c");
     nob_cmd_append(&driver_cmd, "./src/layec.c");
     nob_cmd_run_sync(driver_cmd);
 

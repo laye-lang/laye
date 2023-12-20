@@ -57,6 +57,7 @@ extern layec_target_info* layec_x86_64_linux;
 extern layec_target_info* layec_x86_64_windows;
 
 typedef struct laye_node laye_node;
+typedef struct layec_dependency_graph layec_dependency_graph;
 
 typedef struct layec_context {
     lca_allocator allocator;
@@ -87,6 +88,10 @@ typedef struct layec_context {
         laye_node* noreturn;
         laye_node* _bool;
     } laye_types;
+
+    layec_dependency_graph* laye_dependencies;
+
+    dynarr(layec_dependency_graph*) _all_depgraphs;
 } layec_context;
 
 typedef struct layec_location {
@@ -177,6 +182,19 @@ typedef struct layec_evaluated_constant {
     };
 } layec_evaluated_constant;
 
+typedef void layec_dependency_entity;
+
+typedef struct layec_dependency_entry {
+    laye_node* node;
+    dynarr(layec_dependency_entity*) dependencies;
+} layec_dependency_entry;
+
+struct layec_dependency_graph {
+    layec_context* context;
+    lca_arena* arena;
+    dynarr(layec_dependency_entry*) entries;
+};
+
 // Laye
 
 typedef struct laye_scope laye_scope;
@@ -230,6 +248,8 @@ typedef enum laye_cast_kind {
 typedef struct laye_module {
     layec_context* context;
     layec_sourceid sourceid;
+
+    bool dependencies_generated;
 
     lca_arena* arena;
 
@@ -1213,6 +1233,12 @@ const char* layec_value_category_to_cstring(layec_value_category category);
 
 bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated_constant b);
 
+layec_dependency_graph* layec_dependency_graph_create_in_context(layec_context* context);
+void layec_dependency_graph_destroy(layec_dependency_graph* graph);
+void layec_depgraph_add_dependency(layec_dependency_graph* graph, layec_dependency_entity* node, layec_dependency_entity* dependency);
+void layec_depgraph_ensure_tracked(layec_dependency_graph* graph, layec_dependency_entity* node);
+dynarr(layec_dependency_entity*) layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph);
+
 // ========== Laye ==========
 
 const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind);
@@ -1232,8 +1258,9 @@ bool laye_node_is_modifiable_lvalue(laye_node* node);
 bool laye_type_is_modifiable(laye_node* node);
 
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
-void laye_module_destroy(laye_module* module);
+void laye_analyse(laye_module* module);
 
+void laye_module_destroy(laye_module* module);
 layec_source laye_module_get_source(laye_module* module);
 
 string laye_module_debug_print(laye_module* module);
