@@ -195,6 +195,22 @@ struct layec_dependency_graph {
     dynarr(layec_dependency_entry*) entries;
 };
 
+typedef struct layec_dependency_order_result {
+    enum {
+        LAYEC_DEP_OK,
+        LAYEC_DEP_CYCLE,
+    } status;
+
+    union {
+        dynarr(layec_dependency_entity*) ordered_entities;
+
+        struct {
+            layec_dependency_entity* from;
+            layec_dependency_entity* to;
+        };
+    };
+} layec_dependency_order_result;
+
 // Laye
 
 typedef struct laye_scope laye_scope;
@@ -1237,7 +1253,7 @@ layec_dependency_graph* layec_dependency_graph_create_in_context(layec_context* 
 void layec_dependency_graph_destroy(layec_dependency_graph* graph);
 void layec_depgraph_add_dependency(layec_dependency_graph* graph, layec_dependency_entity* node, layec_dependency_entity* dependency);
 void layec_depgraph_ensure_tracked(layec_dependency_graph* graph, layec_dependency_entity* node);
-dynarr(layec_dependency_entity*) layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph);
+layec_dependency_order_result layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph);
 
 // ========== Laye ==========
 

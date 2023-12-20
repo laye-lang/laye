@@ -1,8 +1,5 @@
 // R %layec% --print-ir %s
 
-// * declare void exit(i32)
-foreign callconv(cdecl) noreturn exit(i32 exit_code);
-
 // * define void main() {
 // +   %0 = i32 69
 // +   call void @exit(%0)
@@ -10,3 +7,6 @@ foreign callconv(cdecl) noreturn exit(i32 exit_code);
 noreturn main() {
     exit(69);
 }
+
+// * declare void exit(i32)
+foreign callconv(cdecl) noreturn exit(i32 exit_code);

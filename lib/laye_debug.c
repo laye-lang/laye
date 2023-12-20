@@ -276,11 +276,11 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         } break;
 
         case LAYE_NODE_TYPE_POISON: {
-            string_append_format(s, "%s{poison}", COL(COL_UNREAL));
+            string_append_format(s, "%spoison", COL(COL_UNREAL));
         } break;
 
         case LAYE_NODE_TYPE_UNKNOWN: {
-            string_append_format(s, "%s{unknown}", COL(COL_UNREAL));
+            string_append_format(s, "%sunknown", COL(COL_UNREAL));
         } break;
 
         case LAYE_NODE_TYPE_TYPE: {

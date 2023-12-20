@@ -50,6 +50,7 @@ void layec_depgraph_add_dependency(layec_dependency_graph* graph, layec_dependen
     if (entry == NULL) {
         entry = lca_arena_push(graph->arena, sizeof *entry);
         entry->node = node;
+        arr_push(graph->entries, entry);
     }
 
     assert(entry != NULL);
@@ -73,7 +74,114 @@ void layec_depgraph_ensure_tracked(layec_dependency_graph* graph, layec_dependen
     layec_depgraph_add_dependency(graph, node, NULL);
 }
 
-dynarr(layec_dependency_entity*) layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph) {
-    assert(false && "todo");
-    return NULL;
+static int64_t dynarr_index_of(dynarr(void*) entities, void* entity) {
+    for (int64_t i = 0, count = arr_count(entities); i < count; i++) {
+        if (entity == entities[i])
+            return i;
+    }
+
+    return -1;
+}
+
+static layec_dependency_order_result resolve_dependencies(
+    layec_dependency_graph* graph,
+    // clang-format off
+    dynarr(layec_dependency_entity*)* resolved,
+    dynarr(layec_dependency_entity*)* seen,
+    // clang-format on
+    layec_dependency_entity* entity
+) {
+#define RESOLVED (*resolved)
+#define SEEN     (*seen)
+
+    assert(graph != NULL);
+    assert(resolved != NULL);
+    assert(seen != NULL);
+
+    layec_dependency_order_result result = {};
+    if (-1 != dynarr_index_of(RESOLVED, entity)) {
+        return result;
+    }
+
+    arr_push(SEEN, entity);
+
+    int64_t entry_index = dynarr_index_of((void**)graph->entries, entity);
+    bool requires_resolution = entry_index >= 0 && arr_count(graph->entries[entry_index]->dependencies) >= 0;
+
+    if (requires_resolution) {
+#define DEPS (*dependencies)
+        dynarr(layec_dependency_entity*)* dependencies = &graph->entries[entry_index]->dependencies;
+
+        for (int64_t i = 0, count = arr_count(DEPS); i < count; i++) {
+            layec_dependency_entity* dep = DEPS[i];
+            assert(dep != NULL);
+
+            if (-1 != dynarr_index_of((void**)RESOLVED, dep)) {
+                continue;
+            }
+
+            int64_t dep_seen_index = dynarr_index_of((void**)SEEN, dep);
+            if (-1 != dep_seen_index) {
+                result.status = LAYEC_DEP_CYCLE;
+                result.from = entity;
+                result.to = dep;
+                return result;
+            }
+
+            layec_dependency_order_result dep_result = resolve_dependencies(
+                graph,
+                resolved,
+                seen,
+                dep
+            );
+
+            if (dep_result.status != LAYEC_DEP_OK) {
+                return dep_result;
+            }
+        }
+#undef DEPS
+    }
+
+    arr_push(RESOLVED, entity);
+
+    int64_t seen_index = dynarr_index_of((void**)SEEN, entity);
+    assert(seen_index >= 0);
+    assert(seen_index < arr_count(SEEN));
+    if (arr_count(SEEN) == 1) {
+        arr_pop(SEEN);
+    } else {
+        SEEN[seen_index] = SEEN[arr_count(SEEN) - 1];
+        SEEN[arr_count(SEEN) - 1] = NULL;
+        arr_set_count(SEEN, arr_count(SEEN) - 1);
+    }
+
+    return result;
+
+#undef SEEN
+#undef RESOLVED
+}
+
+layec_dependency_order_result layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph) {
+    assert(graph != NULL);
+
+    layec_dependency_order_result result = {};
+    dynarr(layec_dependency_entity*) seen = NULL;
+
+    for (int64_t i = 0, count = arr_count(graph->entries); i < count; i++) {
+        layec_dependency_order_result entry_result = resolve_dependencies(
+            graph,
+            &result.ordered_entities,
+            &seen,
+            graph->entries[i]->node
+        );
+
+        if (entry_result.status != LAYEC_DEP_OK) {
+            arr_free(seen);
+            return entry_result;
+        }
+    }
+
+    arr_free(seen);
+    result.status = LAYEC_DEP_OK;
+    return result;
 }

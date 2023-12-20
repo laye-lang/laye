@@ -610,6 +610,7 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
         laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, function_type);
         assert(function_node != NULL);
+        function_node->declared_name = name_token.string_value;
         function_node->decl_function.return_type = declared_type;
         function_node->decl_function.parameter_declarations = parameters;
 
