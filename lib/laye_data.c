@@ -68,6 +68,7 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
     assert(declaration != NULL);
     assert(laye_node_is_decl(declaration));
     assert(declaration->kind != LAYE_NODE_DECL_OVERLOADS);
+    assert(declaration->declared_name.count != 0);
 
     laye_module* module = scope->module;
     assert(module != NULL);
@@ -93,6 +94,29 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
     }
 
     arr_push(*entity_namespace, declaration);
+}
+
+static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_node*) declarations, string_view name) {
+    assert(scope != NULL);
+    for (int64_t i = 0, count = arr_count(declarations); i < count; i++) {
+        laye_node* declaration = declarations[i];
+        assert(declaration != NULL);
+
+        if (string_view_equals(string_as_view(declaration->declared_name), name))
+            return declaration;
+    }
+
+    return NULL;
+}
+
+laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name) {
+    assert(scope != NULL);
+    return laye_scope_lookup_from(scope, scope->value_declarations, value_name);
+}
+
+laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name) {
+    assert(scope != NULL);
+    return laye_scope_lookup_from(scope, scope->type_declarations, type_name);
 }
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type) {
@@ -542,6 +566,44 @@ bool laye_type_is_strict_alias(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
     return type->kind == LAYE_NODE_TYPE_STRICT_ALIAS;
+}
+
+bool laye_node_kind_is_decl(laye_node_kind kind) {
+    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_TEMPLATE_VALUE;
+}
+
+bool laye_node_kind_is_type(laye_node_kind kind) {
+    return kind > LAYE_NODE_TYPE_POISON && kind <= LAYE_NODE_TYPE_STRICT_ALIAS;
+}
+
+bool laye_node_is_decl(laye_node* node) {
+    assert(node != NULL);
+    return laye_node_kind_is_decl(node->kind);
+}
+
+bool laye_node_is_type(laye_node* node) {
+    assert(node != NULL);
+    return laye_node_kind_is_type(node->kind);
+}
+
+bool laye_node_is_lvalue(laye_node* node) {
+    assert(node != NULL);
+    return node->value_category == LAYEC_LVALUE;
+}
+
+bool laye_node_is_rvalue(laye_node* node) {
+    assert(node != NULL);
+    return node->value_category == LAYEC_RVALUE;
+}
+
+bool laye_node_is_modifiable_lvalue(laye_node* node) {
+    assert(node != NULL);
+    return laye_node_is_lvalue(node) && laye_type_is_modifiable(node->type);
+}
+
+bool laye_type_is_modifiable(laye_node* node) {
+    assert(node != NULL);
+    return laye_node_is_type(node) && node->type_is_modifiable;
 }
 
 laye_node* laye_type_strip_pointers_and_references(laye_node* type) {

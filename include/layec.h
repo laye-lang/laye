@@ -87,6 +87,9 @@ typedef struct layec_context {
         laye_node* _void;
         laye_node* noreturn;
         laye_node* _bool;
+        laye_node* _int;
+        laye_node* _uint;
+        laye_node* _float;
     } laye_types;
 
     layec_dependency_graph* laye_dependencies;
@@ -1284,6 +1287,8 @@ string laye_module_debug_print(laye_module* module);
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_destroy(laye_scope* scope);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
+laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name);
+laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type);
 laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind, laye_node* type);

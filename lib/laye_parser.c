@@ -13,6 +13,8 @@ typedef struct laye_parser {
 
     laye_token token;
     laye_token next_token;
+
+    laye_scope* scope;
 } laye_parser;
 
 const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind) {
@@ -66,44 +68,6 @@ const char* laye_node_kind_to_cstring(laye_node_kind kind) {
     }
 }
 
-bool laye_node_kind_is_decl(laye_node_kind kind) {
-    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_TEMPLATE_VALUE;
-}
-
-bool laye_node_kind_is_type(laye_node_kind kind) {
-    return kind > LAYE_NODE_TYPE_POISON && kind <= LAYE_NODE_TYPE_STRICT_ALIAS;
-}
-
-bool laye_node_is_decl(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_kind_is_decl(node->kind);
-}
-
-bool laye_node_is_type(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_kind_is_type(node->kind);
-}
-
-bool laye_node_is_lvalue(laye_node* node) {
-    assert(node != NULL);
-    return node->value_category == LAYEC_LVALUE;
-}
-
-bool laye_node_is_rvalue(laye_node* node) {
-    assert(node != NULL);
-    return node->value_category == LAYEC_RVALUE;
-}
-
-bool laye_node_is_modifiable_lvalue(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_is_lvalue(node) && laye_type_is_modifiable(node->type);
-}
-
-bool laye_type_is_modifiable(laye_node* node) {
-    assert(node != NULL);
-    return laye_node_is_type(node) && node->type_is_modifiable;
-}
-
 static void laye_next_token(laye_parser* p);
 static laye_node* laye_parse_top_level_node(laye_parser* p);
 
@@ -118,6 +82,9 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     module->arena = lca_arena_create(context->allocator, 1024 * 1024);
     assert(module->arena);
 
+    laye_scope* module_scope = laye_scope_create(module, NULL);
+    assert(module_scope != NULL);
+
     layec_source source = layec_context_get_source(context, sourceid);
 
     laye_parser p = {
@@ -125,6 +92,7 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
         .module = module,
         .sourceid = sourceid,
         .source = source,
+        .scope = module_scope,
     };
 
     if (source.text.count > 0) {
@@ -140,6 +108,7 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
         laye_node* top_level_node = laye_parse_top_level_node(&p);
         assert(top_level_node != NULL);
         assert(p.token.location.offset != node_start_location.offset);
+        assert(p.scope == module_scope);
 
         arr_push(module->top_level_nodes, top_level_node);
     }
@@ -584,6 +553,8 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
             layec_location parameter_location = name_token.location.length != 0 ? name_token.location : parameter_type->location;
             laye_node* parameter_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION_PARAMETER, parameter_location, parameter_type);
             assert(parameter_node != NULL);
+            parameter_node->declared_type = parameter_type;
+            parameter_node->declared_name = name_token.string_value;
 
             arr_push(parameters, parameter_node);
 
@@ -611,8 +582,11 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, function_type);
         assert(function_node != NULL);
         function_node->declared_name = name_token.string_value;
+        function_node->declared_type = function_type;
         function_node->decl_function.return_type = declared_type;
         function_node->decl_function.parameter_declarations = parameters;
+        assert(p->scope != NULL);
+        laye_scope_declare(p->scope, function_node);
 
         laye_apply_attributes(function_node, attributes);
         function_type->type_function.calling_convention = function_node->attributes.calling_convention;
@@ -759,6 +733,8 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             laye_node* nameref_expr = laye_node_create(p->module, LAYE_NODE_NAMEREF, p->token.location, p->context->laye_types.unknown);
             assert(nameref_expr != NULL);
             arr_push(nameref_expr->nameref.pieces, p->token);
+            nameref_expr->nameref.scope = p->scope;
+            assert(nameref_expr->nameref.scope != NULL);
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, nameref_expr);
         }
