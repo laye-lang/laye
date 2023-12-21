@@ -513,6 +513,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node, laye_node* 
 
                     laye_node* constant_node = laye_node_create((*node)->module, LAYE_NODE_EVALUATED_CONSTANT, (*node)->location, to);
                     assert(constant_node != NULL);
+                    constant_node->compiler_generated = true;
                     constant_node->evaluated_constant.expr = *node;
                     constant_node->evaluated_constant.result = eval_result;
 

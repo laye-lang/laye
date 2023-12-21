@@ -86,54 +86,50 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
     string_append_format(
         print_context->output,
-        "%s%s ",
+        "%s%s%s %s%016llX %s<%lld>",
         COL(COL_NODE),
-        laye_node_kind_to_cstring(node->kind)
-    );
-
-    if (laye_node_is_decl(node)) {
-        string_append_format(print_context->output, "%s", COL(COL_NODE));
-        switch (node->attributes.linkage) {
-            case LAYEC_LINK_LOCAL: lca_string_append_format(print_context->output, "Local "); break;
-            case LAYEC_LINK_INTERNAL: lca_string_append_format(print_context->output, "Internal "); break;
-            case LAYEC_LINK_IMPORTED: lca_string_append_format(print_context->output, "Imported "); break;
-            case LAYEC_LINK_EXPORTED: lca_string_append_format(print_context->output, "Exported "); break;
-            case LAYEC_LINK_REEXPORTED: lca_string_append_format(print_context->output, "Reexported "); break;
-        }
-
-        switch (node->attributes.calling_convention) {
-            case LAYEC_DEFAULTCC: break;
-            case LAYEC_CCC: lca_string_append_format(print_context->output, "CCC "); break;
-            case LAYEC_LAYECC: lca_string_append_format(print_context->output, "LayeCC "); break;
-        }
-
-        switch (node->attributes.mangling) {
-            case LAYEC_MANGLE_DEFAULT: break;
-            case LAYEC_MANGLE_NONE: lca_string_append_format(print_context->output, "NoMangle "); break;
-            case LAYEC_MANGLE_LAYE: lca_string_append_format(print_context->output, "LayeMangle "); break;
-        }
-
-        if (node->attributes.is_discardable) {
-            lca_string_append_format(print_context->output, "Discardable ");
-        }
-
-        if (node->attributes.is_inline) {
-            lca_string_append_format(print_context->output, "Inline ");
-        }
-
-        if (node->attributes.foreign_name.count != 0) {
-            lca_string_append_format(print_context->output, "Foreign \"%s\" ", STR_EXPAND(node->attributes.foreign_name));
-        }
-    }
-
-    string_append_format(
-        print_context->output,
-        "%s%016llX %s<%lld>",
+        laye_node_kind_to_cstring(node->kind),
+        (node->compiler_generated ? "*" : ""),
         COL(COL_ADDR),
         (size_t)node,
         COL(COL_OFFS),
         node->location.offset
     );
+
+    if (laye_node_is_decl(node)) {
+        string_append_format(print_context->output, "%s", COL(COL_NODE));
+        switch (node->attributes.linkage) {
+            case LAYEC_LINK_LOCAL: lca_string_append_format(print_context->output, " Local"); break;
+            case LAYEC_LINK_INTERNAL: lca_string_append_format(print_context->output, " Internal"); break;
+            case LAYEC_LINK_IMPORTED: lca_string_append_format(print_context->output, " Imported"); break;
+            case LAYEC_LINK_EXPORTED: lca_string_append_format(print_context->output, " Exported"); break;
+            case LAYEC_LINK_REEXPORTED: lca_string_append_format(print_context->output, " Reexported"); break;
+        }
+
+        switch (node->attributes.calling_convention) {
+            case LAYEC_DEFAULTCC: break;
+            case LAYEC_CCC: lca_string_append_format(print_context->output, " CCC"); break;
+            case LAYEC_LAYECC: lca_string_append_format(print_context->output, " LayeCC"); break;
+        }
+
+        switch (node->attributes.mangling) {
+            case LAYEC_MANGLE_DEFAULT: break;
+            case LAYEC_MANGLE_NONE: lca_string_append_format(print_context->output, " NoMangle"); break;
+            case LAYEC_MANGLE_LAYE: lca_string_append_format(print_context->output, " LayeMangle"); break;
+        }
+
+        if (node->attributes.is_discardable) {
+            lca_string_append_format(print_context->output, " Discardable");
+        }
+
+        if (node->attributes.is_inline) {
+            lca_string_append_format(print_context->output, " Inline");
+        }
+
+        if (node->attributes.foreign_name.count != 0) {
+            lca_string_append_format(print_context->output, " Foreign \"%s\"", STR_EXPAND(node->attributes.foreign_name));
+        }
+    }
 
     if (node->type != NULL) {
         lca_string_append_format(print_context->output, " ");
