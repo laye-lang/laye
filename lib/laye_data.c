@@ -363,6 +363,8 @@ int align_to(int bits, int align) {
 
 int laye_type_size_in_bytes(laye_node* type) {
     assert(type != NULL);
+    assert(type->module != NULL);
+    assert(type->module->context != NULL);
     assert(laye_node_is_type(type));
     int size_in_bits = laye_type_size_in_bits(type);
     return align_to(size_in_bits, 8);
@@ -371,13 +373,18 @@ int laye_type_size_in_bytes(laye_node* type) {
 int laye_type_size_in_bits(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
+
+    // assert(type->module != NULL);
+    // assert(type->module->context != NULL);
+    // layec_context* context = type->module->context;
+
     switch (type->kind) {
-        default: return 0;
-
-        case LAYE_NODE_TYPE_BOOL: return 8;
-
+        default: assert(false && "unreachable"); return 0;
+        
+        case LAYE_NODE_TYPE_BOOL:
         case LAYE_NODE_TYPE_INT:
         case LAYE_NODE_TYPE_FLOAT: {
+            assert(type->type_primitive.bit_width > 0);
             return type->type_primitive.bit_width;
         }
 
@@ -385,7 +392,6 @@ int laye_type_size_in_bits(laye_node* type) {
             assert(false && "todo: error pair type");
         }
     }
-    return 0;
 }
 
 int laye_type_align_in_bytes(laye_node* type) {

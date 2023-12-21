@@ -158,6 +158,20 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_EVALUATED_CONSTANT: {
+            assert(node->evaluated_constant.expr != NULL);
+            arr_push(children, node->evaluated_constant.expr);
+
+            if (node->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
+                string_append_format(print_context->output, " %s%lld", COL(COL_CONST), node->evaluated_constant.result.int_value);
+            }
+        } break;
+
+        case LAYE_NODE_CAST: {
+            assert(node->cast.operand != NULL);
+            arr_push(children, node->cast.operand);
+        } break;
+
         case LAYE_NODE_CALL: {
             assert(node->call.callee != NULL);
             arr_push(children, node->call.callee);
@@ -165,7 +179,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
                 arr_push(children, node->call.arguments[i]);
             }
-        }
+        } break;
 
         case LAYE_NODE_NAMEREF: {
             lca_string_append_format(print_context->output, " ");

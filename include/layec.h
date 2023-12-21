@@ -46,9 +46,11 @@ typedef struct layec_target_info {
     struct {
         int size_of_bool;
         int size_of_int;
+        int size_of_float;
 
         int align_of_bool;
         int align_of_int;
+        int align_of_float;
     } laye;
 } layec_target_info;
 
@@ -1257,6 +1259,8 @@ void layec_dependency_graph_destroy(layec_dependency_graph* graph);
 void layec_depgraph_add_dependency(layec_dependency_graph* graph, layec_dependency_entity* node, layec_dependency_entity* dependency);
 void layec_depgraph_ensure_tracked(layec_dependency_graph* graph, layec_dependency_entity* node);
 layec_dependency_order_result layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph);
+
+int layec_get_significant_bits(int64_t value);
 
 // ========== Laye ==========
 

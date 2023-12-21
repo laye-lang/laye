@@ -35,3 +35,24 @@ bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated
         case LAYEC_EVAL_STRING: return string_equals(a.string_value, b.string_value);
     }
 }
+
+int layec_get_significant_bits(int64_t value) {
+    int bit_width = 8 * sizeof value;
+    if (value < 0) {
+        int sig = bit_width - 1;
+        while (sig > 0) {
+            if (!(value & (1 << (sig - 1))))
+                return sig + 1;
+            sig--;
+        }
+    } else {
+        int sig = bit_width - 1;
+        while (sig > 0) {
+            if (value & (1 << (sig - 1)))
+                return sig;
+            sig--;
+        }
+    }
+
+    return 1;
+}

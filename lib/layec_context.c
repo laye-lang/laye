@@ -35,9 +35,11 @@ void layec_init_targets(lca_allocator allocator) {
         .laye = {
             .size_of_bool = 8,
             .size_of_int = 64,
+            .size_of_float = 64,
 
             .align_of_bool = 8,
             .align_of_int = 64,
+            .align_of_float = 64,
         },
 
         .size_of_pointer = 64,
@@ -91,24 +93,28 @@ layec_context* layec_context_create(lca_allocator allocator) {
 
     context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, context->laye_types.type);
     assert(context->laye_types._bool != NULL);
+    context->laye_types._bool->type_primitive.bit_width = context->target->laye.size_of_bool;
     context->laye_types._bool->sema_state = LAYEC_SEMA_OK;
 
     context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
     assert(context->laye_types._int != NULL);
     context->laye_types._int->sema_state = LAYEC_SEMA_OK;
     context->laye_types._int->type_primitive.is_platform_specified = true;
+    context->laye_types._int->type_primitive.bit_width = context->target->laye.size_of_int;
     context->laye_types._int->type_primitive.is_signed = true;
 
     context->laye_types._uint = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
     assert(context->laye_types._uint != NULL);
     context->laye_types._uint->sema_state = LAYEC_SEMA_OK;
     context->laye_types._uint->type_primitive.is_platform_specified = true;
+    context->laye_types._uint->type_primitive.bit_width = context->target->laye.size_of_int;
     context->laye_types._uint->type_primitive.is_signed = false;
 
     context->laye_types._float = laye_node_create_in_context(context, LAYE_NODE_TYPE_FLOAT, context->laye_types.type);
     assert(context->laye_types._float != NULL);
-    context->laye_types._float->sema_state = LAYEC_SEMA_OK;
     context->laye_types._float->type_primitive.is_platform_specified = true;
+    context->laye_types._float->type_primitive.bit_width = context->target->laye.size_of_float;
+    context->laye_types._float->sema_state = LAYEC_SEMA_OK;
 
     context->laye_dependencies = layec_dependency_graph_create_in_context(context);
     assert(context->laye_dependencies != NULL);
