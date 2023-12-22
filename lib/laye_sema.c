@@ -389,6 +389,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_TYPE_FUNCTION: {
+            if (node->type_function.calling_convention == LAYEC_DEFAULTCC) {
+                node->type_function.calling_convention = LAYEC_LAYECC;
+            }
+
             assert(node->type_function.return_type != NULL);
             if (!laye_sema_analyse_node(sema, &node->type_function.return_type, NULL)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;

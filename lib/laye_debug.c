@@ -86,10 +86,11 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
     string_append_format(
         print_context->output,
-        "%s%s%s %s%016llX %s<%lld>",
+        "%s%s%s%s %s%016llX %s<%lld>",
         COL(COL_NODE),
         laye_node_kind_to_cstring(node->kind),
         (node->compiler_generated ? "*" : ""),
+        (laye_expr_is_lvalue(node) ? (laye_expr_is_modifiable_lvalue(node) ? " mut&" : "&") : ""),
         COL(COL_ADDR),
         (size_t)node,
         COL(COL_OFFS),
@@ -99,35 +100,35 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
     if (laye_node_is_decl(node)) {
         string_append_format(print_context->output, "%s", COL(COL_NODE));
         switch (node->attributes.linkage) {
-            case LAYEC_LINK_LOCAL: lca_string_append_format(print_context->output, " Local"); break;
-            case LAYEC_LINK_INTERNAL: lca_string_append_format(print_context->output, " Internal"); break;
-            case LAYEC_LINK_IMPORTED: lca_string_append_format(print_context->output, " Imported"); break;
-            case LAYEC_LINK_EXPORTED: lca_string_append_format(print_context->output, " Exported"); break;
-            case LAYEC_LINK_REEXPORTED: lca_string_append_format(print_context->output, " Reexported"); break;
+            case LAYEC_LINK_LOCAL: lca_string_append_format(print_context->output, " LOCAL"); break;
+            case LAYEC_LINK_INTERNAL: lca_string_append_format(print_context->output, " INTERNAL"); break;
+            case LAYEC_LINK_IMPORTED: lca_string_append_format(print_context->output, " IMPORTED"); break;
+            case LAYEC_LINK_EXPORTED: lca_string_append_format(print_context->output, " EXPORTED"); break;
+            case LAYEC_LINK_REEXPORTED: lca_string_append_format(print_context->output, " REEXPORTED"); break;
         }
 
         switch (node->attributes.calling_convention) {
             case LAYEC_DEFAULTCC: break;
             case LAYEC_CCC: lca_string_append_format(print_context->output, " CCC"); break;
-            case LAYEC_LAYECC: lca_string_append_format(print_context->output, " LayeCC"); break;
+            case LAYEC_LAYECC: lca_string_append_format(print_context->output, " LAYECC"); break;
         }
 
         switch (node->attributes.mangling) {
             case LAYEC_MANGLE_DEFAULT: break;
-            case LAYEC_MANGLE_NONE: lca_string_append_format(print_context->output, " NoMangle"); break;
-            case LAYEC_MANGLE_LAYE: lca_string_append_format(print_context->output, " LayeMangle"); break;
+            case LAYEC_MANGLE_NONE: lca_string_append_format(print_context->output, " NO_MANGLE"); break;
+            case LAYEC_MANGLE_LAYE: lca_string_append_format(print_context->output, " LAYE_MANGLE"); break;
         }
 
         if (node->attributes.is_discardable) {
-            lca_string_append_format(print_context->output, " Discardable");
+            lca_string_append_format(print_context->output, " DISCARDABLE");
         }
 
         if (node->attributes.is_inline) {
-            lca_string_append_format(print_context->output, " Inline");
+            lca_string_append_format(print_context->output, " INLINE");
         }
 
         if (node->attributes.foreign_name.count != 0) {
-            lca_string_append_format(print_context->output, " Foreign \"%s\"", STR_EXPAND(node->attributes.foreign_name));
+            lca_string_append_format(print_context->output, " FOREIGN \"%s\"", STR_EXPAND(node->attributes.foreign_name));
         }
     }
 
@@ -166,6 +167,17 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         case LAYE_NODE_CAST: {
             assert(node->cast.operand != NULL);
             arr_push(children, node->cast.operand);
+
+            string_append_format(print_context->output, " %s", COL(COL_NODE));
+            switch (node->cast.kind) {
+                case LAYE_CAST_SOFT: lca_string_append_format(print_context->output, "SOFT"); break;
+                case LAYE_CAST_HARD: lca_string_append_format(print_context->output, "HARD"); break;
+                case LAYE_CAST_STRUCT_BITCAST: lca_string_append_format(print_context->output, "STRUCT_BITCAST"); break;
+                case LAYE_CAST_IMPLICIT: lca_string_append_format(print_context->output, "IMPLICIT"); break;
+                case LAYE_CAST_LVALUE_TO_RVALUE: lca_string_append_format(print_context->output, "LVALUE_TO_RVALUE"); break;
+                case LAYE_CAST_LVALUE_TO_REFERENCE: lca_string_append_format(print_context->output, "LVALUE_TO_REFERENCE"); break;
+                case LAYE_CAST_REFERENCE_TO_LVALUE: lca_string_append_format(print_context->output, "REFERENCE_TO_LVALUE"); break;
+            }
         } break;
 
         case LAYE_NODE_CALL: {

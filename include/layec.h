@@ -11,8 +11,8 @@
 
 #define LAYEC_VERSION "0.1.1"
 
-#define COLCAT(A, B) A ## B
-#define COL(X) (use_color ? COLCAT(ANSI_COLOR_, X) : "")
+#define COLCAT(A, B) A##B
+#define COL(X)       (use_color ? COLCAT(ANSI_COLOR_, X) : "")
 
 typedef int64_t layec_sourceid;
 
@@ -61,6 +61,11 @@ extern layec_target_info* layec_x86_64_windows;
 typedef struct laye_node laye_node;
 typedef struct layec_dependency_graph layec_dependency_graph;
 
+typedef struct layec_type layec_type;
+typedef struct layec_value layec_value;
+typedef struct layec_module layec_module;
+typedef struct layec_builder layec_builder;
+
 typedef struct layec_context {
     lca_allocator allocator;
     layec_target_info* target;
@@ -95,8 +100,17 @@ typedef struct layec_context {
     } laye_types;
 
     layec_dependency_graph* laye_dependencies;
-
     dynarr(layec_dependency_graph*) _all_depgraphs;
+
+    lca_arena* type_arena;
+    dynarr(layec_type*) _all_types;
+
+    struct {
+        layec_type* poison;
+        layec_type* ptr;
+        layec_type* _void;
+        dynarr(layec_type*) int_types;
+    } types;
 } layec_context;
 
 typedef struct layec_location {
@@ -215,6 +229,85 @@ typedef struct layec_dependency_order_result {
         };
     };
 } layec_dependency_order_result;
+
+typedef enum layec_type_kind {
+    LAYEC_TYPE_POINTER,
+    LAYEC_TYPE_VOID,
+    LAYEC_TYPE_ARRAY,
+    LAYEC_TYPE_FUNCTION,
+    LAYEC_TYPE_INTEGER,
+    LAYEC_TYPE_FLOAT,
+    LAYEC_TYPE_STRUCT,
+} layec_type_kind;
+
+typedef enum layec_value_kind {
+    LAYEC_IR_INVALID,
+
+    // Values
+    LAYEC_IR_INTEGER_CONSTANT,
+    LAYEC_IR_ARRAY_CONSTANT,
+    LAYEC_IR_POISON,
+
+    // Values that track their users.
+    LAYEC_IR_BLOCK,
+    LAYEC_IR_FUNCTION,
+    LAYEC_IR_GLOBAL_VARIABLE,
+    LAYEC_IR_PARAMETER,
+
+    // Instructions
+    LAYEC_IR_ALLOCA,
+    LAYEC_IR_CALL,
+    LAYEC_IR_GET_ELEMENT_PTR,
+    LAYEC_IR_GET_MEMBER_PTR,
+    LAYEC_IR_INTRINSIC,
+    LAYEC_IR_LOAD,
+    LAYEC_IR_PHI,
+    LAYEC_IR_STORE,
+
+    // Terminators
+    LAYEC_IR_BRANCH,
+    LAYEC_IR_COND_BRANCH,
+    LAYEC_IR_RETURN,
+    LAYEC_IR_UNREACHABLE,
+
+    // Unary instructions
+    LAYEC_IR_ZEXT,
+    LAYEC_IR_SEXT,
+    LAYEC_IR_TRUNC,
+    LAYEC_IR_BITCAST,
+    LAYEC_IR_NEG,
+    LAYEC_IR_COPY,
+    LAYEC_IR_COMPL,
+
+    // Binary instructions
+    LAYEC_IR_ADD,
+    LAYEC_IR_SUB,
+    LAYEC_IR_MUL,
+    LAYEC_IR_SDIV,
+    LAYEC_IR_UDIV,
+    LAYEC_IR_SREM,
+    LAYEC_IR_UREM,
+    LAYEC_IR_SHL,
+    LAYEC_IR_SAR,
+    LAYEC_IR_SHR,
+    LAYEC_IR_AND,
+    LAYEC_IR_OR,
+    LAYEC_IR_XOR,
+
+    // Comparison instructions
+    LAYEC_IR_EQ,
+    LAYEC_IR_NE,
+    // Signed comparisons
+    LAYEC_IR_SLT,
+    LAYEC_IR_SLE,
+    LAYEC_IR_SGT,
+    LAYEC_IR_SGE,
+    // Unsigned comparisons
+    LAYEC_IR_ULT,
+    LAYEC_IR_ULE,
+    LAYEC_IR_UGT,
+    LAYEC_IR_UGE,
+} layec_value_kind;
 
 // Laye
 
@@ -1262,6 +1355,57 @@ layec_dependency_order_result layec_dependency_graph_get_ordered_entities(layec_
 
 int layec_get_significant_bits(int64_t value);
 
+// ========== IR ==========
+
+layec_module* layec_module_create(layec_context* context, string_view module_name);
+void layec_module_destroy(layec_module* module);
+
+string layec_module_print(layec_module* module);
+void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
+void layec_value_print_to_string(layec_value* value, string* s, bool use_color);
+
+layec_type* layec_void_type(layec_context* context);
+layec_type* layec_int_type(layec_context* context, int bit_width);
+layec_type* layec_function_type(
+    layec_context* context,
+    layec_type* return_type,
+    dynarr(layec_type*) parameter_types,
+    layec_calling_convention calling_convention,
+    bool is_variadic
+);
+
+bool layec_type_is_ptr(layec_type* type);
+bool layec_type_is_void(layec_type* type);
+bool layec_type_is_array(layec_type* type);
+bool layec_type_is_function(layec_type* type);
+bool layec_type_is_integer(layec_type* type);
+bool layec_type_is_float(layec_type* type);
+bool layec_type_is_struct(layec_type* type);
+
+int layec_type_size_in_bits(layec_type* type);
+int layec_type_size_in_bytes(layec_type* type);
+int layec_type_align_in_bits(layec_type* type);
+int layec_type_align_in_bytes(layec_type* type);
+
+bool layec_value_is_block(layec_value* value);
+bool layec_value_is_function(layec_value* value);
+bool layec_value_is_instruction(layec_value* value);
+
+layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
+
+layec_builder* layec_builder_create(layec_context* context);
+void layec_builder_destroy(layec_builder* builder);
+
+// Unsets this builder's insert position, so no further insertions will be allowed
+// until another call to `layec_builder_position_*` is called.
+void layec_builder_reset(layec_builder* builder);
+void layec_builder_position_before(layec_builder* builder, layec_value* instruction);
+void layec_builder_position_after(layec_builder* builder, layec_value* instruction);
+void layec_builder_position_at_end(layec_builder* builder, layec_value* block);
+layec_value* layec_builder_get_insert_block(layec_builder* builder);
+void layec_builder_insert(layec_builder* builder, layec_value* instruction);
+void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
+
 // ========== Laye ==========
 
 const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind);
@@ -1282,6 +1426,7 @@ bool laye_type_is_modifiable(laye_node* node);
 
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
 void laye_analyse(laye_module* module);
+layec_module* laye_irgen(laye_module* module);
 
 void laye_module_destroy(laye_module* module);
 layec_source laye_module_get_source(laye_module* module);

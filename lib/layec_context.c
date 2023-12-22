@@ -4,6 +4,8 @@
 
 #include "layec.h"
 
+void layec_type_destroy(layec_type* type);
+
 layec_target_info* layec_default_target;
 layec_target_info* layec_x86_64_linux;
 layec_target_info* layec_x86_64_windows;
@@ -119,6 +121,9 @@ layec_context* layec_context_create(lca_allocator allocator) {
     context->laye_dependencies = layec_dependency_graph_create_in_context(context);
     assert(context->laye_dependencies != NULL);
 
+    context->type_arena = lca_arena_create(allocator, 1024 * 1024);
+    assert(context->type_arena != NULL);
+
     return context;
 }
 
@@ -161,6 +166,14 @@ void layec_context_destroy(layec_context* context) {
     }
 
     arr_free(context->_all_depgraphs);
+
+    for (int64_t i = 0, count = arr_count(context->_all_types); i < count; i++) {
+        layec_type_destroy(context->_all_types[i]);
+    }
+    
+    arr_free(context->types.int_types);
+    arr_free(context->_all_types);
+    lca_arena_destroy(context->type_arena);
 
     *context = (layec_context){};
     lca_deallocate(allocator, context);

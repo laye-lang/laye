@@ -4,7 +4,7 @@
 // +   %0 = i32 69
 // +   call void @exit(%0)
 // + }
-noreturn main() {
+export foreign noreturn main() {
     exit(69);
 }
 

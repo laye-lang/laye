@@ -35,10 +35,18 @@ int main(int argc, char** argv) {
     fprintf(stderr, "%.*s", STR_EXPAND(module_string));
     string_destroy(&module_string);
 
+    layec_module* ir_module = laye_irgen(module);
+    assert(ir_module != NULL);
+
+    string ir_module_string = layec_module_print(ir_module);
+    fprintf(stderr, "%.*s", STR_EXPAND(ir_module_string));
+    string_destroy(&ir_module_string);
+
     // in release/unsafe builds, we don't need to worry about manually tearing
     // down all of our allocations. these should always be run in debug/safe
     // builds so the static analysers (like address sanitizer) can do their magic.
 #ifndef NDEBUG
+    layec_module_destroy(ir_module);
     laye_module_destroy(module);
     layec_context_destroy(context);
     lca_temp_allocator_clear();
