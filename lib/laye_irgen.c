@@ -3,6 +3,7 @@
 #include <assert.h>
 
 static layec_type* laye_convert_type(laye_node* type);
+static layec_value* laye_generate_node(layec_builder* builder, laye_node* node);
 
 layec_module* laye_irgen(laye_module* module) {
     assert(module != NULL);
@@ -53,10 +54,38 @@ layec_module* laye_irgen(laye_module* module) {
                 ir_function_type,
                 function_linkage
             );
+            assert(ir_function != NULL);
+            top_level_node->ir_value = ir_function;
         }
     }
 
     // 3. Generate function bodies
+    layec_builder* builder = layec_builder_create(module->context);
+
+    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+        laye_node* top_level_node = module->top_level_nodes[i];
+        assert(top_level_node != NULL);
+
+        if (top_level_node->kind == LAYE_NODE_DECL_FUNCTION) {
+            layec_value* function = top_level_node->ir_value;
+            assert(function != NULL);
+            assert(layec_value_is_function(function));
+
+            if (top_level_node->decl_function.body == NULL) {
+                continue;
+            }
+
+            layec_value* entry_block = layec_function_append_block(function, SV_CONSTANT("entry"));
+            assert(entry_block != NULL);
+            layec_builder_position_at_end(builder, entry_block);
+
+            // generate the function body
+
+            layec_builder_reset(builder);
+        }
+    }
+
+    layec_builder_destroy(builder);
 
     return ir_module;
 }
@@ -108,4 +137,75 @@ static layec_type* laye_convert_type(laye_node* type) {
             return layec_function_type(context, return_type, parameter_types, calling_convention, type->type_function.varargs_style == LAYE_VARARGS_C);
         }
     }
+}
+
+static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) {
+    assert(builder != NULL);
+    assert(node != NULL);
+
+    layec_context* context = layec_builder_get_context(builder);
+    assert(context != NULL);
+
+    switch (node->kind) {
+        default: {
+            fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(node->kind));
+            assert(false && "unimplemented Laye node in laye_generate_node");
+            return NULL;
+        }
+
+        case LAYE_NODE_COMPOUND: {
+            for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
+                laye_node* child = node->compound.children[i];
+                assert(child != NULL);
+                layec_value* child_value = laye_generate_node(builder, child);
+                assert(child_value != NULL);
+            }
+
+            // TODO(local): this (can be) an expression, so it really should return stuff, even if discarded.
+            // we wanted it to be `yield`, so maybe if there's no yields it's semantically invalid, then we can
+            // generate phis for every yield target???
+
+            return layec_void_constant(context);
+        }
+
+        case LAYE_NODE_NAMEREF: {
+            assert(node->nameref.referenced_declaration != NULL);
+            assert(node->nameref.referenced_declaration->ir_value != NULL);
+            return node->nameref.referenced_declaration->ir_value;
+        }
+
+        case LAYE_NODE_CALL: {
+            layec_value* callee = laye_generate_node(builder, node->call.callee);
+            assert(callee != NULL);
+
+            layec_type* callee_type = layec_value_get_type(callee);
+            if (layec_type_is_ptr(callee_type)) {
+                assert(false && "gotta get the function type, not just the pointer");
+            }
+
+            dynarr(layec_value*) argument_values = NULL;
+            arr_reserve(argument_values, arr_count(node->call.arguments));
+            for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
+                argument_values[i] = laye_generate_node(builder, node->call.arguments[i]);
+                assert(argument_values[i] != NULL);
+            }
+
+            return layec_build_call(builder, node->location, callee, callee_type, argument_values, SV_EMPTY);
+        }
+
+        case LAYE_NODE_EVALUATED_CONSTANT: {
+            layec_type* type = laye_convert_type(node->type);
+            assert(type != NULL);
+
+            if (node->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
+                assert(layec_type_is_integer(type));
+                return layec_int_constant(context, node->location, type, node->evaluated_constant.result.int_value);
+            } else {
+                assert(false && "unsupported/unimplemented constant kind in irgen");
+                return NULL;
+            }
+        }
+    }
+
+    assert(false && "unreachable");
 }

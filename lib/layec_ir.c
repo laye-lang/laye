@@ -46,6 +46,7 @@ struct layec_value {
     layec_value_kind kind;
     layec_location location;
     layec_module* module;
+    layec_context* context;
 
     layec_type* type;
     string name;
@@ -56,6 +57,8 @@ struct layec_value {
     layec_value* parent_block;
 
     union {
+        int64_t int_value;
+
         struct {
             string name;
             layec_value* parent_function;
@@ -220,6 +223,21 @@ layec_type* layec_function_type(
     return function_type;
 }
 
+static layec_value* layec_value_create_in_context(layec_context* context, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
+    assert(context != NULL);
+    assert(type != NULL);
+
+    layec_value* value = lca_allocate(context->allocator, sizeof *value);
+    assert(value != NULL);
+    value->kind = kind;
+    value->module = NULL;
+    value->context = context;
+    value->location = location;
+    value->type = type;
+
+    return value;
+}
+
 static layec_value* layec_value_create(layec_module* module, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
     assert(module != NULL);
     assert(module->context != NULL);
@@ -230,6 +248,7 @@ static layec_value* layec_value_create(layec_module* module, layec_location loca
     assert(value != NULL);
     value->kind = kind;
     value->module = module;
+    value->context = module->context;
     value->location = location;
     value->type = type;
 
@@ -302,6 +321,12 @@ bool layec_value_is_instruction(layec_value* value) {
            value->kind != LAYEC_IR_BLOCK;
 }
 
+layec_type* layec_value_get_type(layec_value* value) {
+    assert(value != NULL);
+    assert(value->type != NULL);
+    return value->type;
+}
+
 layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage) {
     assert(module != NULL);
     assert(module->context != NULL);
@@ -316,6 +341,43 @@ layec_value* layec_module_create_function(layec_module* module, layec_location l
 
     arr_push(module->functions, function);
     return function;
+}
+
+layec_value* layec_function_append_block(layec_value* function, string_view name) {
+    assert(function != NULL);
+    assert(function->module != NULL);
+    assert(function->context != NULL);
+    assert(function->context == function->module->context);
+    layec_value* block = layec_value_create(function->module, (layec_location){}, LAYEC_IR_BLOCK, layec_void_type(function->context), SV_EMPTY);
+    assert(block != NULL);
+    block->block.name = layec_context_intern_string_view(function->context, name);
+    block->block.parent_function = function;
+    arr_push(function->function.blocks, block);
+    return block;
+}
+
+layec_value* layec_void_constant(layec_context* context) {
+    assert(context != NULL);
+
+    if (context->values._void == NULL) {
+        layec_value* void_value = layec_value_create_in_context(context, (layec_location){}, LAYEC_IR_VOID_CONSTANT, layec_void_type(context), SV_EMPTY);
+        assert(void_value != NULL);
+        context->values._void = void_value;
+    }
+
+    assert(context->values._void != NULL);
+    return context->values._void;
+}
+
+layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value) {
+    assert(context != NULL);
+    assert(type != NULL);
+    assert(layec_type_is_integer(type));
+
+    layec_value* int_value = layec_value_create_in_context(context, location, LAYEC_IR_INTEGER_CONSTANT, type, SV_EMPTY);
+    assert(int_value != NULL);
+    int_value->int_value = value;
+    return int_value;
 }
 
 layec_builder* layec_builder_create(layec_context* context) {
@@ -336,6 +398,11 @@ void layec_builder_destroy(layec_builder* builder) {
 
     *builder = (layec_builder){};
     lca_deallocate(allocator, builder);
+}
+
+layec_context* layec_builder_get_context(layec_builder* builder) {
+    assert(builder != NULL);
+    return builder->context;
 }
 
 void layec_builder_reset(layec_builder* builder) {
@@ -439,6 +506,34 @@ void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruc
 
     instruction->name = layec_context_intern_string_view(builder->context, name);
     layec_builder_insert(builder, instruction);
+}
+
+layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(callee != NULL);
+    assert(callee_type != NULL);
+    for (int64_t i = 0, count = arr_count(arguments); i < count; i++) {
+        assert(arguments[i] != NULL);
+    }
+
+    assert(callee_type->kind == LAYEC_TYPE_FUNCTION);
+    layec_type* result_type = callee_type->function.return_type;
+    assert(result_type != NULL);
+
+    layec_value* call = layec_value_create(builder->function->module, location, LAYEC_IR_CALL, result_type, name);
+    assert(call != NULL);
+    call->call.callee = callee;
+    call->call.callee_type = callee_type;
+    call->call.arguments = arguments;
+    call->call.calling_convention = callee_type->function.calling_convention;
+    call->call.is_tail_call = false;
+
+    layec_builder_insert(builder, call);
+    return call;
 }
 
 // IR Printer

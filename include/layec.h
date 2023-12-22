@@ -111,6 +111,10 @@ typedef struct layec_context {
         layec_type* _void;
         dynarr(layec_type*) int_types;
     } types;
+
+    struct {
+        layec_value* _void;
+    } values;
 } layec_context;
 
 typedef struct layec_location {
@@ -246,6 +250,7 @@ typedef enum layec_value_kind {
     // Values
     LAYEC_IR_INTEGER_CONSTANT,
     LAYEC_IR_ARRAY_CONSTANT,
+    LAYEC_IR_VOID_CONSTANT,
     LAYEC_IR_POISON,
 
     // Values that track their users.
@@ -753,6 +758,10 @@ struct laye_node {
     // elements cannot. `mut int mut[]` is a slice who's elements and value
     // can both change.
     bool type_is_modifiable;
+
+    // populated during IRgen, makes it easier to keep track of
+    // since we don't have usable hash tables woot.
+    layec_value* ir_value;
 
     union {
         // node describing an import declaration.
@@ -1391,10 +1400,17 @@ bool layec_value_is_block(layec_value* value);
 bool layec_value_is_function(layec_value* value);
 bool layec_value_is_instruction(layec_value* value);
 
+layec_type* layec_value_get_type(layec_value* value);
+
 layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
+layec_value* layec_function_append_block(layec_value* function, string_view name);
+
+layec_value* layec_void_constant(layec_context* context);
+layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
 
 layec_builder* layec_builder_create(layec_context* context);
 void layec_builder_destroy(layec_builder* builder);
+layec_context* layec_builder_get_context(layec_builder* builder);
 
 // Unsets this builder's insert position, so no further insertions will be allowed
 // until another call to `layec_builder_position_*` is called.
@@ -1405,6 +1421,8 @@ void layec_builder_position_at_end(layec_builder* builder, layec_value* block);
 layec_value* layec_builder_get_insert_block(layec_builder* builder);
 void layec_builder_insert(layec_builder* builder, layec_value* instruction);
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
+
+layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
 
 // ========== Laye ==========
 
