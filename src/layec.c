@@ -14,6 +14,8 @@ static char* shift(int* argc, char*** argv) {
     return result;
 }
 
+static void write_file(const char* file_name, string_view file_text);
+
 int main(int argc, char** argv) {
     lca_temp_allocator_init(default_allocator, 1024 * 1024);
 
@@ -32,17 +34,22 @@ int main(int argc, char** argv) {
     laye_analyse(module);
 
     string module_string = laye_module_debug_print(module);
-    fprintf(stderr, "%.*s", STR_EXPAND(module_string));
+    fprintf(stderr, "%.*s\n\n", STR_EXPAND(module_string));
     string_destroy(&module_string);
 
     layec_module* ir_module = laye_irgen(module);
     assert(ir_module != NULL);
 
     string ir_module_string = layec_module_print(ir_module);
-    fprintf(stderr, "%.*s", STR_EXPAND(ir_module_string));
+    fprintf(stderr, "%.*s\n\n", STR_EXPAND(ir_module_string));
     string_destroy(&ir_module_string);
 
     layec_irpass_validate(ir_module);
+
+    string llvm_module_string = layec_codegen_llvm(ir_module);
+    fprintf(stderr, "%.*s\n\n", STR_EXPAND(llvm_module_string));
+    write_file("./test/exit_code.ll", string_as_view(llvm_module_string));
+    string_destroy(&llvm_module_string);
 
     // in release/unsafe builds, we don't need to worry about manually tearing
     // down all of our allocations. these should always be run in debug/safe
@@ -55,4 +62,15 @@ int main(int argc, char** argv) {
 #endif // !NDEBUG
 
     return 0;
+}
+
+static void write_file(const char* file_name, string_view file_text) {
+    FILE* stream = fopen(file_name, "w");
+    if (stream == NULL) {
+        fprintf(stderr, "unable to open output file '%s'\n", file_name);
+        exit(1);
+    }
+
+    fwrite(file_text.data, sizeof *file_text.data, file_text.count, stream);
+    fclose(stream);
 }

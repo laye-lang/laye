@@ -197,6 +197,28 @@ void layec_type_destroy(layec_type* type) {
     }
 }
 
+const char* layec_type_kind_to_string(layec_type_kind kind) {
+    switch (kind) {
+        case LAYEC_TYPE_VOID: return "VOID";
+        case LAYEC_TYPE_ARRAY: return "ARRAY";
+        case LAYEC_TYPE_FLOAT: return "FLOAT";
+        case LAYEC_TYPE_FUNCTION: return "FUNCTION";
+        case LAYEC_TYPE_INTEGER: return "INTEGER";
+        case LAYEC_TYPE_POINTER: return "POINTER";
+        case LAYEC_TYPE_STRUCT: return "STRUCT";
+    }
+}
+
+layec_context* layec_module_context(layec_module* module) {
+    assert(module != NULL);
+    return module->context;
+}
+
+string_view layec_module_name(layec_module* module) {
+    assert(module != NULL);
+    return string_as_view(module->name);
+}
+
 int64_t layec_module_function_count(layec_module* module) {
     assert(module != NULL);
     return arr_count(module->functions);
@@ -207,6 +229,13 @@ layec_value* layec_module_get_function_at_index(layec_module* module, int64_t fu
     assert(function_index >= 0);
     assert(function_index < arr_count(module->functions));
     return module->functions[function_index];
+}
+
+layec_type* layec_function_return_type(layec_value* function) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    assert(layec_type_is_function(function->type));
+    return function->type->function.return_type;
 }
 
 int64_t layec_function_block_count(layec_value* function) {
@@ -263,6 +292,11 @@ bool layec_value_is_terminating_instruction(layec_value* instruction) {
     }
 }
 
+layec_value_kind layec_value_get_kind(layec_value* value) {
+    assert(value != NULL);
+    return value->kind;
+}
+
 layec_context* layec_value_context(layec_value* value) {
     assert(value != NULL);
     return value->context;
@@ -271,6 +305,70 @@ layec_context* layec_value_context(layec_value* value) {
 layec_location layec_value_location(layec_value* value) {
     assert(value != NULL);
     return value->location;
+}
+
+layec_type* layec_value_type(layec_value* value) {
+    assert(value != NULL);
+    return value->type;
+}
+
+string_view layec_value_name(layec_value* value) {
+    assert(value != NULL);
+    return string_as_view(value->name);
+}
+
+bool layec_block_has_name(layec_value* block) {
+    assert(block != NULL);
+    assert(layec_value_is_block(block));
+    return block->block.name.count != 0;
+}
+
+string_view layec_block_name(layec_value* block) {
+    assert(block != NULL);
+    assert(layec_value_is_block(block));
+    return string_as_view(block->block.name);
+}
+
+int64_t layec_block_index(layec_value* block) {
+    assert(block != NULL);
+    assert(layec_value_is_block(block));
+    return block->block.index;
+}
+
+string_view layec_function_name(layec_value* function) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    assert(function->function.name.count > 0);
+    return string_as_view(function->function.name);
+}
+
+layec_value* layec_value_callee(layec_value* call) {
+    assert(call != NULL);
+    assert(call->kind == LAYEC_IR_CALL);
+    assert(call->call.callee != NULL);
+    return call->call.callee;
+}
+int64_t layec_value_call_argument_count(layec_value* call) {
+    assert(call != NULL);
+    assert(call->kind == LAYEC_IR_CALL);
+    return arr_count(call->call.arguments);
+}
+
+layec_value* layec_value_call_get_argument_at_index(layec_value* call, int64_t argument_index) {
+    assert(call != NULL);
+    assert(call->kind == LAYEC_IR_CALL);
+    assert(argument_index >= 0);
+    int64_t count = arr_count(call->call.arguments);
+    assert(argument_index < count);
+    layec_value* argument = call->call.arguments[argument_index];
+    assert(argument != NULL);
+    return argument;
+}
+
+int64_t layec_integer_constant_value(layec_value* value) {
+    assert(value != NULL);
+    assert(value->kind == LAYEC_IR_INTEGER_CONSTANT);
+    return value->int_value;
 }
 
 const char* layec_value_kind_to_cstring(layec_value_kind kind) {
@@ -330,6 +428,11 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
     }
 }
 
+layec_type_kind layec_type_get_kind(layec_type* type) {
+    assert(type != NULL);
+    return type->kind;
+}
+
 layec_type* layec_void_type(layec_context* context) {
     assert(context != NULL);
 
@@ -387,6 +490,18 @@ layec_type* layec_function_type(
     function_type->function.is_variadic = is_variadic;
 
     return function_type;
+}
+
+int layec_type_size_in_bits(layec_type* type) {
+    switch (type->kind) {
+        default: {
+            fprintf(stderr, "for type kind %s\n", layec_type_kind_to_string(type->kind));
+            assert(false && "unimplemented kind in layec_type_size_in_bits");
+            return 0;
+        }
+
+        case LAYEC_TYPE_INTEGER: return type->primitive_bit_width;
+    }
 }
 
 static layec_value* layec_value_create_in_context(layec_context* context, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {

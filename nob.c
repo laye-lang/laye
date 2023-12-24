@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
     nob_cmd_append(&driver_cmd, "./lib/layec_depgraph.c");
     nob_cmd_append(&driver_cmd, "./lib/layec_ir.c");
     nob_cmd_append(&driver_cmd, "./lib/irpass/validate.c");
+    nob_cmd_append(&driver_cmd, "./lib/layec_llvm.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_data.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_debug.c");
     nob_cmd_append(&driver_cmd, "./lib/laye_parser.c");
