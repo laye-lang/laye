@@ -42,6 +42,8 @@ int main(int argc, char** argv) {
     fprintf(stderr, "%.*s", STR_EXPAND(ir_module_string));
     string_destroy(&ir_module_string);
 
+    layec_irpass_validate(ir_module);
+
     // in release/unsafe builds, we don't need to worry about manually tearing
     // down all of our allocations. these should always be run in debug/safe
     // builds so the static analysers (like address sanitizer) can do their magic.

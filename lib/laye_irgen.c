@@ -80,6 +80,7 @@ layec_module* laye_irgen(laye_module* module) {
             layec_builder_position_at_end(builder, entry_block);
 
             // generate the function body
+            laye_generate_node(builder, top_level_node->decl_function.body);
 
             layec_builder_reset(builder);
         }
@@ -165,6 +166,12 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             // we wanted it to be `yield`, so maybe if there's no yields it's semantically invalid, then we can
             // generate phis for every yield target???
 
+            if (laye_type_is_noreturn(node->type)) {
+                layec_build_unreachable(builder, (layec_location){});
+            } else {
+                layec_build_return_void(builder, (layec_location){});
+            }
+
             return layec_void_constant(context);
         }
 
@@ -184,9 +191,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             dynarr(layec_value*) argument_values = NULL;
-            arr_reserve(argument_values, arr_count(node->call.arguments));
             for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
-                argument_values[i] = laye_generate_node(builder, node->call.arguments[i]);
+                layec_value* argument_value = laye_generate_node(builder, node->call.arguments[i]);
+                arr_push(argument_values, argument_value);
                 assert(argument_values[i] != NULL);
             }
 

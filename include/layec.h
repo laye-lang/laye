@@ -66,6 +66,8 @@ typedef struct layec_value layec_value;
 typedef struct layec_module layec_module;
 typedef struct layec_builder layec_builder;
 
+typedef void (*layec_ir_pass_function)(layec_module* module);
+
 typedef struct layec_context {
     lca_allocator allocator;
     layec_target_info* target;
@@ -115,6 +117,8 @@ typedef struct layec_context {
     struct {
         layec_value* _void;
     } values;
+
+    dynarr(layec_value*) _all_values;
 } layec_context;
 
 typedef struct layec_location {
@@ -1340,14 +1344,19 @@ layec_diag layec_info(layec_context* context, layec_location location, const cha
 layec_diag layec_note(layec_context* context, layec_location location, const char* format, ...);
 layec_diag layec_warn(layec_context* context, layec_location location, const char* format, ...);
 layec_diag layec_error(layec_context* context, layec_location location, const char* format, ...);
+layec_diag layec_ice(layec_context* context, layec_location location, const char* format, ...);
 
 void layec_write_diag(layec_context* context, layec_diag diag);
 void layec_write_info(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_note(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_warn(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_error(layec_context* context, layec_location location, const char* format, ...);
+void layec_write_ice(layec_context* context, layec_location location, const char* format, ...);
 
 string layec_context_intern_string_view(layec_context* context, string_view s);
+
+#define LAYEC_ICE(C, L, F) do { layec_write_ice(C, L, F); exit(1); } while (0)
+#define LAYEC_ICEV(C, L, F, ...) do { layec_write_ice(C, L, F, __VA_ARGS__); exit(1); } while (0)
 
 // ========== Shared Data ==========
 
@@ -1369,9 +1378,29 @@ int layec_get_significant_bits(int64_t value);
 layec_module* layec_module_create(layec_context* context, string_view module_name);
 void layec_module_destroy(layec_module* module);
 
+layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
+layec_value* layec_function_append_block(layec_value* function, string_view name);
+
+int64_t layec_module_function_count(layec_module* module);
+layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
+
+int64_t layec_function_block_count(layec_value* function);
+layec_value* layec_function_get_block_at_index(layec_value* function, int64_t block_index);
+
+int64_t layec_block_instruction_count(layec_value* block);
+layec_value* layec_block_get_instruction_at_index(layec_value* block, int64_t instruction_index);
+bool layec_block_is_terminated(layec_value* block);
+
+bool layec_value_is_terminating_instruction(layec_value* instruction);
+
 string layec_module_print(layec_module* module);
 void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
 void layec_value_print_to_string(layec_value* value, string* s, bool use_color);
+
+const char* layec_value_kind_to_cstring(layec_value_kind kind);
+
+layec_context* layec_value_context(layec_value* value);
+layec_location layec_value_location(layec_value* value);
 
 layec_type* layec_void_type(layec_context* context);
 layec_type* layec_int_type(layec_context* context, int bit_width);
@@ -1402,9 +1431,6 @@ bool layec_value_is_instruction(layec_value* value);
 
 layec_type* layec_value_get_type(layec_value* value);
 
-layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
-layec_value* layec_function_append_block(layec_value* function, string_view name);
-
 layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
 
@@ -1423,6 +1449,11 @@ void layec_builder_insert(layec_builder* builder, layec_value* instruction);
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
 
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
+layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);
+layec_value* layec_build_return_void(layec_builder* builder, layec_location location);
+layec_value* layec_build_unreachable(layec_builder* builder, layec_location location);
+
+void layec_irpass_validate(layec_module* module);
 
 // ========== Laye ==========
 

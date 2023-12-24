@@ -5,6 +5,7 @@
 #include "layec.h"
 
 void layec_type_destroy(layec_type* type);
+void layec_value_destroy(layec_value* value);
 
 layec_target_info* layec_default_target;
 layec_target_info* layec_x86_64_linux;
@@ -175,6 +176,13 @@ void layec_context_destroy(layec_context* context) {
     arr_free(context->_all_types);
     lca_arena_destroy(context->type_arena);
 
+    for (int64_t i = 0, count = arr_count(context->_all_values); i < count; i++) {
+        layec_value_destroy(context->_all_values[i]);
+        lca_deallocate(allocator, context->_all_values[i]);
+    }
+
+    arr_free(context->_all_values);
+
     *context = (layec_context){};
     lca_deallocate(allocator, context);
 }
@@ -321,6 +329,15 @@ layec_diag layec_error(layec_context* context, layec_location location, const ch
     };
 }
 
+layec_diag layec_ice(layec_context* context, layec_location location, const char* format, ...) {
+    GET_MESSAGE;
+    return (layec_diag) {
+        .location = location,
+        .status = LAYEC_ICE,
+        .message = message
+    };
+}
+
 void layec_write_diag(layec_context* context, layec_diag diag) {
     layec_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(diag.message));
@@ -347,6 +364,12 @@ void layec_write_warn(layec_context* context, layec_location location, const cha
 void layec_write_error(layec_context* context, layec_location location, const char* format, ...) {
     GET_MESSAGE;
     layec_context_print_location_info(context, location, LAYEC_ERROR, stderr, context->use_color);
+    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+}
+
+void layec_write_ice(layec_context* context, layec_location location, const char* format, ...) {
+    GET_MESSAGE;
+    layec_context_print_location_info(context, location, LAYEC_ICE, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
 }
 
