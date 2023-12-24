@@ -511,7 +511,8 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node, laye_node* 
         layec_evaluated_constant eval_result = {};
         if (laye_expr_evaluate(*node, &eval_result, false)) {
             assert(eval_result.kind == LAYEC_EVAL_INT);
-            if (layec_get_significant_bits(eval_result.int_value) <= to_size) {
+            int sig_bits = layec_get_significant_bits(eval_result.int_value);
+            if (sig_bits <= to_size) {
                 if (perform_conversion) {
                     laye_sema_insert_implicit_cast(sema, node, to);
 

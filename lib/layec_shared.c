@@ -38,17 +38,19 @@ bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated
 
 int layec_get_significant_bits(int64_t value) {
     int bit_width = 8 * sizeof value;
+    assert(bit_width == 64);
+
     if (value < 0) {
         int sig = bit_width - 1;
         while (sig > 0) {
-            if (!(value & (1 << (sig - 1))))
+            if (!(value & (1ull << (sig - 1))))
                 return sig + 1;
             sig--;
         }
     } else {
         int sig = bit_width - 1;
         while (sig > 0) {
-            if (value & (1 << (sig - 1)))
+            if (value & (1ull << (sig - 1)))
                 return sig;
             sig--;
         }

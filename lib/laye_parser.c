@@ -742,6 +742,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
         case LAYE_TOKEN_LITINT: {
             laye_node* litint_expr = laye_node_create(p->module, LAYE_NODE_LITINT, p->token.location, p->context->laye_types.unknown);
             assert(litint_expr != NULL);
+            litint_expr->litint.value = p->token.int_value;
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, litint_expr);
         }
@@ -1473,6 +1474,7 @@ static void laye_next_token(laye_parser* p) {
                 p->current_char = p->source.text.data[p->lexer_position];
                 goto identfier_lex;
             } else {
+                token.int_value = integer_value;
                 token.kind = LAYE_TOKEN_LITINT;
             }
         } break;
