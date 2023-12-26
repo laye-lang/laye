@@ -1,6 +1,7 @@
-#include "layec.h"
-
 #include <assert.h>
+
+#include "layec.h"
+#include "laye.h"
 
 #define COL_DELIM WHITE
 #define COL_TREE RED

@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "layec.h"
+#include "laye.h"
 
 typedef struct laye_parser {
     layec_context* context;

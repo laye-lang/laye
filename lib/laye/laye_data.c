@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "layec.h"
+#include "laye.h"
 
 void laye_module_destroy(laye_module* module) {
     if (module == NULL) return;

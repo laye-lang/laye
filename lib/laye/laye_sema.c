@@ -1,6 +1,7 @@
-#include "layec.h"
-
 #include <assert.h>
+
+#include "layec.h"
+#include "laye.h"
 
 typedef struct laye_sema {
     layec_context* context;

@@ -1,6 +1,6 @@
-#include "layec.h"
-
 #include <assert.h>
+
+#include "layec.h"
 
 void layec_value_destroy(layec_value* value);
 

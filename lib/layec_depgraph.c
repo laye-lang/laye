@@ -1,6 +1,6 @@
-#include "layec.h"
-
 #include <assert.h>
+
+#include "layec.h"
 
 layec_dependency_graph* layec_dependency_graph_create_in_context(layec_context* context) {
     assert(context != NULL);

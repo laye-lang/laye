@@ -20,11 +20,11 @@ int main(int argc, char** argv) {
     nob_cmd_append(&driver_cmd, "./lib/layec_ir.c");
     nob_cmd_append(&driver_cmd, "./lib/irpass/validate.c");
     nob_cmd_append(&driver_cmd, "./lib/layec_llvm.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye_data.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye_debug.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye_parser.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye_sema.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye_irgen.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye/laye_data.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye/laye_debug.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye/laye_parser.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye/laye_sema.c");
+    nob_cmd_append(&driver_cmd, "./lib/laye/laye_irgen.c");
     nob_cmd_append(&driver_cmd, "./src/layec.c");
     nob_cmd_run_sync(driver_cmd);
 
