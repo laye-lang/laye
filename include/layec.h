@@ -381,6 +381,9 @@ string_view layec_function_name(layec_value* function);
 layec_type* layec_function_return_type(layec_value* function);
 int64_t layec_function_block_count(layec_value* function);
 layec_value* layec_function_get_block_at_index(layec_value* function, int64_t block_index);
+int64_t layec_function_parameter_count(layec_value* function);
+layec_value* layec_function_get_parameter_at_index(layec_value* function, int64_t parameter_index);
+bool layec_function_is_variadic(layec_value* function);
 
 int64_t layec_block_instruction_count(layec_value* block);
 layec_value* layec_block_get_instruction_at_index(layec_value* block, int64_t instruction_index);
@@ -436,6 +439,10 @@ int layec_type_size_in_bits(layec_type* type);
 int layec_type_size_in_bytes(layec_type* type);
 int layec_type_align_in_bits(layec_type* type);
 int layec_type_align_in_bytes(layec_type* type);
+
+int64_t layec_function_type_parameter_count(layec_type* function_type);
+layec_type* layec_function_type_get_parameter_type_at_index(layec_type* function_type, int64_t parameter_index);
+bool layec_function_type_is_variadic(layec_type* function_type);
 
 bool layec_value_is_block(layec_value* value);
 bool layec_value_is_function(layec_value* value);

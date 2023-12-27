@@ -73,6 +73,26 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
         STR_EXPAND(layec_function_name(function))
     );
 
+    layec_type* function_type = layec_value_get_type(function);
+    assert(layec_type_is_function(function_type));
+    for (int64_t i = 0, count = layec_function_type_parameter_count(function_type); i < count; i++) {
+        if (i > 0) {
+            lca_string_append_format(codegen->output, ", ");
+        }
+
+        layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(function_type, i);
+        llvm_print_type(codegen, parameter_type);
+        lca_string_append_format(codegen->output, " %%%lld", i);
+    }
+
+    if (layec_function_type_is_variadic(function_type)) {
+        if (layec_function_type_parameter_count(function_type) != 0) {
+            lca_string_append_format(codegen->output, ", ");
+        }
+
+        lca_string_append_format(codegen->output, "...");
+    }
+
     lca_string_append_format(codegen->output, ")");
 
     if (block_count == 0) {

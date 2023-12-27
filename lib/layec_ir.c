@@ -74,7 +74,6 @@ struct layec_value {
             string name;
             dynarr(layec_value*) parameters;
             layec_linkage linkage;
-            layec_calling_convention calling_convention;
             dynarr(layec_value*) blocks;
         } function;
 
@@ -250,6 +249,28 @@ layec_value* layec_function_get_block_at_index(layec_value* function, int64_t bl
     assert(block_index >= 0);
     assert(block_index < arr_count(function->function.blocks));
     return function->function.blocks[block_index];
+}
+
+int64_t layec_function_parameter_count(layec_value* function) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    return arr_count(function->function.parameters);
+}
+
+layec_value* layec_function_get_parameter_at_index(layec_value* function, int64_t parameter_index) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    assert(parameter_index >= 0);
+    assert(parameter_index < arr_count(function->function.parameters));
+    return function->function.parameters[parameter_index];
+}
+
+bool layec_function_is_variadic(layec_value* function) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    assert(function->type != NULL);
+    assert(layec_type_is_function(function->type));
+    return function->type->function.is_variadic;
 }
 
 int64_t layec_block_instruction_count(layec_value* block) {
@@ -504,6 +525,26 @@ int layec_type_size_in_bits(layec_type* type) {
     }
 }
 
+int64_t layec_function_type_parameter_count(layec_type* function_type) {
+    assert(function_type != NULL);
+    assert(layec_type_is_function(function_type));
+    return arr_count(function_type->function.parameter_types);
+}
+
+layec_type* layec_function_type_get_parameter_type_at_index(layec_type* function_type, int64_t parameter_index) {
+    assert(function_type != NULL);
+    assert(layec_type_is_function(function_type));
+    assert(parameter_index >= 0);
+    assert(parameter_index < arr_count(function_type->function.parameter_types));
+    return function_type->function.parameter_types[parameter_index];
+}
+
+bool layec_function_type_is_variadic(layec_type* function_type) {
+    assert(function_type != NULL);
+    assert(layec_type_is_function(function_type));
+    return function_type->function.is_variadic;
+}
+
 static layec_value* layec_value_create_in_context(layec_context* context, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
     assert(context != NULL);
     assert(type != NULL);
@@ -620,7 +661,6 @@ layec_value* layec_module_create_function(layec_module* module, layec_location l
     assert(function != NULL);
     function->function.name = layec_context_intern_string_view(module->context, function_name);
     function->function.linkage = linkage;
-    function->function.calling_convention = function_type->function.calling_convention;
 
     arr_push(module->functions, function);
     return function;
@@ -1030,7 +1070,7 @@ static void layec_function_print(layec_print_context* print_context, layec_value
         "%s%s %s %s%.*s%s(",
         COL(COL_KEYWORD),
         is_declare ? "declare" : "define",
-        ir_calling_convention_to_cstring(function->function.calling_convention),
+        ir_calling_convention_to_cstring(function->type->function.calling_convention),
         COL(COL_NAME),
         STR_EXPAND(function->function.name),
         COL(COL_DELIM)

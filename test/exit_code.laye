@@ -1,8 +1,9 @@
 // R %layec% --print-ir %s
 
-// * define void main() {
-// +   %0 = i32 69
-// +   call void @exit(%0)
+// * define void @main() {
+// + entry:
+// +   call void @exit(i32 69)
+// +   unreachable
 // + }
 export foreign noreturn main() {
     exit(69);
