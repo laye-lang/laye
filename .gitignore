@@ -4,3 +4,5 @@ out
 nob
 nob.old
 *.ll
+
+test/exit_code

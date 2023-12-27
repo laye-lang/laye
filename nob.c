@@ -1,6 +1,6 @@
 #define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-o", binary_path, source_path
 #define NOB_IMPLEMENTATION
-#include "nob.h"
+#include "include/nob.h"
 
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
