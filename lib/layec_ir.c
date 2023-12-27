@@ -363,19 +363,19 @@ string_view layec_function_name(layec_value* function) {
     return string_as_view(function->function.name);
 }
 
-layec_value* layec_value_callee(layec_value* call) {
+layec_value* layec_instruction_callee(layec_value* call) {
     assert(call != NULL);
     assert(call->kind == LAYEC_IR_CALL);
     assert(call->call.callee != NULL);
     return call->call.callee;
 }
-int64_t layec_value_call_argument_count(layec_value* call) {
+int64_t layec_instruction_call_argument_count(layec_value* call) {
     assert(call != NULL);
     assert(call->kind == LAYEC_IR_CALL);
     return arr_count(call->call.arguments);
 }
 
-layec_value* layec_value_call_get_argument_at_index(layec_value* call, int64_t argument_index) {
+layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index) {
     assert(call != NULL);
     assert(call->kind == LAYEC_IR_CALL);
     assert(argument_index >= 0);
@@ -386,7 +386,7 @@ layec_value* layec_value_call_get_argument_at_index(layec_value* call, int64_t a
     return argument;
 }
 
-int64_t layec_integer_constant_value(layec_value* value) {
+int64_t layec_value_integer_constant(layec_value* value) {
     assert(value != NULL);
     assert(value->kind == LAYEC_IR_INTEGER_CONSTANT);
     return value->int_value;

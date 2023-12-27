@@ -366,52 +366,23 @@ int layec_get_significant_bits(int64_t value);
 
 // ========== IR ==========
 
+void layec_irpass_validate(layec_module* module);
+string layec_codegen_llvm(layec_module* module);
+
+// Module API
+
 layec_module* layec_module_create(layec_context* context, string_view module_name);
 void layec_module_destroy(layec_module* module);
-
 layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
-layec_value* layec_function_append_block(layec_value* function, string_view name);
 
 layec_context* layec_module_context(layec_module* module);
 string_view layec_module_name(layec_module* module);
 int64_t layec_module_function_count(layec_module* module);
 layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
 
-string_view layec_function_name(layec_value* function);
-layec_type* layec_function_return_type(layec_value* function);
-int64_t layec_function_block_count(layec_value* function);
-layec_value* layec_function_get_block_at_index(layec_value* function, int64_t block_index);
-int64_t layec_function_parameter_count(layec_value* function);
-layec_value* layec_function_get_parameter_at_index(layec_value* function, int64_t parameter_index);
-bool layec_function_is_variadic(layec_value* function);
-
-int64_t layec_block_instruction_count(layec_value* block);
-layec_value* layec_block_get_instruction_at_index(layec_value* block, int64_t instruction_index);
-bool layec_block_is_terminated(layec_value* block);
-
-bool layec_value_is_terminating_instruction(layec_value* instruction);
-
 string layec_module_print(layec_module* module);
-void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
-void layec_value_print_to_string(layec_value* value, string* s, bool use_color);
 
-const char* layec_value_kind_to_cstring(layec_value_kind kind);
-
-layec_value_kind layec_value_get_kind(layec_value* value);
-layec_context* layec_value_context(layec_value* value);
-layec_location layec_value_location(layec_value* value);
-layec_type* layec_value_type(layec_value* value);
-string_view layec_value_name(layec_value* value);
-
-bool layec_block_has_name(layec_value* block);
-string_view layec_block_name(layec_value* block);
-int64_t layec_block_index(layec_value* block);
-
-layec_value* layec_value_callee(layec_value* call);
-int64_t layec_value_call_argument_count(layec_value* call);
-layec_value* layec_value_call_get_argument_at_index(layec_value* call, int64_t argument_index);
-
-int64_t layec_integer_constant_value(layec_value* value);
+// Type API
 
 const char* layec_type_kind_to_cstring(layec_type_kind kind);
 
@@ -440,18 +411,65 @@ int layec_type_size_in_bytes(layec_type* type);
 int layec_type_align_in_bits(layec_type* type);
 int layec_type_align_in_bytes(layec_type* type);
 
+void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
+
+// - Function Type API
+
 int64_t layec_function_type_parameter_count(layec_type* function_type);
 layec_type* layec_function_type_get_parameter_type_at_index(layec_type* function_type, int64_t parameter_index);
 bool layec_function_type_is_variadic(layec_type* function_type);
+
+// Value API
+
+const char* layec_value_kind_to_cstring(layec_value_kind kind);
+
+int64_t layec_value_integer_constant(layec_value* value);
+
+layec_value_kind layec_value_get_kind(layec_value* value);
+layec_context* layec_value_context(layec_value* value);
+layec_location layec_value_location(layec_value* value);
+layec_type* layec_value_get_type(layec_value* value);
+layec_type* layec_value_type(layec_value* value);
+string_view layec_value_name(layec_value* value);
+bool layec_value_is_terminating_instruction(layec_value* instruction);
 
 bool layec_value_is_block(layec_value* value);
 bool layec_value_is_function(layec_value* value);
 bool layec_value_is_instruction(layec_value* value);
 
-layec_type* layec_value_get_type(layec_value* value);
-
 layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
+
+void layec_value_print_to_string(layec_value* value, string* s, bool use_color);
+
+// - Function Value API
+
+string_view layec_function_name(layec_value* function);
+layec_type* layec_function_return_type(layec_value* function);
+int64_t layec_function_block_count(layec_value* function);
+layec_value* layec_function_get_block_at_index(layec_value* function, int64_t block_index);
+int64_t layec_function_parameter_count(layec_value* function);
+layec_value* layec_function_get_parameter_at_index(layec_value* function, int64_t parameter_index);
+bool layec_function_is_variadic(layec_value* function);
+
+layec_value* layec_function_append_block(layec_value* function, string_view name);
+
+// - Block API
+
+bool layec_block_has_name(layec_value* block);
+string_view layec_block_name(layec_value* block);
+int64_t layec_block_index(layec_value* block);
+int64_t layec_block_instruction_count(layec_value* block);
+layec_value* layec_block_get_instruction_at_index(layec_value* block, int64_t instruction_index);
+bool layec_block_is_terminated(layec_value* block);
+
+// - Instruction API
+
+layec_value* layec_instruction_callee(layec_value* call);
+int64_t layec_instruction_call_argument_count(layec_value* call);
+layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index);
+
+// Builder API
 
 layec_builder* layec_builder_create(layec_context* context);
 void layec_builder_destroy(layec_builder* builder);
@@ -471,9 +489,5 @@ layec_value* layec_build_call(layec_builder* builder, layec_location location, l
 layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);
 layec_value* layec_build_return_void(layec_builder* builder, layec_location location);
 layec_value* layec_build_unreachable(layec_builder* builder, layec_location location);
-
-void layec_irpass_validate(layec_module* module);
-
-string layec_codegen_llvm(layec_module* module);
 
 #endif // LAYEC_H

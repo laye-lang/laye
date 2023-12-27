@@ -164,15 +164,15 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, "call ");
             llvm_print_type(codegen, layec_value_type(instruction));
             lca_string_append_format(codegen->output, " ");
-            llvm_print_value(codegen, layec_value_callee(instruction), false);
+            llvm_print_value(codegen, layec_instruction_callee(instruction), false);
             lca_string_append_format(codegen->output, "(");
 
-            for (int64_t i = 0, count = layec_value_call_argument_count(instruction); i < count; i++) {
+            for (int64_t i = 0, count = layec_instruction_call_argument_count(instruction); i < count; i++) {
                 if (i > 0) {
                     lca_string_append_format(codegen->output, ", ");
                 }
 
-                layec_value* argument = layec_value_call_get_argument_at_index(instruction, i);
+                layec_value* argument = layec_instruction_call_get_argument_at_index(instruction, i);
                 llvm_print_value(codegen, argument, true);
             }
 
@@ -201,7 +201,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
         } break;
 
         case LAYEC_IR_INTEGER_CONSTANT: {
-            lca_string_append_format(codegen->output, "%lld", layec_integer_constant_value(value));
+            lca_string_append_format(codegen->output, "%lld", layec_value_integer_constant(value));
         } break;
     }
 }
