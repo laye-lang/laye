@@ -92,7 +92,7 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
 static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
     switch (layec_type_get_kind(type)) {
         default: {
-            fprintf(stderr, "for type kind %s\n", layec_type_kind_to_string(layec_type_get_kind(type)));
+            fprintf(stderr, "for type kind %s\n", layec_type_kind_to_cstring(layec_type_get_kind(type)));
             assert(false && "unimplemented kind in llvm_print_type");
         } break;
 

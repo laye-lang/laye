@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "layec.h"
+#include "laye.h"
 
 void layec_type_destroy(layec_type* type);
 void layec_value_destroy(layec_value* value);

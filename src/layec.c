@@ -5,6 +5,7 @@
 #define LCA_MEM_IMPLEMENTATION
 #define LCA_STR_IMPLEMENTATION
 #include "layec.h"
+#include "laye.h"
 
 static char* shift(int* argc, char*** argv) {
     assert(*argc > 0);

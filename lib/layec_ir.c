@@ -197,7 +197,7 @@ void layec_type_destroy(layec_type* type) {
     }
 }
 
-const char* layec_type_kind_to_string(layec_type_kind kind) {
+const char* layec_type_kind_to_cstring(layec_type_kind kind) {
     switch (kind) {
         case LAYEC_TYPE_VOID: return "VOID";
         case LAYEC_TYPE_ARRAY: return "ARRAY";
@@ -495,7 +495,7 @@ layec_type* layec_function_type(
 int layec_type_size_in_bits(layec_type* type) {
     switch (type->kind) {
         default: {
-            fprintf(stderr, "for type kind %s\n", layec_type_kind_to_string(type->kind));
+            fprintf(stderr, "for type kind %s\n", layec_type_kind_to_cstring(type->kind));
             assert(false && "unimplemented kind in layec_type_size_in_bits");
             return 0;
         }
@@ -1087,6 +1087,11 @@ void layec_type_print_to_string(layec_type* type, string* s, bool use_color) {
     assert(s != NULL);
 
     switch (type->kind) {
+        default: {
+            fprintf(stderr, "for type %s\n", layec_type_kind_to_cstring(type->kind));
+            assert(false && "unhandled type in layec_type_print_to_string");
+        } break;
+
         case LAYEC_TYPE_POINTER: {
             lca_string_append_format(s, "%sptr", COL(COL_KEYWORD));
         } break;
