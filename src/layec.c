@@ -100,6 +100,13 @@ int main(int argc, char** argv) {
         arr_push(ir_modules, ir_module);
     }
 
+    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
+        layec_module* ir_module = ir_modules[i];
+        assert(ir_module != NULL);
+
+        layec_irpass_validate(ir_module);
+    }
+
     if (args.print_ir) {
         for (int64_t i = 0; i < arr_count(args.input_files); i++) {
             layec_module* ir_module = ir_modules[i];
@@ -110,20 +117,6 @@ int main(int argc, char** argv) {
         }
 
         goto program_exit;
-    }
-
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-        layec_module* ir_module = ir_modules[i];
-        assert(ir_module != NULL);
-
-        layec_irpass_validate(ir_module);
-    }
-
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-        layec_module* ir_module = ir_modules[i];
-        assert(ir_module != NULL);
-        
-        layec_irpass_validate(ir_module);
     }
 
     for (int64_t i = 0; i < arr_count(args.input_files); i++) {
@@ -211,7 +204,7 @@ program_exit:;
     arr_free(ir_modules);
     arr_free(source_modules);
     arr_free(args.input_files);
-    
+
     layec_context_destroy(context);
     lca_temp_allocator_clear();
 #endif // !NDEBUG
