@@ -1,4 +1,5 @@
 .vscode/
+fchk/
 
 test/*
 !test/*.laye

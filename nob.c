@@ -2,11 +2,7 @@
 #define NOB_IMPLEMENTATION
 #include "include/nob.h"
 
-int main(int argc, char** argv) {
-    NOB_GO_REBUILD_URSELF(argc, argv);
-
-    nob_mkdir_if_not_exists("./out");
-
+static void build_layec_driver() {
     Nob_Cmd driver_cmd = {};
     nob_cmd_append(&driver_cmd, "clang");
     nob_cmd_append(&driver_cmd, "-o", "./out/layec");
@@ -27,6 +23,28 @@ int main(int argc, char** argv) {
     nob_cmd_append(&driver_cmd, "./lib/laye/laye_irgen.c");
     nob_cmd_append(&driver_cmd, "./src/layec.c");
     nob_cmd_run_sync(driver_cmd);
+}
+
+static void build_test_runner() {
+    Nob_Cmd driver_cmd = {};
+    nob_cmd_append(&driver_cmd, "clang");
+    nob_cmd_append(&driver_cmd, "-o", "./out/test_runner");
+    nob_cmd_append(&driver_cmd, "-I", "include");
+    nob_cmd_append(&driver_cmd, "-std=c23");
+    nob_cmd_append(&driver_cmd, "-ggdb");
+    nob_cmd_append(&driver_cmd, "-fsanitize=address");
+    nob_cmd_append(&driver_cmd, "./src/test_runner.c");
+    nob_cmd_run_sync(driver_cmd);
+
+}
+
+int main(int argc, char** argv) {
+    NOB_GO_REBUILD_URSELF(argc, argv);
+
+    nob_mkdir_if_not_exists("./out");
+
+    build_layec_driver();
+    build_test_runner();
 
     return 0;
 }

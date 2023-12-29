@@ -1,6 +1,6 @@
-// R %layec% --ir %s
+// R %layec --ir --nocolor %s
 
-// * define layecc main() -> i64 {
+// * define layecc main() -> int64 {
 // + entry:
 // +   return int64 69
 // + }

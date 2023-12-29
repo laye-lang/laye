@@ -16,6 +16,8 @@ typedef struct args {
     bool help;
     bool verbose;
 
+    int use_color;
+
     bool print_ast;
     bool print_ir;
     bool print_llvm;
@@ -43,7 +45,9 @@ static laye_module* parse_module(args* args, layec_context* context, string_view
 int main(int argc, char** argv) {
     int exit_code = 0;
 
-    args args;
+    args args = {
+        .use_color = 1,
+    };
     if (!parse_args(&args, &argc, &argv) || args.help) {
         fprintf(stderr, "Usage:\n  %.*s [options...] files...\n", STR_EXPAND(args.program_name));
         return 1;
@@ -58,7 +62,7 @@ int main(int argc, char** argv) {
 
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
-    context->use_color = true;
+    context->use_color = args.use_color == 1;
 
     dynarr(laye_module*) source_modules = NULL;
     dynarr(layec_module*) ir_modules = NULL;
@@ -84,7 +88,7 @@ int main(int argc, char** argv) {
             laye_module* module = source_modules[i];
             assert(module != NULL);
             string module_string = laye_module_debug_print(module);
-            fprintf(stderr, "%.*s\n\n", STR_EXPAND(module_string));
+            fprintf(stdout, "%.*s\n\n", STR_EXPAND(module_string));
             string_destroy(&module_string);
         }
 
@@ -124,7 +128,7 @@ int main(int argc, char** argv) {
             layec_module* ir_module = ir_modules[i];
             assert(ir_module != NULL);
             string ir_module_string = layec_module_print(ir_module);
-            fprintf(stderr, "%.*s\n\n", STR_EXPAND(ir_module_string));
+            fprintf(stdout, "%.*s\n\n", STR_EXPAND(ir_module_string));
             string_destroy(&ir_module_string);
         }
 
@@ -141,7 +145,7 @@ int main(int argc, char** argv) {
 
     if (args.print_llvm) {
         for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-            fprintf(stderr, "%.*s\n\n", STR_EXPAND(llvm_modules[i]));
+            fprintf(stdout, "%.*s\n\n", STR_EXPAND(llvm_modules[i]));
         }
 
         goto program_exit;
@@ -245,6 +249,8 @@ static bool parse_args(args* args, int* argc, char*** argv) {
             args->print_llvm = true;
         } else if (string_view_equals(arg, SV_CONSTANT("--syntax"))) {
             args->syntax_only = true;
+        } else if (string_view_equals(arg, SV_CONSTANT("--nocolor"))) {
+            args->use_color = 0;
         } else {
             arr_push(args->input_files, arg);
         }
