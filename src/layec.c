@@ -50,7 +50,15 @@ int main(int argc, char** argv) {
         .use_color = -1,
     };
     if (!parse_args(&args, &argc, &argv) || args.help) {
-        fprintf(stderr, "Usage:\n  %.*s [options...] files...\n", STR_EXPAND(args.program_name));
+        fprintf(stderr, "Usage: %.*s [options...] files...\n", STR_EXPAND(args.program_name));
+        fprintf(stderr, "Options:\n");
+        fprintf(stderr, "  --help               Display this information.\n");
+        fprintf(stderr, "  --verbose            Print additional information during compilation.\n");
+        fprintf(stderr, "  --ast                Print the ASTs for the input source files, then exit.\n");
+        fprintf(stderr, "  --ir                 Print the generated LYIR modules for the input source files, then exit.\n");
+        fprintf(stderr, "  --llvm               Print the generated LLVM modules for the input source files, then exit.\n");
+        fprintf(stderr, "  --syntax             Do not perform type checking, exiting after all files have been parsed.\n");
+        fprintf(stderr, "  --nocolor            Explicitly disable output coloring. The default detects automatically if colors can be used.\n");
         return 1;
     }
 
