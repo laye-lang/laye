@@ -342,6 +342,9 @@ layec_diag layec_ice(layec_context* context, layec_location location, const char
 void layec_write_diag(layec_context* context, layec_diag diag) {
     layec_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(diag.message));
+    if (diag.status == LAYEC_ERROR || diag.status == LAYEC_FATAL || diag.status == LAYEC_ICE) {
+        context->has_reported_errors = true;
+    }
 }
 
 void layec_write_info(layec_context* context, layec_location location, const char* format, ...) {
@@ -366,12 +369,14 @@ void layec_write_error(layec_context* context, layec_location location, const ch
     GET_MESSAGE;
     layec_context_print_location_info(context, location, LAYEC_ERROR, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    context->has_reported_errors = true;
 }
 
 void layec_write_ice(layec_context* context, layec_location location, const char* format, ...) {
     GET_MESSAGE;
     layec_context_print_location_info(context, location, LAYEC_ICE, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    context->has_reported_errors = true;
 }
 
 #undef GET_MESSAGE

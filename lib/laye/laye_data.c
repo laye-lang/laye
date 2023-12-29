@@ -580,7 +580,7 @@ bool laye_node_kind_is_decl(laye_node_kind kind) {
 }
 
 bool laye_node_kind_is_type(laye_node_kind kind) {
-    return kind > LAYE_NODE_TYPE_POISON && kind <= LAYE_NODE_TYPE_STRICT_ALIAS;
+    return kind >= LAYE_NODE_TYPE_POISON && kind <= LAYE_NODE_TYPE_STRICT_ALIAS;
 }
 
 bool laye_node_is_decl(laye_node* node) {

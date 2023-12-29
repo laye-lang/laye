@@ -73,6 +73,7 @@ typedef struct layec_context {
     layec_target_info* target;
 
     bool use_color;
+    bool has_reported_errors;
 
     dynarr(layec_source) sources;
     dynarr(string) include_directories;

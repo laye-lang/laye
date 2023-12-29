@@ -33,7 +33,7 @@ static laye_module* parse_module(args* args, layec_context* context, string_view
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
-    if (!args->syntax_only) {
+    if (!args->syntax_only && !context->has_reported_errors) {
         laye_analyse(module);
     }
 
@@ -75,6 +75,10 @@ int main(int argc, char** argv) {
         arr_push(source_modules, module);
     }
 
+    if (context->has_reported_errors) {
+        goto program_exit;
+    }
+
     if (args.print_ast) {
         for (int64_t i = 0; i < arr_count(args.input_files); i++) {
             laye_module* module = source_modules[i];
@@ -100,11 +104,19 @@ int main(int argc, char** argv) {
         arr_push(ir_modules, ir_module);
     }
 
+    if (context->has_reported_errors) {
+        goto program_exit;
+    }
+
     for (int64_t i = 0; i < arr_count(args.input_files); i++) {
         layec_module* ir_module = ir_modules[i];
         assert(ir_module != NULL);
 
         layec_irpass_validate(ir_module);
+    }
+
+    if (context->has_reported_errors) {
+        goto program_exit;
     }
 
     if (args.print_ir) {
