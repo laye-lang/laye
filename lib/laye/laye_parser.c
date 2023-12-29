@@ -558,7 +558,7 @@ static laye_node* laye_parse_compound_expression(laye_parser* p) {
     dynarr(laye_node*) children = NULL;
 
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
-        laye_node* child_expr = laye_parse_expression(p, true);
+        laye_node* child_expr = laye_parse_declaration(p, true);
         assert(child_expr != NULL);
 
         arr_push(children, child_expr);
@@ -729,16 +729,30 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
+    struct laye_parser_mark start_mark = laye_parser_mark(p);
+
     dynarr(laye_node*) attributes = laye_parse_attributes(p);
 
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return NULL;
+
+        case LAYE_TOKEN_RETURN: {
+            return laye_parse_expression(p, true);
+        }
 
         default: {
             laye_parse_result declared_type_result = laye_parse_type(p);
             assert(declared_type_result.node != NULL);
 
             if (!declared_type_result.success) {
+                if (can_be_expression) {
+                    laye_parse_result_destroy(declared_type_result);
+                    arr_free(attributes);
+
+                    laye_parser_reset_to_mark(p, start_mark);
+                    return laye_parse_expression(p, true);
+                }
+
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_child(p, declared_type_result.node);
                 invalid_node->attribute_nodes = attributes;
                 layec_write_error(p->context, invalid_node->location, "Expected 'import', 'struct', 'enum', or a function declaration.");
@@ -748,6 +762,14 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
 
             laye_token name_token = {};
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &name_token)) {
+                if (can_be_expression) {
+                    laye_parse_result_destroy(declared_type_result);
+                    arr_free(attributes);
+
+                    laye_parser_reset_to_mark(p, start_mark);
+                    return laye_parse_expression(p, true);
+                }
+
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_token(p);
                 invalid_node->attribute_nodes = attributes;
                 layec_write_error(p->context, invalid_node->location, "Expected an identifier.");
@@ -755,6 +777,8 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
             }
 
             laye_node* declared_type = declared_type_result.node;
+            laye_parse_result_destroy(declared_type_result);
+
             return laye_parse_declaration_continue(p, attributes, declared_type, name_token);
         }
     }
@@ -849,8 +873,26 @@ static laye_node* laye_parse_expression(laye_parser* p, bool statement_like) {
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    laye_node* primary_expr = laye_parse_primary_expression(p);
-    assert(primary_expr != NULL);
+    laye_node* result_expression = NULL;
+
+    switch (p->token.kind) {
+        case LAYE_TOKEN_RETURN: {
+            result_expression = laye_node_create(p->module, LAYE_NODE_RETURN, p->token.location, p->context->laye_types.noreturn);
+            assert(result_expression != NULL);
+            laye_next_token(p);
+
+            if (!laye_parser_at(p, ';')) {
+                result_expression->_return.value = laye_parse_expression(p, false);
+                assert(result_expression->_return.value != NULL);
+            }
+        } break;
+
+        default: {
+            result_expression = laye_parse_primary_expression(p);
+        } break;
+    }
+
+    assert(result_expression != NULL);
 
     if (statement_like) {
         if (!laye_parser_consume(p, ';', NULL)) {
@@ -858,7 +900,7 @@ static laye_node* laye_parse_expression(laye_parser* p, bool statement_like) {
         }
     }
     
-    return primary_expr;
+    return result_expression;
 }
 
 // ========== Lexer ==========
