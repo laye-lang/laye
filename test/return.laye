@@ -1,0 +1,9 @@
+// R %layec% --print-ir %s
+
+// * define i64 @main() {
+// + entry:
+// +   ret i32 69
+// + }
+export foreign int main() {
+    return 69;
+}

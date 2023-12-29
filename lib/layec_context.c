@@ -206,7 +206,7 @@ layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context,
 
     layec_sourceid sourceid = 0;
     for (; sourceid < arr_count(context->sources); sourceid++) {
-        if (string_view_equals(SV(context->sources[sourceid].name), file_path))
+        if (string_view_equals(string_as_view(context->sources[sourceid].name), file_path))
             return sourceid;
     }
 
