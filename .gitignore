@@ -2,7 +2,9 @@
 fchk/
 
 test/*
-!test/*.laye
+test/laye/*
+!test/laye/
+!test/laye/*.laye
 
 out
 nob
