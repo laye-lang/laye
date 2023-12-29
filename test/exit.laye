@@ -1,13 +1,13 @@
-// R %layec% --print-ir %s
+// R %layec% --ir %s
 
-// * define void @main() {
+// * define layecc main() {
 // + entry:
-// +   call void @exit(i32 69)
+// +   call ccc void @exit(int32 69)
 // +   unreachable
 // + }
 export foreign noreturn main() {
     exit(69);
 }
 
-// * declare void exit(i32)
+// * declare ccc exit(int32 %0)
 foreign callconv(cdecl) noreturn exit(i32 exit_code);

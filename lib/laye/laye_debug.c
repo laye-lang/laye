@@ -150,6 +150,12 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
                 arr_push(children, node->decl_function.body);
         } break;
 
+        case LAYE_NODE_RETURN: {
+            if (node->_return.value != NULL) {
+                arr_push(children, node->_return.value);
+            }
+        } break;
+
         case LAYE_NODE_COMPOUND: {
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 arr_push(children, node->compound.children[i]);

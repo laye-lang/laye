@@ -363,12 +363,26 @@ string_view layec_function_name(layec_value* function) {
     return string_as_view(function->function.name);
 }
 
+bool layec_instruction_return_has_value(layec_value* _return) {
+    assert(_return != NULL);
+    assert(_return->kind == LAYEC_IR_RETURN);
+    return _return->return_value != NULL;
+}
+
+layec_value* layec_instruction_return_value(layec_value* _return) {
+    assert(_return != NULL);
+    assert(_return->kind == LAYEC_IR_RETURN);
+    assert(_return->return_value != NULL);
+    return _return->return_value;
+}
+
 layec_value* layec_instruction_callee(layec_value* call) {
     assert(call != NULL);
     assert(call->kind == LAYEC_IR_CALL);
     assert(call->call.callee != NULL);
     return call->call.callee;
 }
+
 int64_t layec_instruction_call_argument_count(layec_value* call) {
     assert(call != NULL);
     assert(call->kind == LAYEC_IR_CALL);

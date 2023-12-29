@@ -155,6 +155,16 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return NULL;
         }
 
+        case LAYE_NODE_RETURN: {
+            if (node->_return.value == NULL) {
+                return layec_build_return_void(builder, node->location);
+            }
+
+            layec_value* return_value = laye_generate_node(builder, node->_return.value);
+            assert(return_value != NULL);
+            return layec_build_return(builder, node->location, return_value);
+        }
+
         case LAYE_NODE_COMPOUND: {
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 laye_node* child = node->compound.children[i];
@@ -168,9 +178,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             // generate phis for every yield target???
 
             if (laye_type_is_noreturn(node->type)) {
-                layec_build_unreachable(builder, (layec_location){});
-            } else {
-                layec_build_return_void(builder, (layec_location){});
+                if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
+                    layec_build_unreachable(builder, (layec_location){});
+                }
             }
 
             return layec_void_constant(context);

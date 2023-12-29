@@ -6,6 +6,8 @@
 typedef struct laye_sema {
     layec_context* context;
     layec_dependency_graph* dependencies;
+
+    laye_node* current_function;
 } laye_sema;
 
 static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node, laye_node* expected_type);
@@ -257,8 +259,37 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_DECL_FUNCTION: {
+            laye_node* prev_function = sema->current_function;
+            sema->current_function = node;
+
             if (node->decl_function.body != NULL) {
                 laye_sema_analyse_node(sema, &node->decl_function.body, NULL);
+            }
+
+            sema->current_function = prev_function;
+        } break;
+
+        case LAYE_NODE_RETURN: {
+            assert(sema->current_function != NULL);
+            assert(sema->current_function->type != NULL);
+            assert(laye_node_is_type(sema->current_function->type));
+            assert(laye_type_is_function(sema->current_function->type));
+
+            laye_node* expected_return_type = sema->current_function->type->type_function.return_type;
+            assert(expected_return_type != NULL);
+            assert(laye_node_is_type(expected_return_type));
+
+            if (node->_return.value != NULL) {
+                laye_sema_analyse_node(sema, &node->_return.value, expected_return_type);
+                if (laye_type_is_void(expected_return_type) || laye_type_is_noreturn(expected_return_type)) {
+                    layec_write_error(sema->context, node->location, "Cannot return a value from a `void` or `noreturn` function.");
+                } else {
+                    laye_sema_convert_or_error(sema, &node->_return.value, expected_return_type);
+                }
+            } else {
+                if (!laye_type_is_void(expected_return_type) && !laye_type_is_noreturn(expected_return_type)) {
+                    layec_write_error(sema->context, node->location, "Must return a value from a non-void function.");
+                }
             }
         } break;
 

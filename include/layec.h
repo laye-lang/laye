@@ -466,6 +466,9 @@ bool layec_block_is_terminated(layec_value* block);
 
 // - Instruction API
 
+bool layec_instruction_return_has_value(layec_value* _return);
+layec_value* layec_instruction_return_value(layec_value* _return);
+
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
 layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index);

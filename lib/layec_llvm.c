@@ -160,6 +160,15 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, "unreachable");
         } break;
 
+        case LAYEC_IR_RETURN: {
+            lca_string_append_format(codegen->output, "ret ");
+            if (layec_instruction_return_has_value(instruction)) {
+                llvm_print_value(codegen, layec_instruction_return_value(instruction), true);
+            } else {
+                lca_string_append_format(codegen->output, "void");
+            }
+        } break;
+
         case LAYEC_IR_CALL: {
             lca_string_append_format(codegen->output, "call ");
             llvm_print_type(codegen, layec_value_type(instruction));
