@@ -10,6 +10,8 @@ static void build_layec_driver() {
     nob_cmd_append(&driver_cmd, "-std=c23");
     nob_cmd_append(&driver_cmd, "-ggdb");
     nob_cmd_append(&driver_cmd, "-fsanitize=address");
+    nob_cmd_append(&driver_cmd, "-D__USE_POSIX");
+    nob_cmd_append(&driver_cmd, "-D_XOPEN_SOURCE=600");
     nob_cmd_append(&driver_cmd, "./lib/layec_shared.c");
     nob_cmd_append(&driver_cmd, "./lib/layec_context.c");
     nob_cmd_append(&driver_cmd, "./lib/layec_depgraph.c");
@@ -33,6 +35,8 @@ static void build_test_runner() {
     nob_cmd_append(&driver_cmd, "-std=c23");
     nob_cmd_append(&driver_cmd, "-ggdb");
     nob_cmd_append(&driver_cmd, "-fsanitize=address");
+    nob_cmd_append(&driver_cmd, "-D__USE_POSIX");
+    nob_cmd_append(&driver_cmd, "-D_XOPEN_SOURCE=600");
     nob_cmd_append(&driver_cmd, "./src/test_runner.c");
     nob_cmd_run_sync(driver_cmd);
 

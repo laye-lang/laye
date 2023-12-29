@@ -1,6 +1,7 @@
 #ifndef LAYEC_H
 #define LAYEC_H
 
+#include "lcaplat.h"
 #include "ansi.h"
 #include "lcads.h"
 #include "lcamem.h"

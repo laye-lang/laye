@@ -4,6 +4,7 @@
 #define LCA_DA_IMPLEMENTATION
 #define LCA_MEM_IMPLEMENTATION
 #define LCA_STR_IMPLEMENTATION
+#define LCA_PLAT_IMPLEMENTATION
 #include "laye.h"
 #include "layec.h"
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     int exit_code = 0;
 
     args args = {
-        .use_color = 1,
+        .use_color = -1,
     };
     if (!parse_args(&args, &argc, &argv) || args.help) {
         fprintf(stderr, "Usage:\n  %.*s [options...] files...\n", STR_EXPAND(args.program_name));
@@ -62,7 +63,13 @@ int main(int argc, char** argv) {
 
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
-    context->use_color = args.use_color == 1;
+    if (context->use_color == 1) {
+        context->use_color = true;
+    } else if (context->use_color == 0) {
+        context->use_color = false;
+    } else {
+        context->use_color = lca_plat_stdout_isatty() || lca_plat_stderr_isatty();
+    }
 
     dynarr(laye_module*) source_modules = NULL;
     dynarr(layec_module*) ir_modules = NULL;

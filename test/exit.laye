@@ -1,4 +1,4 @@
-// R %layec --ir --nocolor %s
+// R %layec --ir %s
 
 // * define layecc main() {
 // + entry:
