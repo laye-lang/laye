@@ -360,11 +360,15 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_NAMEREF: {
-            laye_node* referenced_decl_node = laye_sema_lookup_value_node(sema, node->module, node->nameref);
+            laye_node* referenced_decl_node = node->nameref.referenced_declaration;
+
             if (referenced_decl_node == NULL) {
-                node->sema_state = LAYEC_SEMA_ERRORED;
-                node->type = sema->context->laye_types.poison;
-                break;
+                referenced_decl_node = laye_sema_lookup_value_node(sema, node->module, node->nameref);
+                if (referenced_decl_node == NULL) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    node->type = sema->context->laye_types.poison;
+                    break;
+                }
             }
 
             assert(laye_node_is_decl(referenced_decl_node));
