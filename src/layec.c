@@ -17,7 +17,11 @@ typedef struct args {
     bool help;
     bool verbose;
 
-    int use_color;
+    enum {
+        COLOR_AUTO,
+        COLOR_ALWAYS,
+        COLOR_NEVER,
+    } use_color;
 
     bool print_ast;
     bool print_ir;
@@ -71,9 +75,9 @@ int main(int argc, char** argv) {
 
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
-    if (context->use_color == 1) {
+    if (context->use_color == COLOR_ALWAYS) {
         context->use_color = true;
-    } else if (context->use_color == 0) {
+    } else if (context->use_color == COLOR_NEVER) {
         context->use_color = false;
     } else {
         context->use_color = lca_plat_stdout_isatty() || lca_plat_stderr_isatty();
@@ -103,7 +107,7 @@ int main(int argc, char** argv) {
             laye_module* module = source_modules[i];
             assert(module != NULL);
             string module_string = laye_module_debug_print(module);
-            fprintf(stdout, "%.*s\n\n", STR_EXPAND(module_string));
+            fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
             string_destroy(&module_string);
         }
 
@@ -143,7 +147,7 @@ int main(int argc, char** argv) {
             layec_module* ir_module = ir_modules[i];
             assert(ir_module != NULL);
             string ir_module_string = layec_module_print(ir_module);
-            fprintf(stdout, "%.*s\n\n", STR_EXPAND(ir_module_string));
+            fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
             string_destroy(&ir_module_string);
         }
 
@@ -160,7 +164,7 @@ int main(int argc, char** argv) {
 
     if (args.print_llvm) {
         for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-            fprintf(stdout, "%.*s\n\n", STR_EXPAND(llvm_modules[i]));
+            fprintf(stdout, "%.*s", STR_EXPAND(llvm_modules[i]));
         }
 
         goto program_exit;
@@ -265,7 +269,7 @@ static bool parse_args(args* args, int* argc, char*** argv) {
         } else if (string_view_equals(arg, SV_CONSTANT("--syntax"))) {
             args->syntax_only = true;
         } else if (string_view_equals(arg, SV_CONSTANT("--nocolor"))) {
-            args->use_color = 0;
+            args->use_color = COLOR_NEVER;
         } else {
             arr_push(args->input_files, arg);
         }
