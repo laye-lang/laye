@@ -75,12 +75,12 @@ int main(int argc, char** argv) {
 
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
-    if (context->use_color == COLOR_ALWAYS) {
+    if (args.use_color == COLOR_ALWAYS) {
         context->use_color = true;
-    } else if (context->use_color == COLOR_NEVER) {
+    } else if (args.use_color == COLOR_NEVER) {
         context->use_color = false;
     } else {
-        context->use_color = lca_plat_stdout_isatty() || lca_plat_stderr_isatty();
+        context->use_color = lca_plat_stdout_isatty();
     }
 
     dynarr(laye_module*) source_modules = NULL;
