@@ -269,6 +269,15 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             sema->current_function = prev_function;
         } break;
 
+        case LAYE_NODE_DECL_BINDING: {
+            laye_sema_analyse_node(sema, &node->declared_type, NULL);
+            if (node->decl_binding.initializer != NULL) {
+                if (laye_sema_analyse_node(sema, &node->decl_binding.initializer, NULL)) {
+                    laye_sema_convert_or_error(sema, &node->decl_binding.initializer, node->declared_type);
+                }
+            }
+        } break;
+
         case LAYE_NODE_RETURN: {
             assert(sema->current_function != NULL);
             assert(sema->current_function->type != NULL);
@@ -349,7 +358,6 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                         }
 
                         for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
-                            // laye_sema_lvalue_to_rvalue(sema, &node->call.arguments[i]);
                             laye_sema_convert_or_error(sema, &node->call.arguments[i], callee_type->type_function.parameter_types[i]);
                         }
                     } else {
@@ -371,10 +379,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 }
             }
 
+            assert(referenced_decl_node != NULL);
             assert(laye_node_is_decl(referenced_decl_node));
             node->nameref.referenced_declaration = referenced_decl_node;
             assert(referenced_decl_node->declared_type != NULL);
             node->type = referenced_decl_node->declared_type;
+
+            laye_expr_set_lvalue(node, true);
 
             switch (referenced_decl_node->kind) {
                 default: {
@@ -383,6 +394,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 } break;
 
                 case LAYE_NODE_DECL_FUNCTION: {
+                } break;
+
+                case LAYE_NODE_DECL_BINDING: {
                 } break;
             }
         } break;
@@ -591,6 +605,8 @@ static bool laye_sema_convert(laye_sema* sema, laye_node** node, laye_node* to) 
     if ((*node)->sema_state == LAYEC_SEMA_ERRORED) {
         return true;
     }
+
+    laye_sema_lvalue_to_rvalue(sema, node, false);
 
     return laye_sema_convert_impl(sema, node, to, true) >= 0;
 }

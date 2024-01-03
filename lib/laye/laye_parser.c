@@ -719,8 +719,26 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         return function_node;
     }
 
-    assert(false && "todo");
-    return NULL;
+    laye_node* binding_node = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, name_token.location, p->context->laye_types._void);
+    assert(binding_node != NULL);
+    binding_node->declared_type = declared_type;
+    binding_node->declared_name = name_token.string_value;
+    assert(p->scope != NULL);
+    laye_scope_declare(p->scope, binding_node);
+
+    laye_apply_attributes(binding_node, attributes);
+
+    if (laye_parser_consume(p, '=', NULL)) {
+        laye_node* initial_value = laye_parse_expression(p, false);
+        assert(initial_value != NULL);
+        binding_node->decl_binding.initializer = initial_value;
+    }
+
+    if (!laye_parser_consume(p, ';', NULL)) {
+        layec_write_error(p->context, p->token.location, "Expected ';'.");
+    }
+
+    return binding_node;
 }
 
 static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression) {

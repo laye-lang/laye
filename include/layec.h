@@ -391,6 +391,7 @@ const char* layec_type_kind_to_cstring(layec_type_kind kind);
 layec_type_kind layec_type_get_kind(layec_type* type);
 
 layec_type* layec_void_type(layec_context* context);
+layec_type* layec_ptr_type(layec_context* context);
 layec_type* layec_int_type(layec_context* context, int bit_width);
 layec_type* layec_function_type(
     layec_context* context,
@@ -442,7 +443,7 @@ bool layec_value_is_instruction(layec_value* value);
 layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
 
-void layec_value_print_to_string(layec_value* value, string* s, bool use_color);
+void layec_value_print_to_string(layec_value* value, string* s, bool print_type, bool use_color);
 
 // - Function Value API
 
@@ -490,9 +491,12 @@ layec_value* layec_builder_get_insert_block(layec_builder* builder);
 void layec_builder_insert(layec_builder* builder, layec_value* instruction);
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
 
-layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
 layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);
 layec_value* layec_build_return_void(layec_builder* builder, layec_location location);
 layec_value* layec_build_unreachable(layec_builder* builder, layec_location location);
+layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* type);
+layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
+layec_value* layec_build_store(layec_builder* builder, layec_location location, layec_value* address, layec_value* value);
+layec_value* layec_build_load(layec_builder* builder, layec_location location, layec_value* address, layec_type* type);
 
 #endif // LAYEC_H

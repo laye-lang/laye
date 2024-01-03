@@ -60,6 +60,9 @@ struct layec_value {
 
     layec_value* parent_block;
 
+    layec_value* address;
+    layec_value* operand;
+
     union {
         int64_t int_value;
 
@@ -198,6 +201,7 @@ void layec_type_destroy(layec_type* type) {
 
 const char* layec_type_kind_to_cstring(layec_type_kind kind) {
     switch (kind) {
+        default: return lca_temp_sprintf("<unknown %d>", (int)kind);
         case LAYEC_TYPE_VOID: return "VOID";
         case LAYEC_TYPE_ARRAY: return "ARRAY";
         case LAYEC_TYPE_FLOAT: return "FLOAT";
@@ -479,6 +483,19 @@ layec_type* layec_void_type(layec_context* context) {
 
     assert(context->types._void != NULL);
     return context->types._void;
+}
+
+layec_type* layec_ptr_type(layec_context* context) {
+    assert(context != NULL);
+
+    if (context->types.ptr == NULL) {
+        layec_type* ptr_type = layec_type_create(context, LAYEC_TYPE_POINTER);
+        assert(ptr_type != NULL);
+        context->types.ptr = ptr_type;
+    }
+
+    assert(context->types.ptr != NULL);
+    return context->types.ptr;
 }
 
 layec_type* layec_int_type(layec_context* context, int bit_width) {
@@ -813,6 +830,28 @@ layec_value* layec_builder_get_insert_block(layec_builder* builder) {
     return builder->block;
 }
 
+static void layec_builder_recalculate_instruction_indices(layec_builder* builder) {
+    assert(builder != NULL);
+    assert(builder->function != NULL);
+    assert(layec_value_is_function(builder->function));
+
+    int64_t instruction_index = 0;
+    for (int64_t b = 0, bcount = arr_count(builder->function->function.blocks); b < bcount; b++) {
+        layec_value* block = builder->function->function.blocks[b];
+        assert(block != NULL);
+        assert(layec_value_is_block(block));
+
+        for (int64_t i = 0, icount = arr_count(block->block.instructions); i < icount; i++) {
+            layec_value* instruction = block->block.instructions[i];
+            assert(instruction != NULL);
+            assert(layec_value_is_instruction(instruction));
+
+            instruction->index = instruction_index;
+            instruction_index++;
+        }
+    }
+}
+
 void layec_builder_insert(layec_builder* builder, layec_value* instruction) {
     assert(builder != NULL);
     assert(builder->context != NULL);
@@ -828,15 +867,12 @@ void layec_builder_insert(layec_builder* builder, layec_value* instruction) {
     // reserve space for the new instruction
     arr_push(block->block.instructions, NULL);
 
-    for (int64_t i = insert_index, count = arr_count(block->block.instructions) - 1; i < count; i++) {
-        block->block.instructions[i + 1] = block->block.instructions[i];
-        block->block.instructions[i + 1]->index = i + 1;
-    }
-
     block->block.instructions[insert_index] = instruction;
-    instruction->index = insert_index;
-
     builder->insert_index++;
+
+    instruction->index = -1;
+    layec_builder_recalculate_instruction_indices(builder);
+    assert(instruction->index >= 0);
 }
 
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name) {
@@ -920,6 +956,59 @@ layec_value* layec_build_unreachable(layec_builder* builder, layec_location loca
 
     layec_builder_insert(builder, unreachable);
     return unreachable;
+}
+
+layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(type != NULL);
+
+    layec_value* alloca = layec_value_create(builder->function->module, location, LAYEC_IR_ALLOCA, layec_ptr_type(builder->context), SV_EMPTY);
+    assert(alloca != NULL);
+    alloca->allocated_type = type;
+
+    layec_builder_insert(builder, alloca);
+    return alloca;
+}
+
+layec_value* layec_build_store(layec_builder* builder, layec_location location, layec_value* address, layec_value* value) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(address != NULL);
+    assert(layec_type_is_ptr(layec_value_get_type(address)));
+    assert(value != NULL);
+
+    layec_value* store = layec_value_create(builder->function->module, location, LAYEC_IR_STORE, layec_void_type(builder->context), SV_EMPTY);
+    assert(store != NULL);
+    store->address = address;
+    store->operand = value;
+
+    layec_builder_insert(builder, store);
+    return store;
+}
+
+layec_value* layec_build_load(layec_builder* builder, layec_location location, layec_value* address, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(address != NULL);
+    assert(layec_type_is_ptr(layec_value_get_type(address)));
+    assert(type != NULL);
+
+    layec_value* load = layec_value_create(builder->function->module, location, LAYEC_IR_LOAD, type, SV_EMPTY);
+    assert(load != NULL);
+    load->address = address;
+
+    layec_builder_insert(builder, load);
+    return load;
 }
 
 // IR Printer
@@ -1026,12 +1115,31 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(instruction->kind));
             assert(false && "todo layec_instruction_print");
         } break;
+
+        case LAYEC_IR_ALLOCA: {
+            lca_string_append_format(print_context->output, "%salloca ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->allocated_type, print_context->output, use_color);
+        } break;
+
+        case LAYEC_IR_STORE: {
+            lca_string_append_format(print_context->output, "%sstore ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->address, print_context->output, false, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
+        case LAYEC_IR_LOAD: {
+            lca_string_append_format(print_context->output, "%sload ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->address, print_context->output, false, use_color);
+        } break;
         
         case LAYEC_IR_RETURN: {
             lca_string_append_format(print_context->output, "%sreturn", COL(COL_KEYWORD));
             if (instruction->return_value != NULL) {
                 lca_string_append_format(print_context->output, " ", COL(COL_KEYWORD));
-                layec_value_print_to_string(instruction->return_value, print_context->output, use_color);
+                layec_value_print_to_string(instruction->return_value, print_context->output, true, use_color);
             }
         } break;
         
@@ -1043,7 +1151,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             lca_string_append_format(print_context->output, "%s%scall %s ", COL(COL_KEYWORD), (instruction->call.is_tail_call ? "tail " : ""), ir_calling_convention_to_cstring(instruction->call.calling_convention));
             layec_type_print_to_string(instruction->type, print_context->output, use_color);
             lca_string_append_format(print_context->output, " ");
-            layec_value_print_to_string(instruction->call.callee, print_context->output, use_color);
+            layec_value_print_to_string(instruction->call.callee, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s(", COL(COL_DELIM));
 
             for (int64_t i = 0, count = arr_count(instruction->call.arguments); i < count; i++) {
@@ -1052,7 +1160,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
                 }
 
                 layec_value* argument = instruction->call.arguments[i];
-                layec_value_print_to_string(argument, print_context->output, use_color);
+                layec_value_print_to_string(argument, print_context->output, true, use_color);
             }
 
             lca_string_append_format(print_context->output, "%s)", COL(COL_DELIM));
@@ -1171,16 +1279,21 @@ void layec_type_print_to_string(layec_type* type, string* s, bool use_color) {
     lca_string_append_format(s, "%s", COL(RESET));
 }
 
-void layec_value_print_to_string(layec_value* value, string* s, bool use_color) {
+void layec_value_print_to_string(layec_value* value, string* s, bool print_type, bool use_color) {
     assert(value != NULL);
     assert(s != NULL);
+
+    if (print_type) {
+        layec_type_print_to_string(value->type, s, use_color);
+        lca_string_append_format(s, "%s ", COL(RESET));
+    }
 
     switch (value->kind) {
         default: {
             if (value->name.count == 0) {
-                lca_string_append_format(s, "%%%lld", COL(COL_NAME), value->index);
+                lca_string_append_format(s, "%s%%%lld", COL(COL_NAME), value->index);
             } else {
-                lca_string_append_format(s, "%%%.*s", COL(COL_NAME), STR_EXPAND(value->name));
+                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), STR_EXPAND(value->name));
             }
         } break;
 
@@ -1190,15 +1303,14 @@ void layec_value_print_to_string(layec_value* value, string* s, bool use_color) 
 
         case LAYEC_IR_BLOCK: {
             if (value->block.name.count == 0) {
-                lca_string_append_format(s, "%%%lld", COL(COL_NAME), value->block.index);
+                lca_string_append_format(s, "%s%%%lld", COL(COL_NAME), value->block.index);
             } else {
-                lca_string_append_format(s, "%%%.*s", COL(COL_NAME), STR_EXPAND(value->block.name));
+                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), STR_EXPAND(value->block.name));
             }
         } break;
 
         case LAYEC_IR_INTEGER_CONSTANT: {
-            layec_type_print_to_string(value->type, s, use_color);
-            lca_string_append_format(s, " %s%lld", COL(COL_CONSTANT), value->int_value);
+            lca_string_append_format(s, "%s%lld", COL(COL_CONSTANT), value->int_value);
         } break;
     }
 

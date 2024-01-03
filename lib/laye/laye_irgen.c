@@ -155,6 +155,23 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return NULL;
         }
 
+        case LAYE_NODE_DECL_BINDING: {
+            layec_type* declared_type = laye_convert_type(node->declared_type);
+            layec_value* alloca = layec_build_alloca(builder, node->location, declared_type);
+            assert(alloca != NULL);
+            assert(layec_type_is_ptr(layec_value_get_type(alloca)));
+
+            if (node->decl_binding.initializer != NULL) {
+                layec_value* initial_value = laye_generate_node(builder, node->decl_binding.initializer);
+                assert(initial_value != NULL);
+
+                layec_build_store(builder, node->location, alloca, initial_value);
+            }
+
+            node->ir_value = alloca;
+            return layec_void_constant(context);
+        }
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value == NULL) {
                 return layec_build_return_void(builder, node->location);
@@ -184,6 +201,22 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             return layec_void_constant(context);
+        }
+
+        case LAYE_NODE_CAST: {
+            layec_type* cast_type = laye_convert_type(node->type);
+            layec_value* operand = laye_generate_node(builder, node->cast.operand);
+
+            switch (node->cast.kind) {
+                default: {
+                    assert(false && "todo irgen cast");
+                    return NULL;
+                }
+
+                case LAYE_CAST_LVALUE_TO_RVALUE: {
+                    return layec_build_load(builder, node->location, operand, cast_type);
+                }
+            }
         }
 
         case LAYE_NODE_NAMEREF: {
