@@ -185,7 +185,7 @@ void* lca_arena_push(lca_arena* arena, size_t count) {
         block = &arena->blocks[lca_da_count(arena->blocks) - 1];
     }
 
-    void* result = block->memory + block->allocated;
+    void* result = (char*)block->memory + block->allocated;
     block->allocated += count;
     memset(result, 0, count);
 
