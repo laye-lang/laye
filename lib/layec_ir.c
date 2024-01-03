@@ -1151,7 +1151,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             lca_string_append_format(print_context->output, "%s%scall %s ", COL(COL_KEYWORD), (instruction->call.is_tail_call ? "tail " : ""), ir_calling_convention_to_cstring(instruction->call.calling_convention));
             layec_type_print_to_string(instruction->type, print_context->output, use_color);
             lca_string_append_format(print_context->output, " ");
-            layec_value_print_to_string(instruction->call.callee, print_context->output, true, use_color);
+            layec_value_print_to_string(instruction->call.callee, print_context->output, false, use_color);
             lca_string_append_format(print_context->output, "%s(", COL(COL_DELIM));
 
             for (int64_t i = 0, count = arr_count(instruction->call.arguments); i < count; i++) {

@@ -385,8 +385,6 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             assert(referenced_decl_node->declared_type != NULL);
             node->type = referenced_decl_node->declared_type;
 
-            laye_expr_set_lvalue(node, true);
-
             switch (referenced_decl_node->kind) {
                 default: {
                     fprintf(stderr, "on node kind %s\n", laye_node_kind_to_cstring(referenced_decl_node->kind));
@@ -397,6 +395,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 } break;
 
                 case LAYE_NODE_DECL_BINDING: {
+                    laye_expr_set_lvalue(node, true);
                 } break;
             }
         } break;
