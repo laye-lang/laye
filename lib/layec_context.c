@@ -184,7 +184,7 @@ void layec_context_destroy(layec_context* context) {
 
     arr_free(context->_all_values);
 
-    *context = (layec_context){};
+    *context = (layec_context){0};
     lca_deallocate(allocator, context);
 }
 
@@ -263,7 +263,7 @@ bool layec_context_get_location_info(layec_context* context, layec_location loca
 void layec_context_print_location_info(layec_context* context, layec_location location, layec_status status, FILE* stream, bool use_color) {
     assert(context != NULL);
 
-    string_view name = {};
+    string_view name = {0};
     int64_t line = 0;
     int64_t column = 0;
 

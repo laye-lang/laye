@@ -96,7 +96,7 @@ string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, 
 void lca_string_destroy(lca_string* s) {
     if (s == NULL || s->data == NULL) return;
     lca_deallocate(s->allocator, s->data);
-    *s = (string){};
+    *s = (string){0};
 }
 
 char* lca_string_as_cstring(lca_string s) {

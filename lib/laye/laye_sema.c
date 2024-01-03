@@ -557,7 +557,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node, laye_node* 
         int from_size = laye_type_size_in_bits(from);
         int to_size = laye_type_size_in_bits(to);
 
-        layec_evaluated_constant eval_result = {};
+        layec_evaluated_constant eval_result = {0};
         if (laye_expr_evaluate(*node, &eval_result, false)) {
             assert(eval_result.kind == LAYEC_EVAL_INT);
             int sig_bits = layec_get_significant_bits(eval_result.int_value);

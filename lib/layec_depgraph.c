@@ -30,7 +30,7 @@ void layec_dependency_graph_destroy(layec_dependency_graph* graph) {
     arr_free(graph->entries);
     lca_arena_destroy(graph->arena);
 
-    *graph = (layec_dependency_graph){};
+    *graph = (layec_dependency_graph){0};
     lca_deallocate(allocator, graph);
 }
 
@@ -98,7 +98,7 @@ static layec_dependency_order_result resolve_dependencies(
     assert(resolved != NULL);
     assert(seen != NULL);
 
-    layec_dependency_order_result result = {};
+    layec_dependency_order_result result = {0};
     if (-1 != dynarr_index_of(RESOLVED, entity)) {
         return result;
     }
@@ -164,7 +164,7 @@ static layec_dependency_order_result resolve_dependencies(
 layec_dependency_order_result layec_dependency_graph_get_ordered_entities(layec_dependency_graph* graph) {
     assert(graph != NULL);
 
-    layec_dependency_order_result result = {};
+    layec_dependency_order_result result = {0};
     dynarr(layec_dependency_entity*) seen = NULL;
 
     for (int64_t i = 0, count = arr_count(graph->entries); i < count; i++) {

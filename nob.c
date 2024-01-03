@@ -4,7 +4,7 @@
 
 static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-I", "include");
-    nob_cmd_append(cmd, "-std=c23");
+    nob_cmd_append(cmd, "-std=c17");
     nob_cmd_append(cmd, "-pedantic");
     nob_cmd_append(cmd, "-pedantic-errors");
     nob_cmd_append(cmd, "-ggdb");
@@ -14,7 +14,7 @@ static void cflags(Nob_Cmd* cmd) {
 }
 
 static void build_layec_driver() {
-    Nob_Cmd driver_cmd = {};
+    Nob_Cmd driver_cmd = {0};
     nob_cmd_append(&driver_cmd, "clang");
     nob_cmd_append(&driver_cmd, "-o", "./out/layec");
     cflags(&driver_cmd);
@@ -34,7 +34,7 @@ static void build_layec_driver() {
 }
 
 static void build_test_runner() {
-    Nob_Cmd driver_cmd = {};
+    Nob_Cmd driver_cmd = {0};
     nob_cmd_append(&driver_cmd, "clang");
     nob_cmd_append(&driver_cmd, "-o", "./out/test_runner");
     cflags(&driver_cmd);

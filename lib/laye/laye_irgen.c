@@ -196,7 +196,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
             if (laye_type_is_noreturn(node->type)) {
                 if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
-                    layec_build_unreachable(builder, (layec_location){});
+                    layec_build_unreachable(builder, (layec_location){0});
                 }
             }
 

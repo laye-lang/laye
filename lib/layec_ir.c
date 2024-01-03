@@ -133,7 +133,7 @@ void layec_module_destroy(layec_module* module) {
     arr_free(module->functions);
     arr_free(module->_all_values);
 
-    *module = (layec_module){};
+    *module = (layec_module){0};
     lca_deallocate(allocator, module);
 }
 
@@ -702,7 +702,7 @@ layec_value* layec_function_append_block(layec_value* function, string_view name
     assert(function->module != NULL);
     assert(function->context != NULL);
     assert(function->context == function->module->context);
-    layec_value* block = layec_value_create(function->module, (layec_location){}, LAYEC_IR_BLOCK, layec_void_type(function->context), SV_EMPTY);
+    layec_value* block = layec_value_create(function->module, (layec_location){0}, LAYEC_IR_BLOCK, layec_void_type(function->context), SV_EMPTY);
     assert(block != NULL);
     block->block.name = layec_context_intern_string_view(function->context, name);
     block->block.parent_function = function;
@@ -715,7 +715,7 @@ layec_value* layec_void_constant(layec_context* context) {
     assert(context != NULL);
 
     if (context->values._void == NULL) {
-        layec_value* void_value = layec_value_create_in_context(context, (layec_location){}, LAYEC_IR_VOID_CONSTANT, layec_void_type(context), SV_EMPTY);
+        layec_value* void_value = layec_value_create_in_context(context, (layec_location){0}, LAYEC_IR_VOID_CONSTANT, layec_void_type(context), SV_EMPTY);
         assert(void_value != NULL);
         context->values._void = void_value;
     }
@@ -751,7 +751,7 @@ void layec_builder_destroy(layec_builder* builder) {
 
     lca_allocator allocator = builder->context->allocator;
 
-    *builder = (layec_builder){};
+    *builder = (layec_builder){0};
     lca_deallocate(allocator, builder);
 }
 

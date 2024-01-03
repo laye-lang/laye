@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     dynarr(string) llvm_modules = NULL;
 
     dynarr(string) output_file_paths_intermediate = NULL;
-    string output_file_path = {};
+    string output_file_path = {0};
 
     for (int64_t i = 0; i < arr_count(args.input_files); i++) {
         string_view input_file_path = args.input_files[i];
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
         output_file_path = string_view_to_string(default_allocator, args.output_file);
     }
 
-    Nob_Cmd clang_ll_cmd = {};
+    Nob_Cmd clang_ll_cmd = {0};
     nob_cmd_append(
         &clang_ll_cmd,
         "clang",

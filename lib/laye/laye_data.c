@@ -35,7 +35,7 @@ void laye_module_destroy(laye_module* module) {
 
     lca_arena_destroy(module->arena);
 
-    *module = (laye_module){};
+    *module = (laye_module){0};
     lca_deallocate(allocator, module);
 }
 
@@ -61,7 +61,7 @@ void laye_scope_destroy(laye_scope* scope) {
     if (scope == NULL) return;
     arr_free(scope->type_declarations);
     arr_free(scope->value_declarations);
-    *scope = (laye_scope){};
+    *scope = (laye_scope){0};
 }
 
 void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
@@ -229,7 +229,7 @@ void laye_node_destroy(laye_node* node) {
         } break;
     }
 
-    *node = (laye_node){};
+    *node = (laye_node){0};
     // don't free the node, since it's arena allocated
 }
 

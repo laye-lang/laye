@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    test_state state = {};
+    test_state state = {0};
     run_tests_in_directory(&state, "./test/laye", ".laye");
 
     int64_t num_tests_failed = arr_count(state.failed_tests);
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 }
 
 static void run_tests_in_directory(test_state* state, const char* test_directory, const char* extension) {
-    Nob_File_Paths test_file_paths = {};
+    Nob_File_Paths test_file_paths = {0};
     if (!nob_read_entire_dir(test_directory, &test_file_paths)) {
         nob_log(NOB_ERROR, "Failed to enumerate test directory");
         return;
@@ -105,7 +105,7 @@ static bool cstring_ends_with(const char* s, const char* ending) {
 static bool run_test(const char* test_file_path) {
     nob_log(NOB_INFO, "-- Running test for \"%s\"", test_file_path);
 
-    Nob_Cmd cmd = {};
+    Nob_Cmd cmd = {0};
     nob_cmd_append(
         &cmd,
         FCHK_PATH,
@@ -133,7 +133,7 @@ static bool ensure_fchk_installed(void) {
         return true;
     }
 
-    Nob_Cmd cmd = {};
+    Nob_Cmd cmd = {0};
     nob_cmd_append(
         &cmd,
         "git",

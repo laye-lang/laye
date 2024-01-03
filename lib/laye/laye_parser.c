@@ -232,7 +232,7 @@ static laye_node* laye_parse_top_level_node(laye_parser* p) {
 
 static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_node* type, bool allocate) {
     assert(false && "todo");
-    laye_parse_result result = {};
+    laye_parse_result result = {0};
     return result;
 }
 
@@ -250,7 +250,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
     bool type_is_modifiable = false;
 
     {
-        laye_token mut_token = {};
+        laye_token mut_token = {0};
         while (laye_parser_consume(p, LAYE_TOKEN_MUT, &mut_token)) {
             assert(mut_token.kind == LAYE_TOKEN_MUT);
 
@@ -564,8 +564,8 @@ static laye_node* laye_parse_compound_expression(laye_parser* p) {
         arr_push(children, child_expr);
     }
 
-    layec_location end_location = {};
-    laye_token closing_token = {};
+    layec_location end_location = {0};
+    laye_token closing_token = {0};
 
     if (laye_parser_consume(p, '}', &closing_token)) {
         assert(closing_token.kind == '}');
@@ -778,7 +778,7 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
                 return invalid_node;
             }
 
-            laye_token name_token = {};
+            laye_token name_token = {0};
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &name_token)) {
                 if (can_be_expression) {
                     laye_parse_result_destroy(declared_type_result);

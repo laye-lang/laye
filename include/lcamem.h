@@ -62,7 +62,7 @@ lca_allocator default_allocator = {
     .allocator_function = lca_default_allocator_function
 };
 
-lca_allocator temp_allocator = {};
+lca_allocator temp_allocator = {0};
 
 void* lca_allocate(lca_allocator allocator, size_t n) {
     return allocator.allocator_function(allocator.user_data, n, NULL);
@@ -166,12 +166,12 @@ void lca_arena_destroy(lca_arena* arena) {
     for (int64_t i = 0, count = arr_count(arena->blocks); i < count; i++) {
         lca_arena_block* block = &arena->blocks[i];
         lca_deallocate(allocator, block->memory);
-        *block = (lca_arena_block){};
+        *block = (lca_arena_block){0};
     }
 
     arr_free(arena->blocks);
 
-    *arena = (lca_arena){};
+    *arena = (lca_arena){0};
     lca_deallocate(allocator, arena);
 }
 
