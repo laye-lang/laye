@@ -1,0 +1,11 @@
+// R %layec --ir %s
+
+// * define layecc main() -> int64 {
+// + entry:
+// +   nop
+// +   return int64 0
+// + }
+export foreign int main() {
+    xyzzy;
+    return 0;
+}

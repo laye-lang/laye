@@ -266,6 +266,7 @@ typedef enum layec_value_kind {
     LAYEC_IR_PARAMETER,
 
     // Instructions
+    LAYEC_IR_NOP,
     LAYEC_IR_ALLOCA,
     LAYEC_IR_CALL,
     LAYEC_IR_GET_ELEMENT_PTR,
@@ -491,6 +492,7 @@ layec_value* layec_builder_get_insert_block(layec_builder* builder);
 void layec_builder_insert(layec_builder* builder, layec_value* instruction);
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
 
+layec_value* layec_build_nop(layec_builder* builder, layec_location location);
 layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);
 layec_value* layec_build_return_void(layec_builder* builder, layec_location location);
 layec_value* layec_build_unreachable(layec_builder* builder, layec_location location);

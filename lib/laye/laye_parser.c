@@ -754,7 +754,8 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return NULL;
 
-        case LAYE_TOKEN_RETURN: {
+        case LAYE_TOKEN_RETURN:
+        case LAYE_TOKEN_XYZZY: {
             return laye_parse_expression(p, true);
         }
 
@@ -903,6 +904,12 @@ static laye_node* laye_parse_expression(laye_parser* p, bool statement_like) {
                 result_expression->_return.value = laye_parse_expression(p, false);
                 assert(result_expression->_return.value != NULL);
             }
+        } break;
+
+        case LAYE_TOKEN_XYZZY: {
+            result_expression = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types.noreturn);
+            assert(result_expression != NULL);
+            laye_next_token(p);
         } break;
 
         default: {

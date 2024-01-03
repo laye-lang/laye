@@ -886,6 +886,20 @@ void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruc
     layec_builder_insert(builder, instruction);
 }
 
+layec_value* layec_build_nop(layec_builder* builder, layec_location location) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+
+    layec_value* nop = layec_value_create(builder->function->module, location, LAYEC_IR_NOP, layec_void_type(builder->context), SV_EMPTY);
+    assert(nop != NULL);
+
+    layec_builder_insert(builder, nop);
+    return nop;
+}
+
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name) {
     assert(builder != NULL);
     assert(builder->context != NULL);
@@ -1114,6 +1128,10 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
         default: {
             fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(instruction->kind));
             assert(false && "todo layec_instruction_print");
+        } break;
+        
+        case LAYEC_IR_NOP: {
+            lca_string_append_format(print_context->output, "%snop", COL(COL_KEYWORD));
         } break;
 
         case LAYEC_IR_ALLOCA: {

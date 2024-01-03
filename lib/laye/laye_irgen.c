@@ -182,6 +182,10 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return layec_build_return(builder, node->location, return_value);
         }
 
+        case LAYE_NODE_XYZZY: {
+            return layec_build_nop(builder, node->location);
+        }
+
         case LAYE_NODE_COMPOUND: {
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 laye_node* child = node->compound.children[i];

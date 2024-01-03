@@ -302,6 +302,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             }
         } break;
 
+        case LAYE_NODE_XYZZY: {
+        } break;
+
         case LAYE_NODE_COMPOUND: {
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 laye_node** child_ref = &node->compound.children[i];
