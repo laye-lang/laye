@@ -13,34 +13,48 @@ static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
 }
 
+static void layec_sources(Nob_Cmd* cmd) {
+    nob_cmd_append(cmd, "./lib/layec_shared.c");
+    nob_cmd_append(cmd, "./lib/layec_context.c");
+    nob_cmd_append(cmd, "./lib/layec_depgraph.c");
+    nob_cmd_append(cmd, "./lib/layec_ir.c");
+    nob_cmd_append(cmd, "./lib/irpass/validate.c");
+    nob_cmd_append(cmd, "./lib/layec_llvm.c");
+    nob_cmd_append(cmd, "./lib/laye/laye_data.c");
+    nob_cmd_append(cmd, "./lib/laye/laye_debug.c");
+    nob_cmd_append(cmd, "./lib/laye/laye_parser.c");
+    nob_cmd_append(cmd, "./lib/laye/laye_sema.c");
+    nob_cmd_append(cmd, "./lib/laye/laye_irgen.c");
+}
+
 static void build_layec_driver() {
-    Nob_Cmd driver_cmd = {0};
-    nob_cmd_append(&driver_cmd, "clang");
-    nob_cmd_append(&driver_cmd, "-o", "./out/layec");
-    cflags(&driver_cmd);
-    nob_cmd_append(&driver_cmd, "./lib/layec_shared.c");
-    nob_cmd_append(&driver_cmd, "./lib/layec_context.c");
-    nob_cmd_append(&driver_cmd, "./lib/layec_depgraph.c");
-    nob_cmd_append(&driver_cmd, "./lib/layec_ir.c");
-    nob_cmd_append(&driver_cmd, "./lib/irpass/validate.c");
-    nob_cmd_append(&driver_cmd, "./lib/layec_llvm.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye/laye_data.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye/laye_debug.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye/laye_parser.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye/laye_sema.c");
-    nob_cmd_append(&driver_cmd, "./lib/laye/laye_irgen.c");
-    nob_cmd_append(&driver_cmd, "./src/layec.c");
-    nob_cmd_run_sync(driver_cmd);
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, "-o", "./out/layec");
+    cflags(&cmd);
+    layec_sources(&cmd);
+    nob_cmd_append(&cmd, "./src/layec.c");
+    nob_cmd_run_sync(cmd);
 }
 
 static void build_test_runner() {
-    Nob_Cmd driver_cmd = {0};
-    nob_cmd_append(&driver_cmd, "clang");
-    nob_cmd_append(&driver_cmd, "-o", "./out/test_runner");
-    cflags(&driver_cmd);
-    nob_cmd_append(&driver_cmd, "./src/test_runner.c");
-    nob_cmd_run_sync(driver_cmd);
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, "-o", "./out/test_runner");
+    cflags(&cmd);
+    nob_cmd_append(&cmd, "./src/test_runner.c");
+    nob_cmd_run_sync(cmd);
+}
 
+static void build_raw_fuzzer() {
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, "-o", "./out/raw_fuzzer");
+    nob_cmd_append(&cmd, "-fsanitize=fuzzer");
+    cflags(&cmd);
+    layec_sources(&cmd);
+    nob_cmd_append(&cmd, "./fuzz/raw_fuzzer.c");
+    nob_cmd_run_sync(cmd);
 }
 
 int main(int argc, char** argv) {
@@ -50,6 +64,7 @@ int main(int argc, char** argv) {
 
     build_layec_driver();
     build_test_runner();
+    build_raw_fuzzer();
 
     return 0;
 }

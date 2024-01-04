@@ -226,14 +226,19 @@ layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context,
     string file_path_owned = string_view_to_string(context->allocator, file_path);
     string text = read_file_to_string(context->allocator, file_path_owned);
 
+    return layec_context_get_or_add_source_from_string(context, file_path_owned, text);
+}
+
+layec_sourceid layec_context_get_or_add_source_from_string(layec_context* context, string name, string source_text) {
+    assert(context != NULL);
+
+    layec_sourceid sourceid = arr_count(context->sources);
     layec_source source = {
-        .name = file_path_owned,
-        .text = text,
+        .name = name,
+        .text = source_text,
     };
 
-    sourceid = arr_count(context->sources);
     arr_push(context->sources, source);
-
     return sourceid;
 }
 

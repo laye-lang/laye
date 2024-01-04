@@ -331,6 +331,7 @@ layec_context* layec_context_create(lca_allocator allocator);
 void layec_context_destroy(layec_context* context);
 
 layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path);
+layec_sourceid layec_context_get_or_add_source_from_string(layec_context* context, string name, string source_text);
 layec_source layec_context_get_source(layec_context* context, layec_sourceid sourceid);
 
 bool layec_context_get_location_info(layec_context* context, layec_location location, string_view* out_name, int64_t* out_line, int64_t* out_column);

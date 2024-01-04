@@ -10,3 +10,6 @@ out
 nob
 nob.old
 *.ll
+
+leak-*
+crash-*

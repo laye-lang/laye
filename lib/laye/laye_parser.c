@@ -856,8 +856,8 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
             assert(declared_type_result.node != NULL);
 
             if (!declared_type_result.success) {
+                laye_parse_result_destroy(declared_type_result);
                 if (can_be_expression) {
-                    laye_parse_result_destroy(declared_type_result);
                     arr_free(attributes);
 
                     laye_parser_reset_to_mark(p, start_mark);
@@ -1061,8 +1061,8 @@ static layec_location laye_char_location(laye_parser* p) {
     };
 }
 
-static dynarr(laye_trivia) laye_read_trivia(laye_parser* p, bool leading) {
-    dynarr(laye_trivia) trivia = NULL;
+static /* dynarr(laye_trivia) */ void laye_read_trivia(laye_parser* p, bool leading) {
+    // dynarr(laye_trivia) trivia = NULL;
 
 try_again:;
     while (p->current_char != 0) {
@@ -1101,7 +1101,7 @@ try_again:;
                     line_trivia.location.length = line_comment_text.count - 2;
                     line_trivia.text = layec_context_intern_string_view(p->context, line_comment_text);
 
-                    arr_push(trivia, line_trivia);
+                    // arr_push(trivia, line_trivia);
 
                     if (!leading) goto exit_loop;
                 } else if (laye_char_peek(p) == '*') {
@@ -1146,7 +1146,7 @@ try_again:;
                         layec_write_error(p->context, block_trivia.location, "Unterminated delimimted comment.");
                     }
 
-                    arr_push(trivia, block_trivia);
+                    // arr_push(trivia, block_trivia);
 
                     if (!leading && newline_encountered) goto exit_loop;
                 } else {
@@ -1157,7 +1157,7 @@ try_again:;
     }
 
 exit_loop:;
-    return trivia;
+    // return trivia;
 }
 
 struct keyword_info {
@@ -1268,7 +1268,7 @@ static void laye_next_token(laye_parser* p) {
         return;
     }
 
-    token.leading_trivia = laye_read_trivia(p, true);
+    /* token.leading_trivia = */ laye_read_trivia(p, true);
     token.location.offset = p->lexer_position;
 
     if (p->lexer_position >= p->source.text.count) {
@@ -1820,7 +1820,7 @@ token_finished:;
     token.location.length = p->lexer_position - token.location.offset;
     assert(token.location.length > 0 && "returning a zero-length token means probably broken tokenizer, oops");
 
-    token.trailing_trivia = laye_read_trivia(p, false);
+    /* token.trailing_trivia = */ laye_read_trivia(p, false);
     p->token = token;
 
     arr_push(p->module->_all_tokens, token);
