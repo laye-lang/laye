@@ -1256,6 +1256,21 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
     lca_string_append_format(print_context->output, "%s\n", COL(RESET));
 }
 
+static void layec_print_linkage(layec_print_context* print_context, layec_linkage linkage) {
+    assert(print_context != NULL);
+    assert(print_context->context != NULL);
+
+    bool use_color = print_context->use_color;
+
+    switch (linkage) {
+        default: break;
+
+        case LAYEC_LINK_EXPORTED: {
+            lca_string_append_format(print_context->output, "%sexported ", COL(COL_KEYWORD));
+        } break;
+    }
+}
+
 static void layec_global_print(layec_print_context* print_context, layec_value* global) {
     assert(print_context != NULL);
     assert(print_context->context != NULL);
@@ -1268,6 +1283,7 @@ static void layec_global_print(layec_print_context* print_context, layec_value* 
     bool use_color = print_context->use_color;
 
     lca_string_append_format(print_context->output, "%sdefine ", COL(COL_KEYWORD));
+    layec_print_linkage(print_context, global->linkage);
 
     if (global->name.count == 0) {
         lca_string_append_format(print_context->output, "%sglobal.%lld", COL(COL_NAME), global->index);
@@ -1296,11 +1312,12 @@ static void layec_function_print(layec_print_context* print_context, layec_value
     bool use_color = print_context->use_color;
     bool is_declare = arr_count(function->function.blocks) == 0;
 
+    lca_string_append_format(print_context->output, "%s%s ", COL(COL_KEYWORD), is_declare ? "declare" : "define");
+    layec_print_linkage(print_context, function->linkage);
+
     lca_string_append_format(
         print_context->output,
-        "%s%s %s %s%.*s%s(",
-        COL(COL_KEYWORD),
-        is_declare ? "declare" : "define",
+        "%s %s%.*s%s(",
         ir_calling_convention_to_cstring(function->type->function.calling_convention),
         COL(COL_NAME),
         STR_EXPAND(function->function.name),

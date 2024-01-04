@@ -2,7 +2,7 @@
 
 // * define global.0 = int8\[15\] "Hello, hunter!\\00"
 
-// * define layecc main() -> int64 {
+// * define exported layecc main() -> int64 {
 // + entry:
 // +   %0 = alloca ptr
 // +   store %0, ptr @global.0

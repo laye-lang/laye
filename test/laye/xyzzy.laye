@@ -1,6 +1,6 @@
 // R %layec --ir %s
 
-// * define layecc main() -> int64 {
+// * define exported layecc main() -> int64 {
 // + entry:
 // +   nop
 // +   return int64 0

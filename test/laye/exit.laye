@@ -1,6 +1,6 @@
 // R %layec --ir %s
 
-// * define layecc main() {
+// * define exported layecc main() {
 // + entry:
 // +   call ccc void @exit(int32 69)
 // +   unreachable
