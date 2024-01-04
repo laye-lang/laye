@@ -123,12 +123,14 @@ laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name) {
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type) {
     assert(module != NULL);
     assert(module->arena != NULL);
+    assert(module->context != NULL);
     assert(type != NULL);
     assert(laye_node_is_type(type));
     laye_node* node = lca_arena_push(module->arena, sizeof *node);
     assert(node != NULL);
     arr_push(module->_all_nodes, node);
     node->module = module;
+    node->context = module->context;
     node->kind = kind;
     node->location = location;
     node->type = type;
@@ -140,6 +142,7 @@ laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind ki
     if (kind != LAYE_NODE_TYPE_TYPE) assert(type != NULL);
     laye_node* node = lca_allocate(context->allocator, sizeof *node);
     assert(node != NULL);
+    node->context = context;
     node->kind = kind;
     node->type = type;
     return node;
@@ -374,10 +377,8 @@ int laye_type_size_in_bytes(laye_node* type) {
 int laye_type_size_in_bits(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
-
-    // assert(type->module != NULL);
-    // assert(type->module->context != NULL);
-    // layec_context* context = type->module->context;
+    assert(type->context != NULL);
+    layec_context* context = type->context;
 
     switch (type->kind) {
         default: assert(false && "unreachable"); return 0;
@@ -387,6 +388,11 @@ int laye_type_size_in_bits(laye_node* type) {
         case LAYE_NODE_TYPE_FLOAT: {
             assert(type->type_primitive.bit_width > 0);
             return type->type_primitive.bit_width;
+        }
+
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER: {
+            return context->target->size_of_pointer;
         }
 
         case LAYE_NODE_TYPE_ERROR_PAIR: {

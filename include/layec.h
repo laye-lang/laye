@@ -98,9 +98,11 @@ typedef struct layec_context {
         laye_node* _void;
         laye_node* noreturn;
         laye_node* _bool;
+        laye_node* i8;
         laye_node* _int;
         laye_node* _uint;
         laye_node* _float;
+        laye_node* i8_buffer;
     } laye_types;
 
     layec_dependency_graph* laye_dependencies;
@@ -382,6 +384,7 @@ layec_context* layec_module_context(layec_module* module);
 string_view layec_module_name(layec_module* module);
 int64_t layec_module_function_count(layec_module* module);
 layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
+layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string string_value);
 
 string layec_module_print(layec_module* module);
 
@@ -394,6 +397,7 @@ layec_type_kind layec_type_get_kind(layec_type* type);
 layec_type* layec_void_type(layec_context* context);
 layec_type* layec_ptr_type(layec_context* context);
 layec_type* layec_int_type(layec_context* context, int bit_width);
+layec_type* layec_array_type(layec_context* context, int64_t length, layec_type* element_type);
 layec_type* layec_function_type(
     layec_context* context,
     layec_type* return_type,
@@ -443,6 +447,7 @@ bool layec_value_is_instruction(layec_value* value);
 
 layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
+layec_value* layec_array_constant(layec_context* context, layec_location location, layec_type* type, void* data, int64_t length, bool is_string_literal);
 
 void layec_value_print_to_string(layec_value* value, string* s, bool print_type, bool use_color);
 
@@ -480,6 +485,7 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
 
 layec_builder* layec_builder_create(layec_context* context);
 void layec_builder_destroy(layec_builder* builder);
+layec_module* layec_builder_get_module(layec_builder* builder);
 layec_context* layec_builder_get_context(layec_builder* builder);
 
 // Unsets this builder's insert position, so no further insertions will be allowed

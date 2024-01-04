@@ -386,6 +386,7 @@ typedef struct laye_enum_type_variant {
 
 struct laye_node {
     laye_node_kind kind;
+    layec_context* context;
     laye_module* module;
 
     // where in the source text the "primary" information for this syntax node is.

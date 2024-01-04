@@ -95,9 +95,9 @@ layec_module* laye_irgen(laye_module* module) {
 static layec_type* laye_convert_type(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
-    laye_module* module = type->module;
-    assert(module != NULL);
-    layec_context* context = module->context;
+    //laye_module* module = type->module;
+    //assert(module != NULL);
+    layec_context* context = type->context;
     assert(context != NULL);
 
     switch (type->kind) {
@@ -138,12 +138,20 @@ static layec_type* laye_convert_type(laye_node* type) {
             assert(arr_count(parameter_types) == arr_count(type->type_function.parameter_types));
             return layec_function_type(context, return_type, parameter_types, calling_convention, type->type_function.varargs_style == LAYE_VARARGS_C);
         }
+
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER: {
+            return layec_ptr_type(context);
+        }
     }
 }
 
 static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) {
     assert(builder != NULL);
     assert(node != NULL);
+
+    layec_module* module = layec_builder_get_module(builder);
+    assert(module != NULL);
 
     layec_context* context = layec_builder_get_context(builder);
     assert(context != NULL);
@@ -248,6 +256,21 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return layec_build_call(builder, node->location, callee, callee_type, argument_values, SV_EMPTY);
         }
 
+        case LAYE_NODE_LITINT: {
+            layec_type* type = laye_convert_type(node->type);
+            assert(type != NULL);
+            assert(layec_type_is_integer(type));
+            return layec_int_constant(context, node->location, type, node->litint.value);
+        }
+
+        case LAYE_NODE_LITSTRING: {
+            layec_type* type = laye_convert_type(node->type);
+            // asserts are only to validate that we're expecting a pointer value
+            assert(type != NULL);
+            assert(layec_type_is_ptr(type));
+            return layec_module_create_global_string_ptr(module, node->location, node->litstring.value);
+        }
+
         case LAYE_NODE_EVALUATED_CONSTANT: {
             layec_type* type = laye_convert_type(node->type);
             assert(type != NULL);
@@ -255,6 +278,10 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             if (node->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
                 assert(layec_type_is_integer(type));
                 return layec_int_constant(context, node->location, type, node->evaluated_constant.result.int_value);
+            } else if (node->evaluated_constant.result.kind == LAYEC_EVAL_STRING) {
+                // assert is only to validate that we're expecting a pointer value
+                assert(layec_type_is_ptr(type));
+                return layec_module_create_global_string_ptr(module, node->location, node->evaluated_constant.result.string_value);
             } else {
                 assert(false && "unsupported/unimplemented constant kind in irgen");
                 return NULL;

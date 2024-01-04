@@ -150,6 +150,13 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
                 arr_push(children, node->decl_function.body);
         } break;
 
+        case LAYE_NODE_DECL_BINDING: {
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
+
+            if (node->decl_binding.initializer != NULL)
+                arr_push(children, node->decl_binding.initializer);
+        } break;
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value != NULL) {
                 arr_push(children, node->_return.value);
@@ -242,6 +249,11 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_LITINT: {
             string_append_format(print_context->output, " %s%lld", COL(COL_CONST), node->litint.value);
+        } break;
+
+        case LAYE_NODE_LITSTRING: {
+            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->location.length, source.text.data + node->location.offset);
         } break;
     }
 
@@ -402,6 +414,10 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         case LAYE_NODE_TYPE_FUNCTION: {
             laye_type_print_to_string(type->type_function.return_type, s, use_color);
 
+            if (type->type_is_modifiable) {
+                string_append_format(s, " %smut", COL(COL_KEYWORD));
+            }
+
             string_append_format(s, "%s(", COL(COL_DELIM));
             for (int64_t i = 0, count = arr_count(type->type_function.parameter_types); i < count; i++) {
                 if (i > 0) {
@@ -413,6 +429,25 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
 
             string_append_format(s, "%s)", COL(COL_DELIM));
         } break;
+
+        case LAYE_NODE_TYPE_POINTER: {
+            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            string_append_format(s, "%s*", COL(COL_DELIM));
+        } break;
+
+        case LAYE_NODE_TYPE_BUFFER: {
+            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            string_append_format(s, "%s[*]", COL(COL_DELIM));
+        } break;
+
+        case LAYE_NODE_TYPE_SLICE: {
+            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            string_append_format(s, "%s[]", COL(COL_DELIM));
+        } break;
+    }
+
+    if (type->type_is_modifiable) {
+        string_append_format(s, " %smut", COL(COL_KEYWORD));
     }
 
     string_append_format(s, "%s", COL(RESET));

@@ -100,6 +100,12 @@ layec_context* layec_context_create(lca_allocator allocator) {
     context->laye_types._bool->type_primitive.bit_width = context->target->laye.size_of_bool;
     context->laye_types._bool->sema_state = LAYEC_SEMA_OK;
 
+    context->laye_types.i8 = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
+    assert(context->laye_types.i8 != NULL);
+    context->laye_types.i8->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.i8->type_primitive.bit_width = 8;
+    context->laye_types.i8->type_primitive.is_signed = true;
+
     context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
     assert(context->laye_types._int != NULL);
     context->laye_types._int->sema_state = LAYEC_SEMA_OK;
@@ -119,6 +125,11 @@ layec_context* layec_context_create(lca_allocator allocator) {
     context->laye_types._float->type_primitive.is_platform_specified = true;
     context->laye_types._float->type_primitive.bit_width = context->target->laye.size_of_float;
     context->laye_types._float->sema_state = LAYEC_SEMA_OK;
+
+    context->laye_types.i8_buffer = laye_node_create_in_context(context, LAYE_NODE_TYPE_BUFFER, context->laye_types.type);
+    assert(context->laye_types.i8_buffer != NULL);
+    context->laye_types.i8_buffer->type_container.element_type = context->laye_types.i8;
+    context->laye_types.i8_buffer->sema_state = LAYEC_SEMA_OK;
 
     context->laye_dependencies = layec_dependency_graph_create_in_context(context);
     assert(context->laye_dependencies != NULL);
@@ -159,9 +170,11 @@ void layec_context_destroy(layec_context* context) {
     lca_deallocate(allocator, context->laye_types._void);
     lca_deallocate(allocator, context->laye_types.noreturn);
     lca_deallocate(allocator, context->laye_types._bool);
+    lca_deallocate(allocator, context->laye_types.i8);
     lca_deallocate(allocator, context->laye_types._int);
     lca_deallocate(allocator, context->laye_types._uint);
     lca_deallocate(allocator, context->laye_types._float);
+    lca_deallocate(allocator, context->laye_types.i8_buffer);
 
     for (int64_t i = 0, count = arr_count(context->_all_depgraphs); i < count; i++) {
         layec_dependency_graph_destroy(context->_all_depgraphs[i]);

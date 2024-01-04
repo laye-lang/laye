@@ -10,6 +10,7 @@ struct layec_module {
 
     lca_arena* arena;
     dynarr(layec_value*) functions;
+    dynarr(layec_value*) globals;
 
     dynarr(layec_value*) _all_values;
 };
@@ -54,6 +55,7 @@ struct layec_value {
 
     string name;
     int64_t index;
+    layec_linkage linkage;
 
     // for values which want their uses tracked, a list of all users of this value.
     dynarr(layec_value*) users;
@@ -62,9 +64,16 @@ struct layec_value {
 
     layec_value* address;
     layec_value* operand;
+    layec_value* value;
 
     union {
         int64_t int_value;
+
+        struct {
+            bool is_string_literal;
+            char* data;
+            int64_t length;
+        } array;
 
         struct {
             string name;
@@ -76,7 +85,6 @@ struct layec_value {
         struct {
             string name;
             dynarr(layec_value*) parameters;
-            layec_linkage linkage;
             dynarr(layec_value*) blocks;
         } function;
 
@@ -130,6 +138,7 @@ void layec_module_destroy(layec_module* module) {
     assert(module->arena != NULL);
     lca_arena_destroy(module->arena);
 
+    arr_free(module->globals);
     arr_free(module->functions);
     arr_free(module->_all_values);
 
@@ -212,6 +221,24 @@ const char* layec_type_kind_to_cstring(layec_type_kind kind) {
     }
 }
 
+static layec_value* layec_value_create(layec_module* module, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
+    assert(module != NULL);
+    assert(module->context != NULL);
+    assert(module->arena != NULL);
+    assert(type != NULL);
+
+    layec_value* value = lca_arena_push(module->arena, sizeof *value);
+    assert(value != NULL);
+    value->kind = kind;
+    value->module = module;
+    value->context = module->context;
+    value->location = location;
+    value->type = type;
+    arr_push(module->_all_values, value);
+
+    return value;
+}
+
 layec_context* layec_module_context(layec_module* module) {
     assert(module != NULL);
     return module->context;
@@ -232,6 +259,25 @@ layec_value* layec_module_get_function_at_index(layec_module* module, int64_t fu
     assert(function_index >= 0);
     assert(function_index < arr_count(module->functions));
     return module->functions[function_index];
+}
+
+layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string string_value) {
+    assert(module != NULL);
+    assert(module->context != NULL);
+
+    layec_type* array_type = layec_array_type(module->context, string_value.count + 1, layec_int_type(module->context, 8));
+    assert(string_value.capacity >= string_value.count + 1);
+    layec_value* array_constant = layec_array_constant(module->context, location, array_type, string_value.data, string_value.count + 1, true);
+
+    layec_value* global_string_ptr = layec_value_create(module, location, LAYEC_IR_GLOBAL_VARIABLE, layec_ptr_type(module->context), SV_EMPTY);
+    assert(global_string_ptr != NULL);
+    global_string_ptr->index = arr_count(module->globals);
+    global_string_ptr->linkage = LAYEC_LINK_INTERNAL;
+    global_string_ptr->value = array_constant;
+    global_string_ptr->allocated_type = array_type;
+    arr_push(module->globals, global_string_ptr);
+
+    return global_string_ptr;
 }
 
 layec_type* layec_function_return_type(layec_value* function) {
@@ -520,6 +566,18 @@ layec_type* layec_int_type(layec_context* context, int bit_width) {
     return int_type;
 }
 
+layec_type* layec_array_type(layec_context* context, int64_t length, layec_type* element_type) {
+    assert(context != NULL);
+    assert(length >= 0);
+    assert(element_type != NULL);
+
+    layec_type* array_type = layec_type_create(context, LAYEC_TYPE_ARRAY);
+    assert(array_type != NULL);
+    array_type->array.element_type = element_type;
+    array_type->array.length = length;
+    return array_type;
+}
+
 layec_type* layec_function_type(
     layec_context* context,
     layec_type* return_type,
@@ -588,24 +646,6 @@ static layec_value* layec_value_create_in_context(layec_context* context, layec_
     value->location = location;
     value->type = type;
     arr_push(context->_all_values, value);
-
-    return value;
-}
-
-static layec_value* layec_value_create(layec_module* module, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
-    assert(module != NULL);
-    assert(module->context != NULL);
-    assert(module->arena != NULL);
-    assert(type != NULL);
-
-    layec_value* value = lca_arena_push(module->arena, sizeof *value);
-    assert(value != NULL);
-    value->kind = kind;
-    value->module = module;
-    value->context = module->context;
-    value->location = location;
-    value->type = type;
-    arr_push(module->_all_values, value);
 
     return value;
 }
@@ -691,7 +731,7 @@ layec_value* layec_module_create_function(layec_module* module, layec_location l
     layec_value* function = layec_value_create(module, location, LAYEC_IR_FUNCTION, function_type, SV_EMPTY);
     assert(function != NULL);
     function->function.name = layec_context_intern_string_view(module->context, function_name);
-    function->function.linkage = linkage;
+    function->linkage = linkage;
 
     arr_push(module->functions, function);
     return function;
@@ -735,6 +775,20 @@ layec_value* layec_int_constant(layec_context* context, layec_location location,
     return int_value;
 }
 
+layec_value* layec_array_constant(layec_context* context, layec_location location, layec_type* type, void* data, int64_t length, bool is_string_literal) {
+    assert(context != NULL);
+    assert(type != NULL);
+    assert(data != NULL);
+    assert(length >= 0);
+
+    layec_value* array_value = layec_value_create_in_context(context, location, LAYEC_IR_ARRAY_CONSTANT, type, SV_EMPTY);
+    assert(array_value != NULL);
+    array_value->array.is_string_literal = is_string_literal;
+    array_value->array.data = data;
+    array_value->array.length = length;
+    return array_value;
+}
+
 layec_builder* layec_builder_create(layec_context* context) {
     assert(context != NULL);
 
@@ -753,6 +807,12 @@ void layec_builder_destroy(layec_builder* builder) {
 
     *builder = (layec_builder){0};
     lca_deallocate(allocator, builder);
+}
+
+layec_module* layec_builder_get_module(layec_builder* builder) {
+    assert(builder != NULL);
+    assert(builder->function != NULL);
+    return builder->function->module;
 }
 
 layec_context* layec_builder_get_context(layec_builder* builder) {
@@ -1039,6 +1099,7 @@ typedef struct layec_print_context {
     string* output;
 } layec_print_context;
 
+static void layec_global_print(layec_print_context* print_context, layec_value* global);
 static void layec_function_print(layec_print_context* print_context, layec_value* function);
 
 string layec_module_print(layec_module* module) {
@@ -1062,6 +1123,13 @@ string layec_module_print(layec_module* module) {
         STR_EXPAND(module->name),
         COL(RESET)
     );
+
+    for (int64_t i = 0, count = arr_count(module->globals); i < count; i++) {
+        if (i > 0) lca_string_append_format(print_context.output, "\n");
+        layec_global_print(&print_context, module->globals[i]);
+    }
+
+    if (arr_count(module->globals) > 0) lca_string_append_format(print_context.output, "\n\n");
 
     for (int64_t i = 0, count = arr_count(module->functions); i < count; i++) {
         if (i > 0) lca_string_append_format(print_context.output, "\n");
@@ -1186,6 +1254,29 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
     }
 
     lca_string_append_format(print_context->output, "%s\n", COL(RESET));
+}
+
+static void layec_global_print(layec_print_context* print_context, layec_value* global) {
+    assert(print_context != NULL);
+    assert(print_context->context != NULL);
+    assert(global != NULL);
+    assert(layec_type_is_ptr(global->type));
+
+    layec_type* global_type = global->allocated_type;
+    assert(global_type != NULL);
+
+    bool use_color = print_context->use_color;
+
+    lca_string_append_format(print_context->output, "%sdefine ", COL(COL_KEYWORD));
+
+    if (global->name.count == 0) {
+        lca_string_append_format(print_context->output, "%sglobal.%lld", COL(COL_NAME), global->index);
+    } else {
+        lca_string_append_format(print_context->output, "%s%.*s", COL(COL_NAME), STR_EXPAND(global->name));
+    }
+
+    lca_string_append_format(print_context->output, " %s= ", COL(COL_DELIM));
+    layec_value_print_to_string(global->value, print_context->output, true, use_color);
 }
 
 static void layec_function_print(layec_print_context* print_context, layec_value* function) {
@@ -1329,6 +1420,31 @@ void layec_value_print_to_string(layec_value* value, string* s, bool print_type,
 
         case LAYEC_IR_INTEGER_CONSTANT: {
             lca_string_append_format(s, "%s%lld", COL(COL_CONSTANT), value->int_value);
+        } break;
+
+        case LAYEC_IR_GLOBAL_VARIABLE: {
+            if (value->name.count == 0) {
+                lca_string_append_format(s, "%s@global.%lld", COL(COL_NAME), value->index);
+            } else {
+                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), STR_EXPAND(value->name));
+            }
+        } break;
+
+        case LAYEC_IR_ARRAY_CONSTANT: {
+            if (value->array.is_string_literal) {
+                lca_string_append_format(s, "%s\"", COL(COL_CONSTANT), value->index);
+                for (int64_t i = 0; i < value->array.length; i++) {
+                    uint8_t c = (uint8_t)value->array.data[i];
+                    if (c < 32 || c > 127) {
+                        lca_string_append_format(s, "\\%02X", (int)c);
+                    } else {
+                        lca_string_append_format(s, "%c", c);
+                    }
+                }
+                lca_string_append_format(s, "\"", value->index);
+            } else {
+                assert(false && "todo layec_value_print_to_string non-string arrays");
+            }
         } break;
     }
 

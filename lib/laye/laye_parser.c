@@ -187,6 +187,12 @@ static void laye_parser_peek(laye_parser* p) {
     p->token = current_token;
 }
 
+static bool laye_parser_peek_at(laye_parser* p, laye_token_kind kind) {
+    assert(p != NULL);
+    laye_parser_peek(p); // ensure peek token avail
+    return p->next_token.kind == kind;
+}
+
 static bool laye_parser_consume(laye_parser* p, laye_token_kind kind, laye_token* out_token) {
     assert(p != NULL);
 
@@ -213,6 +219,26 @@ static void laye_parser_try_synchronize_to_end_of_node(laye_parser* p) {
     }
 }
 
+static laye_node* laye_parser_create_invalid_node_from_token(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+
+    laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types._void);
+    laye_next_token(p);
+    return invalid_node;
+}
+
+static laye_node* laye_parser_create_invalid_node_from_child(laye_parser* p, laye_node* node) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(node != NULL);
+
+    laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, node->location, p->context->laye_types._void);
+    return invalid_node;
+}
+
 static dynarr(laye_node*) laye_parse_attributes(laye_parser* p);
 static bool laye_can_parse_type(laye_parser* p);
 static laye_parse_result laye_parse_type(laye_parser* p);
@@ -230,9 +256,106 @@ static laye_node* laye_parse_top_level_node(laye_parser* p) {
     return top_level_declaration;
 }
 
+static void laye_parse_result_copy_diags(laye_parse_result* target, laye_parse_result from) {
+    for (int64_t i = 0, count = arr_count(from.diags); i < count; i++) {
+        arr_push(target->diags, from.diags[i]);
+    }
+}
+
+static bool laye_parse_type_modifiable_modifiers(laye_parser* p, laye_parse_result* result, bool allocate) {
+    bool type_is_modifiable = false;
+
+    {
+        laye_token mut_token = {0};
+        while (laye_parser_consume(p, LAYE_TOKEN_MUT, &mut_token)) {
+            assert(mut_token.kind == LAYE_TOKEN_MUT);
+
+            if (type_is_modifiable && result->success) {
+                result->success = false;
+                if (allocate) {
+                    arr_push(result->diags, layec_error(p->context, mut_token.location, "Duplicate type modifier 'mut'."));
+                }
+            }
+
+            type_is_modifiable = true;
+        }
+    }
+
+    return type_is_modifiable;
+}
+
 static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_node* type, bool allocate) {
-    assert(false && "todo");
-    laye_parse_result result = {0};
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+
+    struct laye_parser_mark start_mark = laye_parser_mark(p);
+    laye_parse_result result = {
+        .node = type,
+        .success = true,
+    };
+
+    switch (p->token.kind) {
+        default: return result;
+
+        case '[': {
+            laye_next_token(p);
+            if (laye_parser_at(p, '*') && laye_parser_peek_at(p, ']')) {
+                laye_next_token(p);
+                if (allocate) {
+                    result.node = laye_node_create(p->module, LAYE_NODE_TYPE_BUFFER, type->location, p->context->laye_types.type);
+                    assert(result.node != NULL);
+                    result.node->type_container.element_type = type;
+                }
+            } else if (laye_parser_at(p, ']')) {
+                if (allocate) {
+                    result.node = laye_node_create(p->module, LAYE_NODE_TYPE_SLICE, type->location, p->context->laye_types.type);
+                    assert(result.node != NULL);
+                    result.node->type_container.element_type = type;
+                }
+            } else {
+                // we'll error when we don't see ']', so nothing special to do here other than allocate
+                if (allocate) {
+                    result.node = laye_parser_create_invalid_node_from_child(p, type);
+                    assert(result.node != NULL);
+                }
+            }
+
+            laye_token closing_token = {0};
+            if (!laye_parser_consume(p, ']', &closing_token)) {
+                if (allocate) {
+                    arr_push(result.diags, layec_error(p->context, p->token.location, "Expected ']'."));
+                }
+            }
+
+            if (allocate) {
+                assert(result.node != NULL);
+                result.node->location.length = closing_token.location.offset + closing_token.location.length - result.node->location.offset;
+            }
+        } break;
+    }
+
+    bool type_is_modifiable = laye_parse_type_modifiable_modifiers(p, &result, allocate);
+    if (allocate) {
+        assert(result.node != NULL);
+        result.node->type_is_modifiable = type_is_modifiable;
+    }
+
+    laye_parse_result continue_result = laye_try_parse_type_continue(p, result.node, allocate);
+    laye_parse_result_copy_diags(&result, continue_result);
+    result.node = continue_result.node;
+    laye_parse_result_destroy(continue_result);
+
+    if (!allocate) {
+        assert(result.node == NULL);
+        laye_parser_reset_to_mark(p, start_mark);
+        assert(p->lexer_position == start_mark.lexer_position);
+        assert(p->token.kind == start_mark.token.kind);
+        assert(p->token.location.offset == start_mark.token.location.offset);
+        assert(p->next_token.kind == start_mark.next_token.kind);
+        assert(p->next_token.location.offset == start_mark.next_token.location.offset);
+    }
+
     return result;
 }
 
@@ -247,24 +370,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
         .success = true,
     };
 
-    bool type_is_modifiable = false;
-
-    {
-        laye_token mut_token = {0};
-        while (laye_parser_consume(p, LAYE_TOKEN_MUT, &mut_token)) {
-            assert(mut_token.kind == LAYE_TOKEN_MUT);
-
-            if (type_is_modifiable && result.success) {
-                result.success = false;
-                if (allocate) {
-                    arr_push(result.diags, layec_error(p->context, mut_token.location, "Duplicate type modifier 'mut'."));
-                }
-            }
-
-            type_is_modifiable = true;
-        }
-    }
-
     switch (p->token.kind) {
         default: {
             result.success = false;
@@ -272,7 +377,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 arr_push(result.diags, layec_error(p->context, p->token.location, "Unexpected token when a type was expected."));
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_POISON, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
                 laye_next_token(p);
             }
         } break;
@@ -281,7 +385,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_NORETURN, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
             }
             laye_next_token(p);
         } break;
@@ -290,7 +393,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
                 result.node->type_primitive.bit_width = p->context->target->laye.size_of_int;
                 result.node->type_primitive.is_signed = true;
             }
@@ -301,7 +403,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
                 assert(p->token.int_value > 0 && p->token.int_value < 65536);
                 result.node->type_primitive.bit_width = (int)p->token.int_value;
                 result.node->type_primitive.is_signed = true;
@@ -313,7 +414,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
                 result.node->type_primitive.bit_width = p->context->target->laye.size_of_int;
                 result.node->type_primitive.is_signed = false;
             }
@@ -324,7 +424,6 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
-                result.node->type_is_modifiable = type_is_modifiable;
                 assert(p->token.int_value > 0 && p->token.int_value < 65536);
                 result.node->type_primitive.bit_width = (int)p->token.int_value;
                 result.node->type_primitive.is_signed = false;
@@ -332,6 +431,17 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             laye_next_token(p);
         } break;
     }
+
+    bool type_is_modifiable = laye_parse_type_modifiable_modifiers(p, &result, allocate);
+    if (allocate) {
+        assert(result.node != NULL);
+        result.node->type_is_modifiable = type_is_modifiable;
+    }
+
+    laye_parse_result continue_result = laye_try_parse_type_continue(p, result.node, allocate);
+    laye_parse_result_copy_diags(&result, continue_result);
+    result.node = continue_result.node;
+    laye_parse_result_destroy(continue_result);
 
     if (!allocate) {
         assert(result.node == NULL);
@@ -352,7 +462,9 @@ static bool laye_can_parse_type(laye_parser* p) {
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    return laye_try_parse_type_impl(p, false, true).success;
+    laye_parse_result result = laye_try_parse_type_impl(p, false, true);
+    laye_parse_result_destroy(result);
+    return result.success;
 }
 
 static laye_parse_result laye_parse_type(laye_parser* p) {
@@ -591,26 +703,6 @@ static laye_node* laye_parse_compound_expression(laye_parser* p) {
     compound_expression->compound.children = children;
 
     return compound_expression;
-}
-
-static laye_node* laye_parser_create_invalid_node_from_token(laye_parser* p) {
-    assert(p != NULL);
-    assert(p->context != NULL);
-    assert(p->module != NULL);
-
-    laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, p->context->laye_types._void);
-    laye_next_token(p);
-    return invalid_node;
-}
-
-static laye_node* laye_parser_create_invalid_node_from_child(laye_parser* p, laye_node* node) {
-    assert(p != NULL);
-    assert(p->context != NULL);
-    assert(p->module != NULL);
-    assert(node != NULL);
-
-    laye_node* invalid_node = laye_node_create(p->module, LAYE_NODE_INVALID, node->location, p->context->laye_types._void);
-    return invalid_node;
 }
 
 static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_node* declared_type, laye_token name_token) {
@@ -877,8 +969,18 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             laye_node* litint_expr = laye_node_create(p->module, LAYE_NODE_LITINT, p->token.location, p->context->laye_types.unknown);
             assert(litint_expr != NULL);
             litint_expr->litint.value = p->token.int_value;
+            litint_expr->type = p->context->laye_types._int;
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, litint_expr);
+        }
+
+        case LAYE_TOKEN_LITSTRING: {
+            laye_node* litstr_expr = laye_node_create(p->module, LAYE_NODE_LITSTRING, p->token.location, p->context->laye_types.unknown);
+            assert(litstr_expr != NULL);
+            litstr_expr->litstring.value = p->token.string_value;
+            litstr_expr->type = p->context->laye_types.i8_buffer;
+            laye_next_token(p);
+            return laye_parse_primary_expression_continue(p, litstr_expr);
         }
     }
 
@@ -1448,11 +1550,7 @@ static void laye_next_token(laye_parser* p) {
                 }
             }
 
-            arr_push(string_data, 0);
-            arr_set_count(string_data, arr_count(string_data) - 1);
-
-            token.string_value = string_from_data(p->context->allocator, string_data, arr_count(string_data), arr_capacity(string_data));
-
+            token.string_value = layec_context_intern_string_view(p->context, (string_view){.data = string_data, .count = arr_count(string_data)});
             arr_free(string_data);
 
             if (p->current_char != terminator) {
