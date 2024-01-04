@@ -73,7 +73,8 @@ static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
     layec_linkage linkage = layec_value_linkage(global);
     lca_string_append_format(codegen->output, " = %s", linkage == LAYEC_LINK_IMPORTED ? "external" : "private");
 
-    bool is_string = 
+    bool is_string = false;
+    assert(false && "todo llvm_print_global");
 }
 
 static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
