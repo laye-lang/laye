@@ -438,6 +438,7 @@ int64_t layec_value_integer_constant(layec_value* value);
 layec_value_kind layec_value_get_kind(layec_value* value);
 layec_context* layec_value_context(layec_value* value);
 layec_location layec_value_location(layec_value* value);
+layec_linkage layec_value_linkage(layec_value* value);
 layec_type* layec_value_get_type(layec_value* value);
 layec_type* layec_value_type(layec_value* value);
 string_view layec_value_name(layec_value* value);

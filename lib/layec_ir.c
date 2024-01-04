@@ -390,6 +390,11 @@ layec_location layec_value_location(layec_value* value) {
     return value->location;
 }
 
+layec_linkage layec_value_linkage(layec_value* value) {
+    assert(value != NULL);
+    return value->linkage;
+}
+
 layec_type* layec_value_type(layec_value* value) {
     assert(value != NULL);
     return value->type;
