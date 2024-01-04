@@ -1,0 +1,12 @@
+// R %layec --ir %s
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\00"
+
+/de /*f ine expoint main() {
+    i8[*2 message =: "Hello, hunter!";
+    puts(message);
+ÿ   return 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str);

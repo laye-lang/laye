@@ -1,0 +1,6 @@
+/"Hello, hunter!";
+|||||||r|||||||    puts(message);
+ÿ   return 0;
+}
+
+// * declare :

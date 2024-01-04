@@ -1,0 +1,17 @@
+// R %layec d layecc main()àÒÁß–‘‹É2 {
+// + entry:
+//=+   nop
+// +   return int64 0
+// + }
+export foreign int main() {
+  ðort fore%layec --ir %s
+
+// * durn int64 0
+// + }
+export forei[n int main() {
+  ðort fore%layec --ir %s, ptr %0
+  ret i64 zzy;:
+  ain() {
+ ;:
+    returni  return 1;
+}

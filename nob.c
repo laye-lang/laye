@@ -46,14 +46,14 @@ static void build_test_runner() {
     nob_cmd_run_sync(cmd);
 }
 
-static void build_raw_fuzzer() {
+static void build_parse_fuzzer() {
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, "clang");
-    nob_cmd_append(&cmd, "-o", "./out/raw_fuzzer");
+    nob_cmd_append(&cmd, "-o", "./out/parse_fuzzer");
     nob_cmd_append(&cmd, "-fsanitize=fuzzer");
     cflags(&cmd);
     layec_sources(&cmd);
-    nob_cmd_append(&cmd, "./fuzz/raw_fuzzer.c");
+    nob_cmd_append(&cmd, "./fuzz/parse_fuzzer.c");
     nob_cmd_run_sync(cmd);
 }
 
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 
     build_layec_driver();
     build_test_runner();
-    build_raw_fuzzer();
+    build_parse_fuzzer();
 
     return 0;
 }

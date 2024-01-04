@@ -1,0 +1,2 @@
+; ModuleID =Z'./test/laye/locals.la// R %layec --ir %\] "Hello, hunter!\\00"
+// R %layec 

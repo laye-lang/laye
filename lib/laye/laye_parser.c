@@ -155,7 +155,7 @@ static void laye_parser_reset_to_mark(laye_parser* p, struct laye_parser_mark ma
     p->token = mark.token;
     p->next_token = mark.next_token;
     p->lexer_position = mark.lexer_position;
-    assert(mark.lexer_position >= 0 && mark.lexer_position < p->source.text.count);
+    assert(mark.lexer_position >= 0 && mark.lexer_position <= p->source.text.count);
     p->current_char = p->source.text.data[mark.lexer_position];
 }
 
@@ -316,7 +316,7 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_node*
             } else {
                 // we'll error when we don't see ']', so nothing special to do here other than allocate
                 if (allocate) {
-                    result.node = laye_parser_create_invalid_node_from_child(p, type);
+                    result.node = laye_node_create(p->module, LAYE_NODE_TYPE_POISON, type->location, p->context->laye_types.type);
                     assert(result.node != NULL);
                 }
             }
@@ -440,6 +440,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
 
     laye_parse_result continue_result = laye_try_parse_type_continue(p, result.node, allocate);
     laye_parse_result_copy_diags(&result, continue_result);
+    result.success = 0 == arr_count(result.diags);
     result.node = continue_result.node;
     laye_parse_result_destroy(continue_result);
 
@@ -762,6 +763,7 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
         laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, function_type);
         assert(function_node != NULL);
+        laye_apply_attributes(function_node, attributes);
         function_node->declared_name = name_token.string_value;
         function_node->declared_type = function_type;
         function_node->decl_function.return_type = declared_type;
@@ -769,7 +771,6 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         assert(p->scope != NULL);
         laye_scope_declare(p->scope, function_node);
 
-        laye_apply_attributes(function_node, attributes);
         function_type->type_function.calling_convention = function_node->attributes.calling_convention;
 
         laye_node* function_body = NULL;
@@ -813,12 +814,11 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
     laye_node* binding_node = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, name_token.location, p->context->laye_types._void);
     assert(binding_node != NULL);
+    laye_apply_attributes(binding_node, attributes);
     binding_node->declared_type = declared_type;
     binding_node->declared_name = name_token.string_value;
     assert(p->scope != NULL);
     laye_scope_declare(p->scope, binding_node);
-
-    laye_apply_attributes(binding_node, attributes);
 
     if (laye_parser_consume(p, '=', NULL)) {
         laye_node* initial_value = laye_parse_expression(p, false);
@@ -842,6 +842,9 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
     struct laye_parser_mark start_mark = laye_parser_mark(p);
 
     dynarr(laye_node*) attributes = laye_parse_attributes(p);
+    if (arr_count(attributes) != 0) {
+        goto try_decl;
+    }
 
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return NULL;
@@ -852,14 +855,15 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
         }
 
         default: {
+        try_decl:;
             laye_parse_result declared_type_result = laye_parse_type(p);
             assert(declared_type_result.node != NULL);
 
             if (!declared_type_result.success) {
                 laye_parse_result_destroy(declared_type_result);
-                if (can_be_expression) {
-                    arr_free(attributes);
+                arr_free(attributes);
 
+                if (can_be_expression) {
                     laye_parser_reset_to_mark(p, start_mark);
                     return laye_parse_expression(p, true);
                 }
@@ -873,10 +877,10 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
 
             laye_token name_token = {0};
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &name_token)) {
-                if (can_be_expression) {
-                    laye_parse_result_destroy(declared_type_result);
-                    arr_free(attributes);
+                laye_parse_result_destroy(declared_type_result);
+                arr_free(attributes);
 
+                if (can_be_expression) {
                     laye_parser_reset_to_mark(p, start_mark);
                     return laye_parse_expression(p, true);
                 }

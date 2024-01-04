@@ -1,0 +1,4 @@
+// R  int64 69
+// + }
+export foreign int main() {
+    retrn 68;}

@@ -1,0 +1,5 @@
+// R call ccc void @exit(int32 69)
+//    unreachable
+// + }
+export foo = 10;[[[[[[ar÷ ccc exit(int32 %0)
+foreign callconv(cdecl) noreuntr exit(i32 exit_code);

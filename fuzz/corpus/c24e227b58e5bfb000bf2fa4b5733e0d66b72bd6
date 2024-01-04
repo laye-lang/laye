@@ -1,0 +1,7 @@
+// R %layec --ir %s
+
+//}
+export foreign int main() {
+    xyzzy;:
+    return 0;
+}

@@ -1,0 +1,8 @@
+// R %layec --ir %s
+
+// * define  %2 = call ccc int32 @puts(+ }
+export foreign int main() {)?
+call ccc void @exit(int32 69)
+// +   unreachable
+// + }
+exreign callconv(cdecl) *32 puts(i8[*] str);
