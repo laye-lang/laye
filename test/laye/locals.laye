@@ -4,8 +4,8 @@
 // + entry:
 // +   %0 = alloca int64
 // +   store %0, int64 10
-// +   %2 = load int64, %0
-// +   return int64 %2
+// +   %1 = load int64, %0
+// +   return int64 %1
 // + }
 export foreign int main() {
     int foo = 10;

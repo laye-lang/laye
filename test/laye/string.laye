@@ -6,8 +6,8 @@
 // + entry:
 // +   %0 = alloca ptr
 // +   store %0, ptr @global.0
-// +   %2 = load ptr, %0
-// +   %3 = call ccc int32 @puts(ptr %2)
+// +   %1 = load ptr, %0
+// +   %2 = call ccc int32 @puts(ptr %1)
 // +   return int64 0
 // + }
 export foreign int main() {

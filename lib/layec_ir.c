@@ -249,6 +249,18 @@ string_view layec_module_name(layec_module* module) {
     return string_as_view(module->name);
 }
 
+int64_t layec_module_global_count(layec_module* module) {
+    assert(module != NULL);
+    return arr_count(module->globals);
+}
+
+layec_value* layec_module_get_global_at_index(layec_module* module, int64_t global_index) {
+    assert(module != NULL);
+    assert(global_index >= 0);
+    assert(global_index < arr_count(module->globals));
+    return module->globals[global_index];
+}
+
 int64_t layec_module_function_count(layec_module* module) {
     assert(module != NULL);
     return arr_count(module->functions);
@@ -388,6 +400,11 @@ string_view layec_value_name(layec_value* value) {
     return string_as_view(value->name);
 }
 
+int64_t layec_value_index(layec_value* value) {
+    assert(value != NULL);
+    return value->index;
+}
+
 bool layec_block_has_name(layec_value* block) {
     assert(block != NULL);
     assert(layec_value_is_block(block));
@@ -424,6 +441,30 @@ layec_value* layec_instruction_return_value(layec_value* _return) {
     assert(_return->kind == LAYEC_IR_RETURN);
     assert(_return->return_value != NULL);
     return _return->return_value;
+}
+
+layec_type* layec_instruction_alloca_type(layec_value* alloca) {
+    assert(alloca != NULL);
+    assert(alloca->allocated_type != NULL);
+    return alloca->allocated_type;
+}
+
+layec_value* layec_instruction_address(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->address != NULL);
+    return instruction->address;
+}
+
+layec_value* layec_instruction_operand(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->operand != NULL);
+    return instruction->operand;
+}
+
+layec_value* layec_instruction_value(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->value != NULL);
+    return instruction->value;
 }
 
 layec_value* layec_instruction_callee(layec_value* call) {
@@ -905,6 +946,11 @@ static void layec_builder_recalculate_instruction_indices(layec_builder* builder
             layec_value* instruction = block->block.instructions[i];
             assert(instruction != NULL);
             assert(layec_value_is_instruction(instruction));
+
+            if (instruction->type->kind == LAYEC_TYPE_VOID) {
+                instruction->index = 0;
+                continue;
+            }
 
             instruction->index = instruction_index;
             instruction_index++;

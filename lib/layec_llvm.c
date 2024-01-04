@@ -44,6 +44,11 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
 static void llvm_print_module(llvm_codegen* codegen, layec_module* module) {
     llvm_print_header(codegen, module);
 
+    for (int64_t i = 0, count = layec_module_global_count(module); i < count; i++) {
+        layec_value* global = layec_module_get_global_at_index(module, i);
+        llvm_print_global(codegen, global);
+    }
+
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         layec_value* function = layec_module_get_function_at_index(module, i);
         llvm_print_function(codegen, function);
@@ -54,6 +59,21 @@ static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
     lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "\n");
+}
+
+static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
+    string_view name = layec_value_name(global);
+    if (name.count == 0) {
+        int64_t index = layec_value_index(global);
+        lca_string_append_format(codegen->output, ".global.%lld", index);
+    } else {
+        lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
+    }
+
+    layec_linkage linkage = layec_value_linkage(global);
+    lca_string_append_format(codegen->output, " = %s", linkage == LAYEC_LINK_IMPORTED ? "external" : "private");
+
+    bool is_string = 
 }
 
 static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
@@ -150,6 +170,11 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
 
     lca_string_append_format(codegen->output, "  ");
 
+    if (!layec_type_is_void(layec_value_get_type(instruction))) {
+        llvm_print_value(codegen, instruction, false);
+        lca_string_append_format(codegen->output, " = ");
+    }
+
     switch (kind) {
         default: {
             fprintf(stderr, "for value of kind %s\n", layec_value_kind_to_cstring(kind));
@@ -167,6 +192,26 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             } else {
                 lca_string_append_format(codegen->output, "void");
             }
+        } break;
+
+        case LAYEC_IR_ALLOCA: {
+            lca_string_append_format(codegen->output, "alloca ");
+            llvm_print_type(codegen, layec_instruction_alloca_type(instruction));
+            lca_string_append_format(codegen->output, ", i64 1");
+        } break;
+
+        case LAYEC_IR_STORE: {
+            lca_string_append_format(codegen->output, "store ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_instruction_address(instruction), true);
+        } break;
+
+        case LAYEC_IR_LOAD: {
+            lca_string_append_format(codegen->output, "load ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_instruction_address(instruction), true);
         } break;
 
         case LAYEC_IR_CALL: {
@@ -202,7 +247,13 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
 
     switch (kind) {
         default: {
-            lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(layec_value_name(value)));
+            string_view name = layec_value_name(value);
+            if (name.count == 0) {
+                int64_t index = layec_value_index(value);
+                lca_string_append_format(codegen->output, "%%%lld", index);
+            } else {
+                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(name));
+            }
         } break;
 
         case LAYEC_IR_FUNCTION: {
@@ -211,6 +262,16 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
 
         case LAYEC_IR_INTEGER_CONSTANT: {
             lca_string_append_format(codegen->output, "%lld", layec_value_integer_constant(value));
+        } break;
+
+        case LAYEC_IR_GLOBAL_VARIABLE: {
+            string_view name = layec_value_name(value);
+            if (name.count == 0) {
+                int64_t index = layec_value_index(value);
+                lca_string_append_format(codegen->output, "@.global.%lld", index);
+            } else {
+                lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
+            }
         } break;
     }
 }

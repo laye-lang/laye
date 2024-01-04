@@ -382,6 +382,8 @@ layec_value* layec_module_create_function(layec_module* module, layec_location l
 
 layec_context* layec_module_context(layec_module* module);
 string_view layec_module_name(layec_module* module);
+int64_t layec_module_global_count(layec_module* module);
+layec_value* layec_module_get_global_at_index(layec_module* module, int64_t global_index);
 int64_t layec_module_function_count(layec_module* module);
 layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
 layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string string_value);
@@ -439,6 +441,7 @@ layec_location layec_value_location(layec_value* value);
 layec_type* layec_value_get_type(layec_value* value);
 layec_type* layec_value_type(layec_value* value);
 string_view layec_value_name(layec_value* value);
+int64_t layec_value_index(layec_value* value);
 bool layec_value_is_terminating_instruction(layec_value* instruction);
 
 bool layec_value_is_block(layec_value* value);
@@ -476,6 +479,12 @@ bool layec_block_is_terminated(layec_value* block);
 
 bool layec_instruction_return_has_value(layec_value* _return);
 layec_value* layec_instruction_return_value(layec_value* _return);
+
+layec_type* layec_instruction_alloca_type(layec_value* alloca);
+
+layec_value* layec_instruction_address(layec_value* instruction);
+layec_value* layec_instruction_operand(layec_value* instruction);
+layec_value* layec_instruction_value(layec_value* instruction);
 
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
