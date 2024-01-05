@@ -175,10 +175,18 @@ typedef struct {
     size_t capacity;
 } Nob_Procs;
 
+typedef struct {
+    bool exited;
+    int exit_code;
+} Nob_Proc_Result;
+
 bool nob_procs_wait(Nob_Procs procs);
 
 // Wait until the process has finished
 bool nob_proc_wait(Nob_Proc proc);
+
+// Wait until the process has finished, returning status information
+Nob_Proc_Result nob_proc_wait_result(Nob_Proc proc);
 
 // A command - the main workhorse of Nob. Nob is all about building commands an running them
 typedef struct {
@@ -203,6 +211,9 @@ Nob_Proc nob_cmd_run_async(Nob_Cmd cmd);
 
 // Run command synchronously
 bool nob_cmd_run_sync(Nob_Cmd cmd);
+
+// Run command synchronously
+Nob_Proc_Result nob_cmd_run_sync_result(Nob_Cmd cmd);
 
 #ifndef NOB_TEMP_CAPACITY
 #define NOB_TEMP_CAPACITY (8*1024*1024)
@@ -557,7 +568,18 @@ bool nob_procs_wait(Nob_Procs procs)
 
 bool nob_proc_wait(Nob_Proc proc)
 {
-    if (proc == NOB_INVALID_PROC) return false;
+    Nob_Proc_Result result = nob_proc_wait_result(proc);
+    return result.exited;
+}
+
+Nob_Proc_Result nob_proc_wait_result(Nob_Proc proc)
+{
+    Nob_Proc_Result result = {
+        .exit_code = 0,
+        .exited = false,
+    };
+
+    if (proc == NOB_INVALID_PROC) return result;
 
 #ifdef _WIN32
     DWORD result = WaitForSingleObject(
@@ -567,56 +589,66 @@ bool nob_proc_wait(Nob_Proc proc)
 
     if (result == WAIT_FAILED) {
         nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
-        return false;
+        return result;
     }
 
     DWORD exit_status;
     if (!GetExitCodeProcess(proc, &exit_status)) {
         nob_log(NOB_ERROR, "could not get process exit code: %lu", GetLastError());
-        return false;
+        return result;
     }
 
     if (exit_status != 0) {
         nob_log(NOB_ERROR, "command exited with exit code %lu", exit_status);
-        return false;
     }
+
+    result.exit_code = (int)exit_status;
+    result.exited = true;
 
     CloseHandle(proc);
 
-    return true;
+    return result;
 #else
     for (;;) {
         int wstatus = 0;
         if (waitpid(proc, &wstatus, 0) < 0) {
             nob_log(NOB_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
-            return false;
+            return result;
         }
 
         if (WIFEXITED(wstatus)) {
             int exit_status = WEXITSTATUS(wstatus);
             if (exit_status != 0) {
                 nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
-                return false;
             }
+
+            result.exit_code = exit_status;
+            result.exited = true;
 
             break;
         }
 
         if (WIFSIGNALED(wstatus)) {
             nob_log(NOB_ERROR, "command process was terminated");
-            return false;
+            return result;
         }
     }
 
-    return true;
+    return result;
 #endif
 }
 
 bool nob_cmd_run_sync(Nob_Cmd cmd)
 {
+    Nob_Proc_Result result = nob_cmd_run_sync_result(cmd);
+    return result.exited;
+}
+
+Nob_Proc_Result nob_cmd_run_sync_result(Nob_Cmd cmd)
+{
     Nob_Proc p = nob_cmd_run_async(cmd);
-    if (p == NOB_INVALID_PROC) return false;
-    return nob_proc_wait(p);
+    if (p == NOB_INVALID_PROC) return (Nob_Proc_Result){ .exited = false };
+    return nob_proc_wait_result(p);
 }
 
 char *nob_shift_args(int *argc, char ***argv)

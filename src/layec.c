@@ -184,10 +184,18 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (arr_count(args.input_files) == 1) {
-        output_file_path = string_view_change_extension(default_allocator, args.input_files[0], "");
-    } else {
+    if (args.output_file.count != 0) {
         output_file_path = string_view_to_string(default_allocator, args.output_file);
+    } else {
+        if (arr_count(args.input_files) == 1) {
+            output_file_path = string_view_change_extension(default_allocator, args.input_files[0], "");
+        } else {
+#if _WIN32
+            output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.exe"));
+#else
+            output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.out"));
+#endif
+        }
     }
 
     Nob_Cmd clang_ll_cmd = {0};
@@ -219,6 +227,10 @@ program_exit:;
     string_destroy(&output_file_path);
 
     for (int64_t i = 0; i < arr_count(output_file_paths_intermediate); i++) {
+        const char* path_cstr = string_as_cstring(output_file_paths_intermediate[i]);
+        if (nob_file_exists(path_cstr)) {
+            remove(path_cstr);
+        }
         string_destroy(&output_file_paths_intermediate[i]);
     }
 
@@ -270,6 +282,13 @@ static bool parse_args(args* args, int* argc, char*** argv) {
             args->syntax_only = true;
         } else if (string_view_equals(arg, SV_CONSTANT("--nocolor"))) {
             args->use_color = COLOR_NEVER;
+        } else if (string_view_equals(arg, SV_CONSTANT("-o"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'-o' requires a file path as the output file, but no additional arguments were provided\n");
+                return false;
+            } else {
+                args->output_file = string_view_from_cstring(nob_shift_args(argc, argv));
+            }
         } else {
             arr_push(args->input_files, arg);
         }
