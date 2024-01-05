@@ -57,14 +57,50 @@ static void build_parse_fuzzer() {
     nob_cmd_run_sync(cmd);
 }
 
-int main(int argc, char** argv) {
-    NOB_GO_REBUILD_URSELF(argc, argv);
-
-    nob_mkdir_if_not_exists("./out");
-
+static void build_all() {
     build_layec_driver();
     build_test_runner();
     build_parse_fuzzer();
+}
+
+int main(int argc, char** argv) {
+    NOB_GO_REBUILD_URSELF(argc, argv);
+
+    const char* program = nob_shift_args(&argc, &argv);
+    nob_mkdir_if_not_exists("./out");
+
+    if (argc > 0) {
+        const char* command = nob_shift_args(&argc, &argv);
+        if (0 == strcmp("build", command)) {
+            build_all();
+        } else if (0 == strcmp("run", command)) {
+            build_layec_driver();
+
+            Nob_Cmd cmd = {0};
+            nob_cmd_append(&cmd, "./out/layec");
+            nob_da_append_many(&cmd, argv, argc);
+            nob_cmd_run_sync(cmd);
+        } else if (0 == strcmp("fuzz", command)) {
+            build_parse_fuzzer();
+
+            Nob_Cmd cmd = {0};
+            nob_cmd_append(&cmd, "./out/parse_fuzzer");
+            nob_cmd_append(&cmd, "./fuzz/corpus");
+            nob_cmd_run_sync(cmd);
+        } else if (0 == strcmp("test", command)) {
+            build_layec_driver();
+            build_test_runner();
+
+            Nob_Cmd cmd = {0};
+            nob_cmd_append(&cmd, "./out/test_runner");
+            nob_cmd_run_sync(cmd);
+        } else {
+            fprintf(stderr, "Unknown nob command: %s", command);
+            return 1;
+        }
+    } else {
+        build_all();
+    }
 
     return 0;
 }
