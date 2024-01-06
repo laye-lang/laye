@@ -514,6 +514,7 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
         case LAYEC_IR_FUNCTION: return "FUNCTION";
         case LAYEC_IR_GLOBAL_VARIABLE: return "GLOBAL_VARIABLE";
         case LAYEC_IR_PARAMETER: return "PARAMETER";
+        case LAYEC_IR_NOP: return "NOP";
         case LAYEC_IR_ALLOCA: return "ALLOCA";
         case LAYEC_IR_CALL: return "CALL";
         case LAYEC_IR_GET_ELEMENT_PTR: return "GET_ELEMENT_PTR";

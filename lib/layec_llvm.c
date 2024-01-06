@@ -168,6 +168,9 @@ static void llvm_print_block(llvm_codegen* codegen, layec_value* block) {
 
 static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instruction) {
     layec_value_kind kind = layec_value_get_kind(instruction);
+    if (kind == LAYEC_IR_NOP) {
+        return;
+    }
 
     lca_string_append_format(codegen->output, "  ");
 
