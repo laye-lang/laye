@@ -422,6 +422,9 @@ int layec_type_size_in_bytes(layec_type* type);
 int layec_type_align_in_bits(layec_type* type);
 int layec_type_align_in_bytes(layec_type* type);
 
+layec_type* layec_type_element_type(layec_type* type);
+int64_t layec_type_array_length(layec_type* type);
+
 void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
 
 // - Function Type API
@@ -454,6 +457,10 @@ layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
 layec_value* layec_array_constant(layec_context* context, layec_location location, layec_type* type, void* data, int64_t length, bool is_string_literal);
 
+bool layec_array_constant_is_string(layec_value* array_constant);
+int64_t layec_array_constant_length(layec_value* array_constant);
+const char* layec_array_constant_data(layec_value* array_constant);
+
 void layec_value_print_to_string(layec_value* value, string* s, bool print_type, bool use_color);
 
 // - Function Value API
@@ -478,6 +485,8 @@ layec_value* layec_block_get_instruction_at_index(layec_value* block, int64_t in
 bool layec_block_is_terminated(layec_value* block);
 
 // - Instruction API
+
+bool layec_global_is_string(layec_value* global);
 
 bool layec_instruction_return_has_value(layec_value* _return);
 layec_value* layec_instruction_return_value(layec_value* _return);

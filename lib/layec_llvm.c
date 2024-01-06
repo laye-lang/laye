@@ -45,11 +45,15 @@ static void llvm_print_module(llvm_codegen* codegen, layec_module* module) {
     llvm_print_header(codegen, module);
 
     for (int64_t i = 0, count = layec_module_global_count(module); i < count; i++) {
+        if (i > 0) lca_string_append_format(codegen->output, "\n");
         layec_value* global = layec_module_get_global_at_index(module, i);
         llvm_print_global(codegen, global);
     }
 
+    if (layec_module_global_count(module) > 0) lca_string_append_format(codegen->output, "\n");
+
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
+        if (i > 0) lca_string_append_format(codegen->output,  "\n");
         layec_value* function = layec_module_get_function_at_index(module, i);
         llvm_print_function(codegen, function);
     }
@@ -65,16 +69,34 @@ static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
     string_view name = layec_value_name(global);
     if (name.count == 0) {
         int64_t index = layec_value_index(global);
-        lca_string_append_format(codegen->output, ".global.%lld", index);
+        lca_string_append_format(codegen->output, "@.global.%lld", index);
     } else {
-        lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
+        lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
     }
 
     layec_linkage linkage = layec_value_linkage(global);
     lca_string_append_format(codegen->output, " = %s", linkage == LAYEC_LINK_IMPORTED ? "external" : "private");
 
-    bool is_string = false;
-    assert(false && "todo llvm_print_global");
+    bool is_string = layec_global_is_string(global);
+
+    if (is_string) {
+        lca_string_append_format(codegen->output, " unnamed_addr constant");
+    } else {
+        lca_string_append_format(codegen->output, " global");
+    }
+
+    lca_string_append_format(codegen->output, " ");
+    llvm_print_type(codegen, layec_instruction_alloca_type(global));
+
+    layec_value* value = layec_instruction_value(global);
+    if (value == NULL) {
+        lca_string_append_format(codegen->output, " zeroinitializer");
+    } else {
+        lca_string_append_format(codegen->output, " ");
+        llvm_print_value(codegen, value, false);
+    }
+
+    lca_string_append_format(codegen->output, ", align %d\n", layec_type_align_in_bytes(layec_value_get_type(global)));
 }
 
 static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
@@ -127,7 +149,7 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
         llvm_print_block(codegen, layec_function_get_block_at_index(function, i));
     }
 
-    lca_string_append_format(codegen->output, "}\n\n");
+    lca_string_append_format(codegen->output, "}\n");
 }
 
 static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
@@ -147,6 +169,13 @@ static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
 
         case LAYEC_TYPE_INTEGER: {
             lca_string_append_format(codegen->output, "i%d", layec_type_size_in_bits(type));
+        } break;
+
+        case LAYEC_TYPE_ARRAY: {
+            layec_type* element_type = layec_type_element_type(type);
+            lca_string_append_format(codegen->output, "[%lld x ", layec_type_array_length(type));
+            llvm_print_type(codegen, element_type);
+            lca_string_append_format(codegen->output, "]");
         } break;
     }
 }
@@ -275,6 +304,26 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
                 lca_string_append_format(codegen->output, "@.global.%lld", index);
             } else {
                 lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
+            }
+        } break;
+
+        case LAYEC_IR_ARRAY_CONSTANT: {
+            bool is_string = layec_array_constant_is_string(value);
+            if (is_string) {
+                lca_string_append_format(codegen->output, "c\"");
+                const uint8_t* data = (const uint8_t*)layec_array_constant_data(value);
+                for (int64_t i = 0, count = layec_array_constant_length(value); i < count; i++) {
+                    uint8_t c = data[i];
+                    if (c < 32 || c > 127) {
+                        lca_string_append_format(codegen->output, "\\%02X", (int)c);
+                    } else {
+                        lca_string_append_format(codegen->output, "%c", c);
+                    }
+                }
+                lca_string_append_format(codegen->output, "\"");
+            } else {
+                lca_string_append_format(codegen->output, "{}");
+                assert(false && "todo llvm_print_value non-string arrays");
             }
         } break;
     }
