@@ -1,9 +1,9 @@
 // R %layec --ir %s
 
-// * define exported layecc main() -> int64 {
+// * define exported ccc main() -> int64 {
 // + entry:
 // +   return int64 69
 // + }
-export foreign int main() {
+int main() {
     return 69;
 }

@@ -218,9 +218,26 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
             }
 
             assert(node->declared_type != NULL);
+            assert(laye_type_is_function(node->declared_type));
             if (!laye_sema_analyse_node(sema, &node->declared_type, NULL)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
                 node->type = sema->context->laye_types.poison;
+            }
+
+            bool is_declared_main = string_view_equals(SV_CONSTANT("main"), string_as_view(node->declared_name));
+            bool has_foreign_name = node->attributes.foreign_name.count != 0;
+            bool has_body = arr_count(node->decl_function.body) != 0;
+
+            if (is_declared_main && !has_foreign_name) {
+                node->attributes.calling_convention = LAYEC_CCC;
+                node->attributes.linkage = LAYEC_LINK_EXPORTED;
+                node->attributes.mangling = LAYEC_MANGLE_NONE;
+
+                node->declared_type->type_function.calling_convention = LAYEC_CCC;
+
+                if (!has_body) {
+                    // TODO(local): should we allow declarations of main?
+                }
             }
         } break;
     }

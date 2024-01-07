@@ -1,11 +1,11 @@
 // R %layec --ir %s
 
-// * define exported layecc main() {
+// * define exported ccc main() {
 // + entry:
 // +   call ccc void @exit(int32 69)
 // +   unreachable
 // + }
-export foreign noreturn main() {
+noreturn main() {
     exit(69);
 }
 
