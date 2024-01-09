@@ -969,13 +969,14 @@ static laye_node* laye_parse_primary_expression_continue(laye_parser* p, laye_no
     return NULL;
 }
 
-static laye_node* laye_parse_if(laye_parser* p, bool expr_context) {
+static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_node** condition, laye_node** body) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
-    assert(p->token.kind != LAYE_TOKEN_INVALID);
+    assert(p->token.kind == LAYE_TOKEN_IF);
+    assert(condition != NULL);
+    assert(body != NULL);
 
-    layec_location if_location = p->token.location;
     laye_next_token(p);
 
     if (!laye_parser_consume(p, '(', NULL)) {
@@ -1004,11 +1005,63 @@ static laye_node* laye_parse_if(laye_parser* p, bool expr_context) {
 
     assert(if_body != NULL);
 
+    *condition = if_condition;
+    *body = if_body;
+}
+
+static laye_node* laye_parse_if(laye_parser* p, bool expr_context) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    layec_location if_location = p->token.location;
+
+    laye_node* if_condition = NULL;
+    laye_node* if_body = NULL;
+
+    laye_parse_if_only(p, expr_context, &if_condition, &if_body);
+
+    assert(if_condition != NULL);
+    assert(if_body != NULL);
+
     laye_node* result = laye_node_create(p->module, LAYE_NODE_IF, if_location, p->context->laye_types._void);
     assert(result != NULL);
 
     arr_push(result->_if.conditions, if_condition);
     arr_push(result->_if.passes, if_body);
+
+    while (laye_parser_at(p, LAYE_TOKEN_ELSE)) {
+        laye_next_token(p);
+
+        if (laye_parser_at(p, LAYE_TOKEN_IF)) {
+            laye_node* elseif_condition = NULL;
+            laye_node* elseif_body = NULL;
+
+            laye_parse_if_only(p, expr_context, &elseif_condition, &elseif_body);
+
+            assert(elseif_condition != NULL);
+            assert(elseif_body != NULL);
+
+            arr_push(result->_if.conditions, elseif_condition);
+            arr_push(result->_if.passes, elseif_body);
+        } else {
+            laye_node* else_body = NULL;
+            // we're doing this check to generate errors earlier, it's not technically necessary
+            if (laye_parser_at(p, '{')) {
+                else_body = laye_parse_compound_expression(p);
+            } else {
+                if (expr_context) {
+                    else_body = laye_parse_expression(p);
+                } else {
+                    layec_write_error(p->context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)");
+                    else_body = laye_parse_statement(p);
+                }
+            }
+
+            result->_if.fail = else_body;
+        }
+    }
 
     return result;
 }

@@ -186,7 +186,7 @@ static void llvm_print_block(llvm_codegen* codegen, layec_value* block) {
     if (layec_block_has_name(block)) {
         lca_string_append_format(codegen->output, "%.*s:\n", STR_EXPAND(layec_block_name(block)));
     } else {
-        lca_string_append_format(codegen->output, "%lld:\n", layec_block_index(block));
+        lca_string_append_format(codegen->output, "_bb%lld:\n", layec_block_index(block));
     }
 
     for (int64_t i = 0; i < instruction_count; i++) {
@@ -265,6 +265,22 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
 
             lca_string_append_format(codegen->output, ")");
         } break;
+
+        case LAYEC_IR_NE: {
+            lca_string_append_format(codegen->output, "icmp ne ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_COND_BRANCH: {
+            lca_string_append_format(codegen->output, "br i1 ");
+            llvm_print_value(codegen, layec_instruction_value(instruction), false);
+            lca_string_append_format(codegen->output, ", label ");
+            llvm_print_value(codegen, layec_branch_pass(instruction), false);
+            lca_string_append_format(codegen->output, ", label ");
+            llvm_print_value(codegen, layec_branch_fail(instruction), false);
+        } break;
     }
 
     lca_string_append_format(codegen->output, "\n");
@@ -304,6 +320,14 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
                 lca_string_append_format(codegen->output, "@.global.%lld", index);
             } else {
                 lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
+            }
+        } break;
+
+        case LAYEC_IR_BLOCK: {
+            if (layec_block_has_name(value)) {
+                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(layec_block_name(value)));
+            } else {
+                lca_string_append_format(codegen->output, "%%_bb%lld", layec_block_index(value));
             }
         } break;
 

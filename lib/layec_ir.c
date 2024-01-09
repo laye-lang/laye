@@ -485,10 +485,34 @@ layec_value* layec_instruction_operand(layec_value* instruction) {
     return instruction->operand;
 }
 
+layec_value* layec_binary_lhs(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->binary.lhs != NULL);
+    return instruction->binary.lhs;
+}
+
+layec_value* layec_binary_rhs(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->binary.rhs != NULL);
+    return instruction->binary.rhs;
+}
+
 layec_value* layec_instruction_value(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->value != NULL);
     return instruction->value;
+}
+
+layec_value* layec_branch_pass(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->branch.pass != NULL);
+    return instruction->branch.pass;
+}
+
+layec_value* layec_branch_fail(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->branch.fail != NULL);
+    return instruction->branch.fail;
 }
 
 layec_value* layec_instruction_callee(layec_value* call) {

@@ -495,7 +495,11 @@ layec_type* layec_instruction_alloca_type(layec_value* alloca);
 
 layec_value* layec_instruction_address(layec_value* instruction);
 layec_value* layec_instruction_operand(layec_value* instruction);
+layec_value* layec_binary_lhs(layec_value* instruction);
+layec_value* layec_binary_rhs(layec_value* instruction);
 layec_value* layec_instruction_value(layec_value* instruction);
+layec_value* layec_branch_pass(layec_value* instruction);
+layec_value* layec_branch_fail(layec_value* instruction);
 
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
