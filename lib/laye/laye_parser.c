@@ -389,6 +389,25 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             laye_next_token(p);
         } break;
 
+        case LAYE_TOKEN_BOOL: {
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_BOOL, p->token.location, p->context->laye_types.type);
+                assert(result.node != NULL);
+                result.node->type_primitive.bit_width = p->context->target->laye.size_of_bool;
+            }
+            laye_next_token(p);
+        } break;
+
+        case LAYE_TOKEN_BOOLSIZED: {
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_BOOL, p->token.location, p->context->laye_types.type);
+                assert(result.node != NULL);
+                assert(p->token.int_value > 0 && p->token.int_value < 65536);
+                result.node->type_primitive.bit_width = (int)p->token.int_value;
+            }
+            laye_next_token(p);
+        } break;
+
         case LAYE_TOKEN_INT: {
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, p->context->laye_types.type);
@@ -657,7 +676,8 @@ done_parsing_attributes:;
     return attributes;
 }
 
-static laye_node* laye_parse_expression(laye_parser* p, bool statement_like);
+static laye_node* laye_parse_statement(laye_parser* p);
+static laye_node* laye_parse_expression(laye_parser* p);
 
 static laye_node* laye_parse_compound_expression(laye_parser* p) {
     assert(p != NULL);
@@ -776,7 +796,7 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         laye_node* function_body = NULL;
         if (!laye_parser_consume(p, ';', NULL)) {
             if (laye_parser_consume(p, LAYE_TOKEN_EQUALGREATER, NULL)) {
-                laye_node* function_body_expr = laye_parse_expression(p, false);
+                laye_node* function_body_expr = laye_parse_expression(p);
                 assert(function_body_expr != NULL);
 
                 if (!laye_parser_consume(p, ';', NULL)) {
@@ -821,7 +841,7 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
     laye_scope_declare(p->scope, binding_node);
 
     if (laye_parser_consume(p, '=', NULL)) {
-        laye_node* initial_value = laye_parse_expression(p, false);
+        laye_node* initial_value = laye_parse_expression(p);
         assert(initial_value != NULL);
         binding_node->decl_binding.initializer = initial_value;
     }
@@ -849,9 +869,14 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return NULL;
 
+        case LAYE_TOKEN_IF:
+        case LAYE_TOKEN_FOR:
         case LAYE_TOKEN_RETURN:
+        case LAYE_TOKEN_BREAK:
+        case LAYE_TOKEN_CONTINUE:
+        case LAYE_TOKEN_YIELD:
         case LAYE_TOKEN_XYZZY: {
-            return laye_parse_expression(p, true);
+            return laye_parse_statement(p);
         }
 
         default: {
@@ -865,7 +890,7 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
 
                 if (can_be_expression) {
                     laye_parser_reset_to_mark(p, start_mark);
-                    return laye_parse_expression(p, true);
+                    return laye_parse_statement(p);
                 }
 
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_child(p, declared_type_result.node);
@@ -882,7 +907,7 @@ static laye_node* laye_parse_declaration(laye_parser* p, bool can_be_expression)
 
                 if (can_be_expression) {
                     laye_parser_reset_to_mark(p, start_mark);
-                    return laye_parse_expression(p, true);
+                    return laye_parse_statement(p);
                 }
 
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_token(p);
@@ -921,7 +946,7 @@ static laye_node* laye_parse_primary_expression_continue(laye_parser* p, laye_no
 
             if (!laye_parser_at(p, ')')) {
                 do {
-                    laye_node* argument_expr = laye_parse_expression(p, false);
+                    laye_node* argument_expr = laye_parse_expression(p);
                     assert(argument_expr != NULL);
                     arr_push(arguments, argument_expr);
                 } while (laye_parser_consume(p, ',', NULL));
@@ -944,6 +969,50 @@ static laye_node* laye_parse_primary_expression_continue(laye_parser* p, laye_no
     return NULL;
 }
 
+static laye_node* laye_parse_if(laye_parser* p, bool expr_context) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    layec_location if_location = p->token.location;
+    laye_next_token(p);
+
+    if (!laye_parser_consume(p, '(', NULL)) {
+        layec_write_error(p->context, p->token.location, "Expected '(' to open `if` condition.");
+    }
+
+    laye_node* if_condition = laye_parse_expression(p);
+    assert(if_condition != NULL);
+
+    if (!laye_parser_consume(p, ')', NULL)) {
+        layec_write_error(p->context, p->token.location, "Expected ')' to close `if` condition.");
+    }
+
+    laye_node* if_body = NULL;
+    // we're doing this check to generate errors earlier, it's not technically necessary
+    if (laye_parser_at(p, '{')) {
+        if_body = laye_parse_compound_expression(p);
+    } else {
+        if (expr_context) {
+            if_body = laye_parse_expression(p);
+        } else {
+            layec_write_error(p->context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)");
+            if_body = laye_parse_statement(p);
+        }
+    }
+
+    assert(if_body != NULL);
+
+    laye_node* result = laye_node_create(p->module, LAYE_NODE_IF, if_location, p->context->laye_types._void);
+    assert(result != NULL);
+
+    arr_push(result->_if.conditions, if_condition);
+    arr_push(result->_if.passes, if_body);
+
+    return result;
+}
+
 static laye_node* laye_parse_primary_expression(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -959,6 +1028,12 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             return invalid_expr;
         }
 
+        case LAYE_TOKEN_IF: {
+            laye_node* expr = laye_parse_if(p, true);
+            assert(expr != NULL);
+            return expr;
+        } break;
+
         case LAYE_TOKEN_IDENT: {
             laye_node* nameref_expr = laye_node_create(p->module, LAYE_NODE_NAMEREF, p->token.location, p->context->laye_types.unknown);
             assert(nameref_expr != NULL);
@@ -967,6 +1042,16 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             assert(nameref_expr->nameref.scope != NULL);
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, nameref_expr);
+        }
+
+        case LAYE_TOKEN_TRUE:
+        case LAYE_TOKEN_FALSE: {
+            laye_node* litbool_expr = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, p->context->laye_types.unknown);
+            assert(litbool_expr != NULL);
+            litbool_expr->litbool.value = p->token.kind == LAYE_TOKEN_TRUE;
+            litbool_expr->type = p->context->laye_types._bool;
+            laye_next_token(p);
+            return laye_parse_primary_expression_continue(p, litbool_expr);
         }
 
         case LAYE_TOKEN_LITINT: {
@@ -992,45 +1077,79 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
     return NULL;
 }
 
-static laye_node* laye_parse_expression(laye_parser* p, bool statement_like) {
+static void laye_expect_semi(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+
+    if (!laye_parser_consume(p, ';', NULL)) {
+        layec_write_error(p->context, p->token.location, "Expected ';'.");
+    }
+}
+
+static laye_node* laye_parse_statement(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    laye_node* result_expression = NULL;
-
+    laye_node* stmt = NULL;
     switch (p->token.kind) {
+        case '{': {
+            stmt = laye_parse_compound_expression(p);
+            assert(stmt != NULL);
+        } break;
+
+        case LAYE_TOKEN_IF: {
+            stmt = laye_parse_if(p, false);
+            assert(stmt != NULL);
+        } break;
+
         case LAYE_TOKEN_RETURN: {
-            result_expression = laye_node_create(p->module, LAYE_NODE_RETURN, p->token.location, p->context->laye_types.noreturn);
-            assert(result_expression != NULL);
+            stmt = laye_node_create(p->module, LAYE_NODE_RETURN, p->token.location, p->context->laye_types.noreturn);
+            assert(stmt != NULL);
+            stmt->type = p->context->laye_types.noreturn;
             laye_next_token(p);
 
             if (!laye_parser_at(p, ';')) {
-                result_expression->_return.value = laye_parse_expression(p, false);
-                assert(result_expression->_return.value != NULL);
+                stmt->_return.value = laye_parse_expression(p);
+                assert(stmt->_return.value != NULL);
             }
+
+            laye_expect_semi(p);
         } break;
 
         case LAYE_TOKEN_XYZZY: {
-            result_expression = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types.noreturn);
-            assert(result_expression != NULL);
+            stmt = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types.noreturn);
+            assert(stmt != NULL);
             laye_next_token(p);
+            laye_expect_semi(p);
         } break;
 
         default: {
-            result_expression = laye_parse_primary_expression(p);
+            // TODO(local): we could parse full expressions, but only primaries make honest sense...
+            stmt = laye_parse_primary_expression(p);
+            laye_expect_semi(p);
         } break;
     }
 
-    assert(result_expression != NULL);
-
-    if (statement_like) {
-        if (!laye_parser_consume(p, ';', NULL)) {
-            layec_write_error(p->context, p->token.location, "Expected ';'.");
-        }
+    assert(stmt != NULL);
+    if (stmt->type == NULL) {
+        stmt->type = p->context->laye_types._void;
     }
-    
+
+    return stmt;
+}
+
+static laye_node* laye_parse_expression(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    laye_node* result_expression = laye_parse_primary_expression(p);
+
+    assert(result_expression != NULL);
+    assert(result_expression->type != NULL);
     return result_expression;
 }
 
@@ -1771,7 +1890,7 @@ static void laye_next_token(laye_parser* p) {
             }
 
             char first_char = identifier_source_view.data[0];
-            if (first_char == 'i' || first_char == 'u' || first_char == 'f') {
+            if (first_char == 'i' || first_char == 'u' || first_char == 'f' || first_char == 'b') {
                 bool are_remaining_characters_digits = true;
                 int64_t integer_value = 0;
                 for (int64_t i = 1; are_remaining_characters_digits && i < identifier_source_view.count; i++) {
@@ -1790,12 +1909,21 @@ static void laye_next_token(laye_parser* p) {
                             token.int_value = integer_value;
                             goto token_finished;
                         }
+                        // TODO(local): else error? or just allow it?
+                    } else if (first_char == 'b') {
+                        if (integer_value > 0 && integer_value < 65536) {
+                            token.kind = LAYE_TOKEN_BOOLSIZED;
+                            token.int_value = integer_value;
+                            goto token_finished;
+                        }
+                        // TODO(local): else error? or just allow it?
                     } else {
                         if (integer_value > 0 && integer_value < 65536) {
                             token.kind = first_char == 'i' ? LAYE_TOKEN_INTSIZED : LAYE_TOKEN_UINTSIZED;
                             token.int_value = integer_value;
                             goto token_finished;
                         }
+                        // TODO(local): else error? or just allow it?
                     }
                 }
             }

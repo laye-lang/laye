@@ -296,6 +296,55 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             }
         } break;
 
+        case LAYE_NODE_IF: {
+            bool is_expression = expected_type != NULL;
+            bool is_noreturn = true;
+
+            assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
+            for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
+                if (laye_sema_analyse_node(sema, &node->_if.conditions[i], sema->context->laye_types._bool)) {
+                    laye_sema_convert_or_error(sema, &node->_if.conditions[i], sema->context->laye_types._bool);
+                } else {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                }
+
+                if (laye_sema_analyse_node(sema, &node->_if.passes[i], expected_type)) {
+                    if (is_expression) {
+                        laye_sema_convert_or_error(sema, &node->_if.passes[i], expected_type);
+                    }
+                } else {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                }
+
+                if (!laye_type_is_noreturn(node->_if.passes[i]->type)) {
+                    is_noreturn = false;
+                }
+            }
+
+            if (node->_if.fail != NULL) {
+                if (!laye_sema_analyse_node(sema, &node->_if.fail, expected_type)) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                }
+
+                if (!laye_type_is_noreturn(node->_if.fail->type)) {
+                    is_noreturn = false;
+                }
+            } else {
+                is_noreturn = false;
+            }
+
+            if (is_noreturn) {
+                node->type = sema->context->laye_types.noreturn;
+            } else {
+                if (is_expression) {
+                    node->type = expected_type;
+                } else {
+                    assert(node->type != NULL);
+                    assert(laye_type_is_void(node->type));
+                }
+            }
+        } break;
+
         case LAYE_NODE_RETURN: {
             assert(sema->current_function != NULL);
             assert(sema->current_function->type != NULL);
@@ -448,20 +497,28 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             assert(false && "todo cast sema");
         } break;
 
+        case LAYE_NODE_LITBOOL: {
+            // assert we populated this at parse time
+            assert(node->type != NULL);
+            assert(laye_type_is_bool(node->type));
+        } break;
+
         case LAYE_NODE_LITINT: {
             // assert we populated this at parse time
             assert(node->type != NULL);
+            assert(laye_type_is_int(node->type));
         } break;
 
         case LAYE_NODE_LITSTRING: {
             // assert we populated this at parse time
             assert(node->type != NULL);
+            assert(laye_type_is_buffer(node->type));
         } break;
 
-        case LAYE_NODE_TYPE_NORETURN: {
-        } break;
-
-        case LAYE_NODE_TYPE_INT: {
+        case LAYE_NODE_TYPE_NORETURN:
+        case LAYE_NODE_TYPE_BOOL:
+        case LAYE_NODE_TYPE_INT:
+        case LAYE_NODE_TYPE_FLOAT: {
         } break;
 
         case LAYE_NODE_TYPE_BUFFER: {

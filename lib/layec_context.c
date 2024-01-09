@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -201,9 +202,14 @@ void layec_context_destroy(layec_context* context) {
     lca_deallocate(allocator, context);
 }
 
-static string read_file_to_string(lca_allocator allocator, string file_path) {
+static int read_file_to_string(lca_allocator allocator, string file_path, string* out_contents) {
+    assert(out_contents != NULL);
     const char* file_path_cstr = string_as_cstring(file_path);
+    assert(file_path_cstr != NULL);
     FILE* stream = fopen(file_path_cstr, "r");
+    if (stream == NULL) {
+        return errno;
+    }
     fseek(stream, 0, SEEK_END);
     int64_t count = ftell(stream);
     fseek(stream, 0, SEEK_SET);
@@ -211,7 +217,8 @@ static string read_file_to_string(lca_allocator allocator, string file_path) {
     fread(data, (size_t)count, 1, stream);
     data[count] = 0;
     fclose(stream);
-    return string_from_data(allocator, data, count, count + 1);
+    *out_contents = string_from_data(allocator, data, count, count + 1);
+    return 0;
 }
 
 layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path) {
@@ -224,7 +231,16 @@ layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context,
     }
 
     string file_path_owned = string_view_to_string(context->allocator, file_path);
-    string text = read_file_to_string(context->allocator, file_path_owned);
+    string text = {0};
+    
+    int error_code = read_file_to_string(context->allocator, file_path_owned, &text);
+    if (error_code != 0) {
+        const char* error_string = strerror(error_code);
+        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(file_path), error_string);
+
+        string_destroy(&file_path_owned);
+        return -1;
+    }
 
     return layec_context_get_or_add_source_from_string(context, file_path_owned, text);
 }

@@ -96,6 +96,16 @@ struct layec_value {
         layec_value* return_value;
 
         struct {
+            layec_value* lhs;
+            layec_value* rhs;
+        } binary;
+
+        struct {
+            layec_value* pass;
+            layec_value* fail;
+        } branch;
+
+        struct {
             layec_value* callee;
             // we may need to store a separate callee type, since opaque pointers are a thing
             // and we may be calling through a function pointer, for example
@@ -932,6 +942,11 @@ layec_context* layec_builder_get_context(layec_builder* builder) {
     return builder->context;
 }
 
+layec_value* layec_builder_get_function(layec_builder* builder) {
+    assert(builder != NULL);
+    return builder->function;
+}
+
 void layec_builder_reset(layec_builder* builder) {
     assert(builder != NULL);
     builder->function = NULL;
@@ -1202,6 +1217,55 @@ layec_value* layec_build_load(layec_builder* builder, layec_location location, l
     return load;
 }
 
+layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(condition != NULL);
+    assert(layec_type_is_integer(layec_value_get_type(condition)));
+    assert(layec_type_size_in_bits(layec_value_get_type(condition)) == 1);
+    assert(pass_block != NULL);
+    assert(layec_value_is_block(pass_block));
+    assert(fail_block != NULL);
+    assert(layec_value_is_block(fail_block));
+
+    layec_value* cmp = layec_value_create(builder->function->module, location, LAYEC_IR_COND_BRANCH, layec_void_type(builder->context), SV_EMPTY);
+    assert(cmp != NULL);
+    cmp->value = condition;
+    cmp->branch.pass = pass_block;
+    cmp->branch.fail = fail_block;
+
+    layec_builder_insert(builder, cmp);
+    return cmp;
+}
+
+layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(lhs != NULL);
+    layec_type* lhs_type = layec_value_get_type(lhs);
+    //assert(layec_type_is_int(layec_value_get_type(lhs)));
+    assert(rhs != NULL);
+    layec_type* rhs_type = layec_value_get_type(rhs);
+    //assert(layec_type_is_int(layec_value_get_type(rhs)));
+    assert(lhs_type == rhs_type); // primitive types should be reference equal if done correctly
+
+    layec_type* type = layec_int_type(builder->context, 1);
+
+    layec_value* cmp = layec_value_create(builder->function->module, location, LAYEC_IR_NE, type, SV_EMPTY);
+    assert(cmp != NULL);
+    cmp->binary.lhs = lhs;
+    cmp->binary.rhs = rhs;
+
+    layec_builder_insert(builder, cmp);
+    return cmp;
+}
+
 // IR Printer
 
 #define COL_COMMENT  WHITE
@@ -1336,6 +1400,22 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_type_print_to_string(instruction->type, print_context->output, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->address, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_NE: {
+            lca_string_append_format(print_context->output, "%sne ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_COND_BRANCH: {
+            lca_string_append_format(print_context->output, "%sbranch ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->value, print_context->output, false, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->branch.pass, print_context->output, false, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->branch.fail, print_context->output, false, use_color);
         } break;
         
         case LAYEC_IR_RETURN: {
@@ -1548,7 +1628,7 @@ void layec_value_print_to_string(layec_value* value, string* s, bool print_type,
 
         case LAYEC_IR_BLOCK: {
             if (value->block.name.count == 0) {
-                lca_string_append_format(s, "%s%%%lld", COL(COL_NAME), value->block.index);
+                lca_string_append_format(s, "%s%%_bb%lld", COL(COL_NAME), value->block.index);
             } else {
                 lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), STR_EXPAND(value->block.name));
             }

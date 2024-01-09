@@ -507,6 +507,7 @@ layec_builder* layec_builder_create(layec_context* context);
 void layec_builder_destroy(layec_builder* builder);
 layec_module* layec_builder_get_module(layec_builder* builder);
 layec_context* layec_builder_get_context(layec_builder* builder);
+layec_value* layec_builder_get_function(layec_builder* builder);
 
 // Unsets this builder's insert position, so no further insertions will be allowed
 // until another call to `layec_builder_position_*` is called.
@@ -526,5 +527,7 @@ layec_value* layec_build_alloca(layec_builder* builder, layec_location location,
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
 layec_value* layec_build_store(layec_builder* builder, layec_location location, layec_value* address, layec_value* value);
 layec_value* layec_build_load(layec_builder* builder, layec_location location, layec_value* address, layec_type* type);
+layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block);
+layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 
 #endif // LAYEC_H

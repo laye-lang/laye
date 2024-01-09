@@ -37,6 +37,10 @@ static bool parse_args(args* args, int* argc, char*** argv);
 
 static laye_module* parse_module(args* args, layec_context* context, string_view input_file_path) {
     layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
+    if (sourceid < 0) {
+        return NULL;
+    }
+
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
@@ -94,11 +98,17 @@ int main(int argc, char** argv) {
         string_view input_file_path = args.input_files[i];
 
         laye_module* module = parse_module(&args, context, input_file_path);
+        if (module == NULL) {
+            exit_code = 1;
+            goto program_exit;
+        }
+
         assert(module != NULL);
         arr_push(source_modules, module);
     }
 
     if (context->has_reported_errors) {
+        exit_code = 1;
         goto program_exit;
     }
 
@@ -139,6 +149,14 @@ int main(int argc, char** argv) {
     }
 
     if (context->has_reported_errors) {
+        for (int64_t i = 0; i < arr_count(args.input_files); i++) {
+            layec_module* ir_module = ir_modules[i];
+            assert(ir_module != NULL);
+            string ir_module_string = layec_module_print(ir_module);
+            fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
+            string_destroy(&ir_module_string);
+        }
+        
         goto program_exit;
     }
 

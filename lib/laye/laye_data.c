@@ -178,6 +178,11 @@ void laye_node_destroy(laye_node* node) {
             arr_free(node->decl_enum.variants);
         } break;
 
+        case LAYE_NODE_IF: {
+            arr_free(node->_if.conditions);
+            arr_free(node->_if.passes);
+        } break;
+
         case LAYE_NODE_COMPOUND: {
             arr_free(node->compound.children);
         } break;

@@ -1,0 +1,22 @@
+// R %layec --ir %s
+
+// * define exported ccc main() {
+// + entry:
+// +   %0 = alloca int8
+// +   store %0, int8 1
+// +   %1 = load int8 %0
+// +   %2 = ne int8 %0, %1
+// +   branch %2, %_bb1, $_bb2
+// + _bb1:
+// +   return int64 1
+// + _bb2:
+// +   return int64 2
+// + }
+int main() {
+    bool condition = true;
+    if (condition) {
+        return 1;
+    }
+
+    return 2;
+}

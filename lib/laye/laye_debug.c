@@ -157,6 +157,18 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
                 arr_push(children, node->decl_binding.initializer);
         } break;
 
+        case LAYE_NODE_IF: {
+            assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
+            for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
+                arr_push(children, node->_if.conditions[i]);
+                arr_push(children, node->_if.passes[i]);
+            }
+
+            if (node->_if.fail != NULL) {
+                arr_push(children, node->_if.fail);
+            }
+        } break;
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value != NULL) {
                 arr_push(children, node->_return.value);

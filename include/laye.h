@@ -117,6 +117,7 @@ struct laye_scope {
     X(LESSMINUS)            \
     X(COLONCOLON)           \
     X(BOOL)                 \
+    X(BOOLSIZED)            \
     X(INT)                  \
     X(INTSIZED)             \
     X(UINT)                 \
@@ -610,21 +611,21 @@ struct laye_node {
         } delete;
 
         struct {
-            // the condition of this if statement.
-            laye_node* condition;
+            // the conditions of this if(/else if) statement.
+            dynarr(laye_node*) conditions;
             // if a label was specified on the pass body, it is stored here and
             // should be handled accordingly. since the pass or fail statements
             // must only be a single node, the case of labeling the node is handled
             // like this, explicitly.
-            laye_node* pass_label;
-            // statement to be executed if the condition evaluates to true.
-            laye_node* pass;
+            // laye_node* pass_label;
+            // statements to be executed if the coresponding condition evaluates to true.
+            dynarr(laye_node*) passes;
             // if a label was specified on the fail body, it is stored here and
             // should be handled accordingly. since the pass or fail statements
             // must only be a single node, the case of labeling the node is handled
             // like this, explicitly.
-            laye_node* fail_label;
-            // statement to be executed if the condition evaluates to false.
+            // laye_node* fail_label;
+            // statement to be executed if the conditions evaluate to false.
             laye_node* fail;
         } _if;
 

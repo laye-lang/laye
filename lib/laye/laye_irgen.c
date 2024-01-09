@@ -112,6 +112,7 @@ static layec_type* laye_convert_type(laye_node* type) {
             return layec_void_type(context);
         }
 
+        case LAYE_NODE_TYPE_BOOL:
         case LAYE_NODE_TYPE_INT: {
             return layec_int_type(context, type->type_primitive.bit_width);
         }
@@ -156,6 +157,8 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
     layec_context* context = layec_builder_get_context(builder);
     assert(context != NULL);
 
+    layec_value* function = layec_builder_get_function(builder);
+
     switch (node->kind) {
         default: {
             fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(node->kind));
@@ -177,6 +180,91 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             node->ir_value = alloca;
+            return layec_void_constant(context);
+        }
+
+        case LAYE_NODE_IF: {
+            assert((laye_type_is_void(node->type) || laye_type_is_noreturn(node->type)) && "expression if is not yet supported in IR gen");
+
+            dynarr(layec_value*) pass_blocks = NULL;
+            dynarr(layec_value*) condition_blocks = NULL;
+            layec_value* fail_block = NULL;
+            layec_value* continue_block = NULL;
+
+            assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
+            for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
+                if (i > 0) {
+                    layec_value* cond_block = layec_function_append_block(function, SV_EMPTY);
+                    assert(cond_block != NULL);
+                    arr_push(condition_blocks, cond_block);
+                }
+
+                layec_value* block = layec_function_append_block(function, SV_EMPTY);
+                assert(block != NULL);
+                arr_push(pass_blocks, block);
+            }
+            assert(arr_count(node->_if.conditions) == arr_count(pass_blocks));
+            assert(arr_count(node->_if.conditions) - 1 == arr_count(condition_blocks));
+
+            if (node->_if.fail != NULL) {
+                fail_block = layec_function_append_block(function, SV_EMPTY);
+                assert(fail_block != NULL);
+            }
+
+            if (!laye_type_is_noreturn(node->type)) {
+                continue_block = layec_function_append_block(function, SV_EMPTY);
+                assert(continue_block != NULL);
+            }
+
+            for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
+                if (i > 0) {
+                    layec_builder_position_at_end(builder, condition_blocks[i - 1]);
+                }
+
+                layec_value* condition_value = laye_generate_node(builder, node->_if.conditions[i]);
+                assert(condition_value != NULL);
+
+                layec_type* condition_type = layec_value_get_type(condition_value);
+                assert(condition_type != NULL);
+                assert(layec_type_is_integer(condition_type));
+
+                layec_value* condition = layec_build_ne(builder, node->_if.conditions[i]->location, condition_value, layec_int_constant(context, (layec_location){0}, condition_type, 0));
+                assert(condition != NULL);
+                assert(layec_type_is_integer(layec_value_get_type(condition)));
+
+                layec_value* block = pass_blocks[i];
+                assert(block != NULL);
+
+                layec_value* else_block = NULL;
+                if (i + 1 < count) {
+                    else_block = condition_blocks[i];
+                } else if (fail_block != NULL) {
+                    else_block = fail_block;
+                } else {
+                    else_block = continue_block;
+                }
+
+                assert(else_block != NULL);
+                layec_build_branch(builder, node->_if.conditions[i]->location, condition, block, else_block);
+
+                layec_builder_position_at_end(builder, block);
+                layec_value* pass_value = laye_generate_node(builder, node->_if.passes[i]);
+            }
+
+            arr_free(condition_blocks);
+            arr_free(pass_blocks);
+
+            if (fail_block != NULL) {
+                assert(node->_if.fail != NULL);
+                layec_builder_position_at_end(builder, fail_block);
+                layec_value* fail_value = laye_generate_node(builder, node->_if.fail);
+            }
+
+            if (continue_block != NULL) {
+                layec_builder_position_at_end(builder, continue_block);
+            }
+
+            // TODO(local): return phi in expression context, I assume
             return layec_void_constant(context);
         }
 
@@ -254,6 +342,13 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             return layec_build_call(builder, node->location, callee, callee_type, argument_values, SV_EMPTY);
+        }
+
+        case LAYE_NODE_LITBOOL: {
+            layec_type* type = laye_convert_type(node->type);
+            assert(type != NULL);
+            assert(layec_type_is_integer(type));
+            return layec_int_constant(context, node->location, type, node->litbool.value ? 1 : 0);
         }
 
         case LAYE_NODE_LITINT: {
