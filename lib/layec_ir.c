@@ -1371,6 +1371,70 @@ layec_value* layec_build_ne(layec_builder* builder, layec_location location, lay
     return cmp;
 }
 
+layec_value* layec_build_bitcast(layec_builder* builder, layec_location location, layec_value* value, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(value != NULL);
+    assert(type != NULL);
+
+    layec_value* cast = layec_value_create(builder->function->module, location, LAYEC_IR_BITCAST, type, SV_EMPTY);
+    assert(cast != NULL);
+    cast->operand = value;
+
+    return cast;
+}
+
+layec_value* layec_build_sign_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(value != NULL);
+    assert(type != NULL);
+
+    layec_value* cast = layec_value_create(builder->function->module, location, LAYEC_IR_SEXT, type, SV_EMPTY);
+    assert(cast != NULL);
+    cast->operand = value;
+
+    return cast;
+}
+
+layec_value* layec_build_zero_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(value != NULL);
+    assert(type != NULL);
+
+    layec_value* cast = layec_value_create(builder->function->module, location, LAYEC_IR_ZEXT, type, SV_EMPTY);
+    assert(cast != NULL);
+    cast->operand = value;
+
+    return cast;
+}
+
+layec_value* layec_build_truncate(layec_builder* builder, layec_location location, layec_value* value, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(value != NULL);
+    assert(type != NULL);
+
+    layec_value* cast = layec_value_create(builder->function->module, location, LAYEC_IR_TRUNC, type, SV_EMPTY);
+    assert(cast != NULL);
+    cast->operand = value;
+
+    return cast;
+}
+
 // IR Printer
 
 #define COL_COMMENT  WHITE
@@ -1571,6 +1635,34 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             }
 
             lca_string_append_format(print_context->output, "%s)", COL(COL_DELIM));
+        } break;
+
+        case LAYEC_IR_BITCAST: {
+            lca_string_append_format(print_context->output, "%sbitcast ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
+        case LAYEC_IR_SEXT: {
+            lca_string_append_format(print_context->output, "%ssext ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
+        case LAYEC_IR_ZEXT: {
+            lca_string_append_format(print_context->output, "%szext ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
+        case LAYEC_IR_TRUNC: {
+            lca_string_append_format(print_context->output, "%strunc ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
         } break;
     }
 

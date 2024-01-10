@@ -91,7 +91,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         COL(COL_NODE),
         laye_node_kind_to_cstring(node->kind),
         (node->compiler_generated ? "*" : ""),
-        (laye_expr_is_lvalue(node) ? (laye_expr_is_modifiable_lvalue(node) ? " mut&" : "&") : ""),
+        (laye_expr_is_lvalue(node) ? "&" : ""),
         COL(COL_ADDR),
         (size_t)node,
         COL(COL_OFFS),
@@ -133,7 +133,10 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         }
     }
 
-    if (node->type != NULL) {
+    if (node->declared_type != NULL) {
+        lca_string_append_format(print_context->output, " ");
+        laye_type_print_to_string(node->declared_type, print_context->output, use_color);
+    } else if (node->type != NULL) {
         lca_string_append_format(print_context->output, " ");
         laye_type_print_to_string(node->type, print_context->output, use_color);
     }
@@ -217,6 +220,29 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
                 arr_push(children, node->call.arguments[i]);
             }
+        } break;
+
+        case LAYE_NODE_UNARY: {
+            arr_push(children, node->unary.operand);
+
+            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->unary.operator.location.length, source.text.data + node->unary.operator.location.offset);
+        } break;
+
+        case LAYE_NODE_BINARY: {
+            arr_push(children, node->binary.lhs);
+            arr_push(children, node->binary.rhs);
+
+            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->binary.operator.location.length, source.text.data + node->binary.operator.location.offset);
+        } break;
+
+        case LAYE_NODE_ASSIGNMENT: {
+            arr_push(children, node->assignment.lhs);
+            arr_push(children, node->assignment.rhs);
+
+            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->location.length, source.text.data + node->location.offset);
         } break;
 
         case LAYE_NODE_NAMEREF: {
@@ -444,6 +470,11 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
             }
 
             string_append_format(s, "%s)", COL(COL_DELIM));
+        } break;
+
+        case LAYE_NODE_TYPE_REFERENCE: {
+            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            string_append_format(s, "%s&", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_POINTER: {

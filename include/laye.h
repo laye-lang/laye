@@ -1103,6 +1103,7 @@ laye_node* laye_type_strip_pointers_and_references(laye_node* type);
 laye_node* laye_type_strip_references(laye_node* type);
 
 bool laye_type_equals(laye_node* a, laye_node* b);
+bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b);
 
 void laye_type_print_to_string(laye_node* type, string* s, bool use_color);
 

@@ -343,6 +343,15 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return layec_build_nop(builder, node->location);
         }
 
+        case LAYE_NODE_ASSIGNMENT: {
+            layec_value* lhs_value = laye_generate_node(builder, node->assignment.lhs);
+            assert(lhs_value != NULL);
+            assert(layec_type_is_ptr(layec_value_get_type(lhs_value)));
+            layec_value* rhs_value = laye_generate_node(builder, node->assignment.rhs);
+            assert(rhs_value != NULL);
+            return layec_build_store(builder, node->location, lhs_value, rhs_value);
+        }
+
         case LAYE_NODE_COMPOUND: {
             layec_value* result_value = NULL;
 
@@ -379,14 +388,68 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return result_value;
         }
 
+        case LAYE_NODE_UNARY: {
+            layec_value* operand_value = laye_generate_node(builder, node->unary.operand);
+            assert(operand_value != NULL);
+
+            switch (node->unary.operator.kind) {
+                default: {
+                    fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
+                    assert(false && "unimplemented unary operator in irgen");
+                    return NULL;
+                }
+
+                case '&':
+                case '*': {
+                    return operand_value;
+                }
+            }
+        }
+
         case LAYE_NODE_CAST: {
+            laye_node* from = node->cast.operand->type;
+            laye_node* to = node->type;
+
             layec_type* cast_type = laye_convert_type(node->type);
             layec_value* operand = laye_generate_node(builder, node->cast.operand);
 
             switch (node->cast.kind) {
                 default: {
+                    if (laye_type_equals_ignore_mut(from, to)) {
+                        return operand;
+                    }
+
+                    if (
+                        (laye_type_is_reference(from) || laye_type_is_pointer(from) || laye_type_is_buffer(from)) &&
+                        (laye_type_is_reference(to) || laye_type_is_pointer(to) || laye_type_is_buffer(to))
+                    ) {
+                        return operand;
+                    }
+
+                    if (laye_type_is_int(from) && laye_type_is_int(to)) {
+                        int64_t from_sz = laye_type_size_in_bits(from);
+                        int64_t to_sz = laye_type_size_in_bits(to);
+
+                        if (from_sz == to_sz) {
+                            return layec_build_bitcast(builder, node->location, operand, cast_type);
+                        } else if (from_sz < to_sz) {
+                            if (laye_type_is_signed_int(from)) {
+                                return layec_build_sign_extend(builder, node->location, operand, cast_type);
+                            } else {
+                                return layec_build_zero_extend(builder, node->location, operand, cast_type);
+                            }
+                        } else if (from_sz > to_sz) {
+                            return layec_build_truncate(builder, node->location, operand, cast_type);
+                        }
+                    }
+
                     assert(false && "todo irgen cast");
                     return NULL;
+                }
+
+                case LAYE_CAST_REFERENCE_TO_LVALUE:
+                case LAYE_CAST_LVALUE_TO_REFERENCE: {
+                    return operand;
                 }
 
                 case LAYE_CAST_LVALUE_TO_RVALUE: {

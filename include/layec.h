@@ -540,5 +540,9 @@ layec_value* layec_build_branch(layec_builder* builder, layec_location location,
 layec_value* layec_build_branch_conditional(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block);
 layec_value* layec_build_phi(layec_builder* builder, layec_location location, layec_type* type);
 layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_bitcast(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
+layec_value* layec_build_sign_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
+layec_value* layec_build_zero_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
+layec_value* layec_build_truncate(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 
 #endif // LAYEC_H

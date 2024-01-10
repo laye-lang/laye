@@ -669,8 +669,17 @@ bool laye_type_equals(laye_node* a, laye_node* b) {
     assert(laye_node_is_type(a));
     assert(laye_node_is_type(b));
 
-    if (a == b) return true;
     if (a->type_is_modifiable != b->type_is_modifiable) return false;
+    return laye_type_equals_ignore_mut(a, b);
+}
+
+bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
+    assert(a != NULL);
+    assert(b != NULL);
+    assert(laye_node_is_type(a));
+    assert(laye_node_is_type(b));
+
+    if (a == b) return true;
 
     if (laye_type_is_nameref(a)) {
         assert(a->nameref.referenced_type != NULL);

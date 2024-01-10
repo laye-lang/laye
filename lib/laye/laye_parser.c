@@ -205,6 +205,21 @@ static bool laye_parser_consume(laye_parser* p, laye_token_kind kind, laye_token
     return false;
 }
 
+static bool laye_parser_consume_assignment(laye_parser* p, laye_token* out_token) {
+    assert(p != NULL);
+
+    switch (p->token.kind) {
+        default: return false;
+
+        case '=':
+        case LAYE_TOKEN_LESSMINUS: {
+            if (out_token != NULL) *out_token = p->token;
+            laye_next_token(p);
+            return true;
+        }
+    }
+}
+
 static void laye_parser_try_synchronize(laye_parser* p, laye_token_kind kind) {
     assert(p != NULL);
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, kind)) {
@@ -333,6 +348,18 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_node*
                 result.node->location.length = closing_token.location.offset + closing_token.location.length - result.node->location.offset;
             }
         } break;
+
+        case '*': {
+            laye_token star_token = p->token;
+            laye_next_token(p);
+
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_POINTER, type->location, p->context->laye_types.type);
+                assert(result.node != NULL);
+                result.node->type_container.element_type = type;
+                result.node->location.length = star_token.location.offset + star_token.location.length - result.node->location.offset;
+            }
+        } break;
     }
 
     bool type_is_modifiable = laye_parse_type_modifiable_modifiers(p, &result, allocate);
@@ -379,6 +406,14 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 assert(result.node != NULL);
                 laye_next_token(p);
             }
+        } break;
+
+        case LAYE_TOKEN_VOID: {
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_VOID, p->token.location, p->context->laye_types.type);
+                assert(result.node != NULL);
+            }
+            laye_next_token(p);
         } break;
 
         case LAYE_TOKEN_NORETURN: {
@@ -781,7 +816,7 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         function_type->type_function.parameter_types = parameter_types;
         function_type->type_function.varargs_style = varargs_style;
 
-        laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, function_type);
+        laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, p->context->laye_types._void);
         assert(function_node != NULL);
         laye_apply_attributes(function_node, attributes);
         function_node->declared_name = name_token.string_value;
@@ -1087,6 +1122,52 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             return laye_parse_primary_expression_continue(p, expr);
         } break;
 
+        case '&': {
+            laye_token operator_token = p->token;
+            laye_next_token(p);
+
+            laye_node* operand = laye_parse_primary_expression(p);
+            assert(operand != NULL);
+            assert(operand->type != NULL);
+
+            laye_node* reftype = laye_node_create(p->module, LAYE_NODE_TYPE_POINTER, operand->location, p->context->laye_types.type);
+            assert(reftype != NULL);
+            reftype->type_container.element_type = operand->type;
+
+            laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand->location, reftype);
+            assert(expr != NULL);
+            expr->unary.operand = operand;
+            expr->unary.operator = operator_token;
+
+            return expr;
+        } break;
+
+        case '*': {
+            laye_token operator_token = p->token;
+            laye_next_token(p);
+
+            laye_node* operand = laye_parse_primary_expression(p);
+            assert(operand != NULL);
+            assert(operand->type != NULL);
+
+            laye_node* elemtype = NULL;
+            if (operand->type == LAYEC_TYPE_POINTER) {
+                elemtype = operand->type->type_container.element_type;
+            } else {
+                elemtype = p->context->laye_types.unknown;
+            }
+
+            assert(elemtype != NULL);
+
+            laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand->location, elemtype);
+            assert(expr != NULL);
+            laye_expr_set_lvalue(expr, true);
+            expr->unary.operand = operand;
+            expr->unary.operator = operator_token;
+
+            return expr;
+        } break;
+
         case LAYE_TOKEN_IF: {
             laye_node* expr = laye_parse_if(p, true);
             assert(expr != NULL);
@@ -1145,6 +1226,34 @@ static void laye_expect_semi(laye_parser* p) {
     }
 }
 
+static laye_node* laye_maybe_parse_assignment(laye_parser* p, laye_node* lhs) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+    assert(lhs != NULL);
+
+    // TODO(local): assignment+operator
+    laye_token assign_op = {0};
+    if (!laye_parser_consume_assignment(p, &assign_op)) {
+        return lhs;
+    }
+
+    assert(assign_op.kind != LAYE_TOKEN_INVALID);
+
+    laye_node* rhs = laye_parse_expression(p);
+    assert(rhs != NULL);
+
+    laye_node* assign = laye_node_create(p->module, LAYE_NODE_ASSIGNMENT, assign_op.location, p->context->laye_types._void);
+    assert(assign != NULL);
+    assign->assignment.lhs = lhs;
+    assign->assignment.reference_reassign = assign_op.kind == LAYE_TOKEN_LESSMINUS;
+    assign->assignment.rhs = rhs;
+
+    laye_expect_semi(p);
+    return assign;
+}
+
 static laye_node* laye_parse_statement(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1155,6 +1264,9 @@ static laye_node* laye_parse_statement(laye_parser* p) {
     switch (p->token.kind) {
         case '{': {
             stmt = laye_parse_compound_expression(p);
+            assert(stmt != NULL);
+
+            stmt = laye_maybe_parse_assignment(p, stmt);
             assert(stmt != NULL);
         } break;
 
@@ -1197,7 +1309,14 @@ static laye_node* laye_parse_statement(laye_parser* p) {
         default: {
             // TODO(local): we could parse full expressions, but only primaries make honest sense...
             stmt = laye_parse_primary_expression(p);
-            laye_expect_semi(p);
+            assert(stmt != NULL);
+
+            laye_node* assign_stmt = laye_maybe_parse_assignment(p, stmt);
+            if (assign_stmt != stmt) {
+                stmt = assign_stmt;
+            } else {
+                laye_expect_semi(p);
+            }
         } break;
     }
 
