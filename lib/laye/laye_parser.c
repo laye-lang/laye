@@ -1081,6 +1081,12 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             return invalid_expr;
         }
 
+        case '{': {
+            laye_node* expr = laye_parse_compound_expression(p);
+            assert(expr != NULL);
+            return laye_parse_primary_expression_continue(p, expr);
+        } break;
+
         case LAYE_TOKEN_IF: {
             laye_node* expr = laye_parse_if(p, true);
             assert(expr != NULL);
@@ -1160,7 +1166,6 @@ static laye_node* laye_parse_statement(laye_parser* p) {
         case LAYE_TOKEN_RETURN: {
             stmt = laye_node_create(p->module, LAYE_NODE_RETURN, p->token.location, p->context->laye_types.noreturn);
             assert(stmt != NULL);
-            stmt->type = p->context->laye_types.noreturn;
             laye_next_token(p);
 
             if (!laye_parser_at(p, ';')) {
@@ -1171,8 +1176,19 @@ static laye_node* laye_parse_statement(laye_parser* p) {
             laye_expect_semi(p);
         } break;
 
+        case LAYE_TOKEN_YIELD: {
+            stmt = laye_node_create(p->module, LAYE_NODE_YIELD, p->token.location, p->context->laye_types._void);
+            assert(stmt != NULL);
+            laye_next_token(p);
+
+            stmt->yield.value = laye_parse_expression(p);
+            assert(stmt->yield.value != NULL);
+
+            laye_expect_semi(p);
+        } break;
+
         case LAYE_TOKEN_XYZZY: {
-            stmt = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types.noreturn);
+            stmt = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types._void);
             assert(stmt != NULL);
             laye_next_token(p);
             laye_expect_semi(p);

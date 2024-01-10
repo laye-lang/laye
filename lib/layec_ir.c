@@ -46,6 +46,11 @@ struct layec_type {
     };
 };
 
+typedef struct layec_incoming_value {
+    layec_value* value;
+    layec_value* block;
+} layec_incoming_value;
+
 struct layec_value {
     layec_value_kind kind;
     layec_location location;
@@ -104,6 +109,8 @@ struct layec_value {
             layec_value* pass;
             layec_value* fail;
         } branch;
+
+        dynarr(layec_incoming_value) incoming_values;
 
         struct {
             layec_value* callee;
@@ -174,6 +181,10 @@ void layec_value_destroy(layec_value* value) {
 
         case LAYEC_IR_CALL: {
             arr_free(value->call.arguments);
+        } break;
+
+        case LAYEC_IR_PHI: {
+            arr_free(value->incoming_values);
         } break;
     }
 }
@@ -537,6 +548,44 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
     layec_value* argument = call->call.arguments[argument_index];
     assert(argument != NULL);
     return argument;
+}
+
+void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block) {
+    assert(phi != NULL);
+    assert(phi->kind == LAYEC_IR_PHI);
+    assert(value != NULL);
+    assert(block != NULL);
+    assert(block->kind == LAYEC_IR_BLOCK);
+
+    layec_incoming_value incoming_value = {
+        .value = value,
+        .block = block,
+    };
+
+    arr_push(phi->incoming_values, incoming_value);
+}
+
+int64_t layec_phi_incoming_value_count(layec_value* phi) {
+    assert(phi != NULL);
+    assert(phi->kind == LAYEC_IR_PHI);
+    return arr_count(phi->incoming_values);
+}
+
+layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index) {
+    assert(phi != NULL);
+    assert(phi->kind == LAYEC_IR_PHI);
+    layec_value* value = phi->incoming_values[index].value;
+    assert(value != NULL);
+    return value;
+}
+
+layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index) {
+    assert(phi != NULL);
+    assert(phi->kind == LAYEC_IR_PHI);
+    layec_value* block = phi->incoming_values[index].block;
+    assert(block != NULL);
+    assert(block->kind == LAYEC_IR_BLOCK);
+    return block;
 }
 
 int64_t layec_value_integer_constant(layec_value* value) {
@@ -1241,7 +1290,24 @@ layec_value* layec_build_load(layec_builder* builder, layec_location location, l
     return load;
 }
 
-layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block) {
+layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* block) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(block != NULL);
+    assert(layec_value_is_block(block));
+
+    layec_value* branch = layec_value_create(builder->function->module, location, LAYEC_IR_BRANCH, layec_void_type(builder->context), SV_EMPTY);
+    assert(branch != NULL);
+    branch->branch.pass = block;
+
+    layec_builder_insert(builder, branch);
+    return branch;
+}
+
+layec_value* layec_build_branch_conditional(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1255,14 +1321,29 @@ layec_value* layec_build_branch(layec_builder* builder, layec_location location,
     assert(fail_block != NULL);
     assert(layec_value_is_block(fail_block));
 
-    layec_value* cmp = layec_value_create(builder->function->module, location, LAYEC_IR_COND_BRANCH, layec_void_type(builder->context), SV_EMPTY);
-    assert(cmp != NULL);
-    cmp->value = condition;
-    cmp->branch.pass = pass_block;
-    cmp->branch.fail = fail_block;
+    layec_value* branch = layec_value_create(builder->function->module, location, LAYEC_IR_COND_BRANCH, layec_void_type(builder->context), SV_EMPTY);
+    assert(branch != NULL);
+    branch->value = condition;
+    branch->branch.pass = pass_block;
+    branch->branch.fail = fail_block;
 
-    layec_builder_insert(builder, cmp);
-    return cmp;
+    layec_builder_insert(builder, branch);
+    return branch;
+}
+
+layec_value* layec_build_phi(layec_builder* builder, layec_location location, layec_type* type) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(type != NULL);
+
+    layec_value* phi = layec_value_create(builder->function->module, location, LAYEC_IR_PHI, type, SV_EMPTY);
+    assert(phi != NULL);
+
+    layec_builder_insert(builder, phi);
+    return phi;
 }
 
 layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
@@ -1433,6 +1514,11 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
+        case LAYEC_IR_BRANCH: {
+            lca_string_append_format(print_context->output, "%sbranch ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->branch.pass, print_context->output, false, use_color);
+        } break;
+
         case LAYEC_IR_COND_BRANCH: {
             lca_string_append_format(print_context->output, "%sbranch ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->value, print_context->output, false, use_color);
@@ -1440,6 +1526,20 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->branch.pass, print_context->output, false, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->branch.fail, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_PHI: {
+            lca_string_append_format(print_context->output, "%sphi ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+
+            for (int64_t i = 0, count = layec_phi_incoming_value_count(instruction); i < count; i++) {
+                if (i > 0) lca_string_append_format(print_context->output, "%s,", COL(RESET));
+                lca_string_append_format(print_context->output, "%s [ ", COL(RESET));
+                layec_value_print_to_string(layec_phi_incoming_value_at_index(instruction, i), print_context->output, false, use_color);
+                lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+                layec_value_print_to_string(layec_phi_incoming_block_at_index(instruction, i), print_context->output, false, use_color);
+                lca_string_append_format(print_context->output, "%s ]", COL(RESET));
+            }
         } break;
         
         case LAYEC_IR_RETURN: {

@@ -8,6 +8,7 @@ typedef struct laye_sema {
     layec_dependency_graph* dependencies;
 
     laye_node* current_function;
+    laye_node* current_yield_target;
 } laye_sema;
 
 static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node, laye_node* expected_type);
@@ -245,6 +246,28 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
     *node_ref = node;
 }
 
+static laye_node* wrap_yieldable_value_in_compound(laye_sema* sema, laye_node** value_ref, laye_node* expected_type) {
+    assert(sema != NULL);
+    assert(sema->context != NULL);
+    assert(value_ref != NULL);
+
+    laye_sema_analyse_node(sema, value_ref, expected_type);
+    laye_node* value = *value_ref;
+    assert(value != NULL);
+
+    laye_node* yield_node = laye_node_create(value->module, LAYE_NODE_YIELD, value->location, sema->context->laye_types._void);
+    assert(yield_node != NULL);
+    yield_node->compiler_generated = true;
+    yield_node->yield.value = value;
+
+    laye_node* compound_node = laye_node_create(value->module, LAYE_NODE_COMPOUND, value->location, sema->context->laye_types._void);
+    assert(compound_node != NULL);
+    compound_node->compiler_generated = true;
+    arr_push(compound_node->compound.children, yield_node);
+
+    return compound_node;
+}
+
 static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_node* expected_type) {
     laye_node* node = *node_ref;
 
@@ -308,6 +331,16 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     node->sema_state = LAYEC_SEMA_ERRORED;
                 }
 
+                laye_node* prev_yield_target = sema->current_yield_target;
+
+                if (is_expression) {
+                    if (node->_if.passes[i]->kind != LAYE_NODE_COMPOUND) {
+                        node->_if.passes[i] = wrap_yieldable_value_in_compound(sema, &node->_if.passes[i], expected_type);
+                    }
+
+                    sema->current_yield_target = node->_if.passes[i];
+                }
+
                 if (laye_sema_analyse_node(sema, &node->_if.passes[i], expected_type)) {
                     if (is_expression) {
                         laye_sema_convert_or_error(sema, &node->_if.passes[i], expected_type);
@@ -316,15 +349,29 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     node->sema_state = LAYEC_SEMA_ERRORED;
                 }
 
+                sema->current_yield_target = prev_yield_target;
+
                 if (!laye_type_is_noreturn(node->_if.passes[i]->type)) {
                     is_noreturn = false;
                 }
             }
 
             if (node->_if.fail != NULL) {
+                laye_node* prev_yield_target = sema->current_yield_target;
+
+                if (is_expression) {
+                    if (node->_if.fail->kind != LAYE_NODE_COMPOUND) {
+                        node->_if.fail = wrap_yieldable_value_in_compound(sema, &node->_if.fail, expected_type);
+                    }
+
+                    sema->current_yield_target = node->_if.fail;
+                }
+
                 if (!laye_sema_analyse_node(sema, &node->_if.fail, expected_type)) {
                     node->sema_state = LAYEC_SEMA_ERRORED;
                 }
+
+                sema->current_yield_target = prev_yield_target;
 
                 if (!laye_type_is_noreturn(node->_if.fail->type)) {
                     is_noreturn = false;
@@ -369,21 +416,51 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             }
         } break;
 
+        case LAYE_NODE_YIELD: {
+            laye_sema_analyse_node(sema, &node->yield.value, expected_type);
+
+            if (sema->current_yield_target == NULL) {
+                layec_write_error(sema->context, node->location, "Must yield a value from a yieldable block.");
+            } else {
+                if (expected_type != NULL) {
+                    laye_sema_convert_or_error(sema, &node->yield.value, expected_type);
+                }
+
+                assert(sema->current_yield_target->kind == LAYE_NODE_COMPOUND);
+                sema->current_yield_target->type = node->yield.value->type;
+            }
+        } break;
+
         case LAYE_NODE_XYZZY: {
         } break;
 
         case LAYE_NODE_COMPOUND: {
+            bool is_expression = expected_type != NULL;
+
+            laye_node* prev_yield_target = sema->current_yield_target;
+
+            if (is_expression) {
+                assert(expected_type != NULL);
+                sema->current_yield_target = node;
+            }
+
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 laye_node** child_ref = &node->compound.children[i];
                 assert(*child_ref != NULL);
 
-                laye_sema_analyse_node(sema, child_ref, NULL);
-                laye_node* child = *child_ref;
+                if ((*child_ref)->kind == LAYE_NODE_YIELD) {
+                    laye_sema_analyse_node(sema, child_ref, expected_type);
+                } else {
+                    laye_sema_analyse_node(sema, child_ref, NULL);
+                }
 
+                laye_node* child = *child_ref;
                 if (laye_type_is_noreturn(child->type)) {
                     node->type = sema->context->laye_types.noreturn;
                 }
             }
+
+            sema->current_yield_target = prev_yield_target;
         } break;
 
         case LAYE_NODE_EVALUATED_CONSTANT: break;
@@ -500,18 +577,27 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         case LAYE_NODE_LITBOOL: {
             // assert we populated this at parse time
             assert(node->type != NULL);
+            if (expected_type != NULL) {
+                laye_sema_convert_or_error(sema, node_ref, expected_type);
+            }
             assert(laye_type_is_bool(node->type));
         } break;
 
         case LAYE_NODE_LITINT: {
             // assert we populated this at parse time
             assert(node->type != NULL);
+            if (expected_type != NULL) {
+                laye_sema_convert_or_error(sema, node_ref, expected_type);
+            }
             assert(laye_type_is_int(node->type));
         } break;
 
         case LAYE_NODE_LITSTRING: {
             // assert we populated this at parse time
             assert(node->type != NULL);
+            if (expected_type != NULL) {
+                laye_sema_convert_or_error(sema, node_ref, expected_type);
+            }
             assert(laye_type_is_buffer(node->type));
         } break;
 
@@ -548,7 +634,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
     }
 
     assert(node != NULL);
-    if (expected_type != NULL) {
+    if (expected_type != NULL && node->kind != LAYE_NODE_YIELD) {
         assert(laye_node_is_type(expected_type));
         laye_sema_convert_or_error(sema, &node, expected_type);
     }

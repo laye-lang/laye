@@ -1,7 +1,7 @@
-#include <assert.h>
-
-#include "layec.h"
 #include "laye.h"
+#include "layec.h"
+
+#include <assert.h>
 
 static layec_type* laye_convert_type(laye_node* type);
 static layec_value* laye_generate_node(layec_builder* builder, laye_node* node);
@@ -24,9 +24,7 @@ layec_module* laye_irgen(laye_module* module) {
         assert(top_level_node != NULL);
 
         if (top_level_node->kind == LAYE_NODE_DECL_FUNCTION) {
-            string function_name = top_level_node->attributes.foreign_name.count != 0 ?
-                top_level_node->attributes.foreign_name :
-                top_level_node->declared_name;
+            string function_name = top_level_node->attributes.foreign_name.count != 0 ? top_level_node->attributes.foreign_name : top_level_node->declared_name;
 
             assert(laye_type_is_function(top_level_node->declared_type));
             layec_type* ir_function_type = laye_convert_type(top_level_node->declared_type);
@@ -95,8 +93,8 @@ layec_module* laye_irgen(laye_module* module) {
 static layec_type* laye_convert_type(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
-    //laye_module* module = type->module;
-    //assert(module != NULL);
+    // laye_module* module = type->module;
+    // assert(module != NULL);
     layec_context* context = type->context;
     assert(context != NULL);
 
@@ -184,12 +182,14 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         }
 
         case LAYE_NODE_IF: {
-            assert((laye_type_is_void(node->type) || laye_type_is_noreturn(node->type)) && "expression if is not yet supported in IR gen");
+            bool is_expr = !(laye_type_is_void(node->type) || laye_type_is_noreturn(node->type));
 
             dynarr(layec_value*) pass_blocks = NULL;
             dynarr(layec_value*) condition_blocks = NULL;
             layec_value* fail_block = NULL;
             layec_value* continue_block = NULL;
+
+            layec_value* phi_value = NULL;
 
             assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
             for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
@@ -214,6 +214,23 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             if (!laye_type_is_noreturn(node->type)) {
                 continue_block = layec_function_append_block(function, SV_EMPTY);
                 assert(continue_block != NULL);
+            }
+
+            if (is_expr) {
+                layec_value* phi_block = continue_block;
+                if (phi_block == NULL) {
+                    phi_block = fail_block;
+                }
+
+                assert(phi_block != NULL);
+
+                layec_value* current_block = layec_builder_get_insert_block(builder);
+                assert(current_block != NULL);
+
+                layec_builder_position_at_end(builder, phi_block);
+                phi_value = layec_build_phi(builder, node->location, laye_convert_type(node->type));
+
+                layec_builder_position_at_end(builder, current_block);
             }
 
             for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
@@ -245,27 +262,65 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
 
                 assert(else_block != NULL);
-                layec_build_branch(builder, node->_if.conditions[i]->location, condition, block, else_block);
+                layec_build_branch_conditional(builder, node->_if.conditions[i]->location, condition, block, else_block);
 
                 layec_builder_position_at_end(builder, block);
                 layec_value* pass_value = laye_generate_node(builder, node->_if.passes[i]);
+                assert(pass_value != NULL);
+                layec_value* from_block = layec_builder_get_insert_block(builder);
+                assert(from_block != NULL);
+
+                if (!laye_type_is_noreturn(node->_if.passes[i]->type)) {
+                    assert(continue_block != NULL);
+                    layec_build_branch(builder, node->_if.passes[i]->location, continue_block);
+                }
+
+                if (is_expr) {
+                    assert(phi_value != NULL);
+                    layec_phi_add_incoming_value(phi_value, pass_value, from_block);
+                }
             }
 
-            arr_free(condition_blocks);
-            arr_free(pass_blocks);
+            if (is_expr) {
+                assert(phi_value != NULL);
+                assert(layec_phi_incoming_value_count(phi_value) == arr_count(pass_blocks));
+            }
 
             if (fail_block != NULL) {
                 assert(node->_if.fail != NULL);
                 layec_builder_position_at_end(builder, fail_block);
                 layec_value* fail_value = laye_generate_node(builder, node->_if.fail);
+                assert(fail_value != NULL);
+                layec_value* from_block = layec_builder_get_insert_block(builder);
+                assert(from_block != NULL);
+
+                if (!laye_type_is_noreturn(node->_if.fail->type)) {
+                    assert(continue_block != NULL);
+                    layec_build_branch(builder, node->_if.fail->location, continue_block);
+                }
+
+                if (is_expr) {
+                    assert(phi_value != NULL);
+                    layec_phi_add_incoming_value(phi_value, fail_value, from_block);
+                    assert(layec_phi_incoming_value_count(phi_value) == arr_count(pass_blocks) + 1);
+                }
             }
+
+            arr_free(condition_blocks);
+            arr_free(pass_blocks);
 
             if (continue_block != NULL) {
                 layec_builder_position_at_end(builder, continue_block);
             }
 
-            // TODO(local): return phi in expression context, I assume
-            return layec_void_constant(context);
+            layec_value* result_value = NULL;
+            if (is_expr) {
+                result_value = phi_value;
+            } else {
+                result_value = layec_void_constant(context);
+            }
+
+            return result_value;
         }
 
         case LAYE_NODE_RETURN: {
@@ -278,16 +333,33 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return layec_build_return(builder, node->location, return_value);
         }
 
+        case LAYE_NODE_YIELD: {
+            layec_value* yield_value = laye_generate_node(builder, node->yield.value);
+            assert(yield_value != NULL);
+            return yield_value;
+        }
+
         case LAYE_NODE_XYZZY: {
             return layec_build_nop(builder, node->location);
         }
 
         case LAYE_NODE_COMPOUND: {
+            layec_value* result_value = NULL;
+
             for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
                 laye_node* child = node->compound.children[i];
                 assert(child != NULL);
+
                 layec_value* child_value = laye_generate_node(builder, child);
                 assert(child_value != NULL);
+
+                if (child->kind == LAYE_NODE_YIELD) {
+                    result_value = child_value;
+                }
+
+                if (child->kind == LAYE_NODE_RETURN || child->kind == LAYE_NODE_BREAK || child->kind == LAYE_NODE_CONTINUE || child->kind == LAYE_NODE_YIELD) {
+                    break;
+                }
             }
 
             // TODO(local): this (can be) an expression, so it really should return stuff, even if discarded.
@@ -300,7 +372,11 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
             }
 
-            return layec_void_constant(context);
+            if (result_value == NULL) {
+                result_value = layec_void_constant(context);
+            }
+
+            return result_value;
         }
 
         case LAYE_NODE_CAST: {

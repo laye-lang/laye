@@ -273,6 +273,11 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             llvm_print_value(codegen, layec_binary_rhs(instruction), false);
         } break;
 
+        case LAYEC_IR_BRANCH: {
+            lca_string_append_format(codegen->output, "br label");
+            llvm_print_value(codegen, layec_branch_pass(instruction), false);
+        } break;
+
         case LAYEC_IR_COND_BRANCH: {
             lca_string_append_format(codegen->output, "br i1 ");
             llvm_print_value(codegen, layec_instruction_value(instruction), false);
@@ -280,6 +285,20 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             llvm_print_value(codegen, layec_branch_pass(instruction), false);
             lca_string_append_format(codegen->output, ", label ");
             llvm_print_value(codegen, layec_branch_fail(instruction), false);
+        } break;
+
+        case LAYEC_IR_PHI: {
+            lca_string_append_format(codegen->output, "phi ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+
+            for (int64_t i = 0, count = layec_phi_incoming_value_count(instruction); i < count; i++) {
+                if (i > 0) lca_string_append_format(codegen->output, ",");
+                lca_string_append_format(codegen->output, " [ ");
+                llvm_print_value(codegen, layec_phi_incoming_value_at_index(instruction, i), false);
+                lca_string_append_format(codegen->output, ", ");
+                llvm_print_value(codegen, layec_phi_incoming_block_at_index(instruction, i), false);
+                lca_string_append_format(codegen->output, " ]");
+            }
         } break;
     }
 

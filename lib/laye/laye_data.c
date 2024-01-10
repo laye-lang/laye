@@ -342,6 +342,16 @@ bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant,
             out_constant->string_value = expr->litstring.value;
             return true;
         }
+
+#if false
+        case LAYE_NODE_COMPOUND: {
+            if (arr_count(expr->compound.children) == 1 && expr->compound.children[0]->kind == LAYE_NODE_YIELD) {
+                return laye_expr_evaluate(expr->compound.children[0]->yield.value, out_constant, is_required);
+            }
+
+            return false;
+        }
+#endif
     }
 }
 

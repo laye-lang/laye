@@ -505,6 +505,11 @@ layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
 layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index);
 
+void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block);
+int64_t layec_phi_incoming_value_count(layec_value* phi);
+layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index);
+layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index);
+
 // Builder API
 
 layec_builder* layec_builder_create(layec_context* context);
@@ -531,7 +536,9 @@ layec_value* layec_build_alloca(layec_builder* builder, layec_location location,
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
 layec_value* layec_build_store(layec_builder* builder, layec_location location, layec_value* address, layec_value* value);
 layec_value* layec_build_load(layec_builder* builder, layec_location location, layec_value* address, layec_type* type);
-layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block);
+layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* block);
+layec_value* layec_build_branch_conditional(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block);
+layec_value* layec_build_phi(layec_builder* builder, layec_location location, layec_type* type);
 layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 
 #endif // LAYEC_H
