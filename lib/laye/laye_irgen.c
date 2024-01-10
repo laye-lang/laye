@@ -415,7 +415,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
             switch (node->cast.kind) {
                 default: {
-                    if (laye_type_equals_ignore_mut(from, to)) {
+                    if (laye_type_equals(from, to, LAYE_MUT_IGNORE)) {
                         return operand;
                     }
 

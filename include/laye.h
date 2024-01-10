@@ -85,6 +85,12 @@ struct laye_scope {
     dynarr(laye_node*) type_declarations;
 };
 
+typedef enum laye_mut_compare {
+    LAYE_MUT_EQUAL,
+    LAYE_MUT_IGNORE,
+    LAYE_MUT_CONVERTIBLE,
+} laye_mut_compare;
+
 #define LAYE_TRIVIA_KINDS(X) \
     X(LINE_COMMENT)          \
     X(DELIMITED_COMMENT)
@@ -1102,8 +1108,7 @@ bool laye_type_is_strict_alias(laye_node* type);
 laye_node* laye_type_strip_pointers_and_references(laye_node* type);
 laye_node* laye_type_strip_references(laye_node* type);
 
-bool laye_type_equals(laye_node* a, laye_node* b);
-bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b);
+bool laye_type_equals(laye_node* a, laye_node* b, laye_mut_compare mut_compare);
 
 void laye_type_print_to_string(laye_node* type, string* s, bool use_color);
 

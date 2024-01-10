@@ -663,17 +663,7 @@ laye_node* laye_type_strip_references(laye_node* type) {
     return type;
 }
 
-bool laye_type_equals(laye_node* a, laye_node* b) {
-    assert(a != NULL);
-    assert(b != NULL);
-    assert(laye_node_is_type(a));
-    assert(laye_node_is_type(b));
-
-    if (a->type_is_modifiable != b->type_is_modifiable) return false;
-    return laye_type_equals_ignore_mut(a, b);
-}
-
-bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
+bool laye_type_equals(laye_node* a, laye_node* b, laye_mut_compare mut_compare) {
     assert(a != NULL);
     assert(b != NULL);
     assert(laye_node_is_type(a));
@@ -681,14 +671,29 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
 
     if (a == b) return true;
 
+    switch (mut_compare) {
+        default: assert(false);
+
+        case LAYE_MUT_IGNORE: break;
+
+        case LAYE_MUT_EQUAL: {
+            if (a->type_is_modifiable != b->type_is_modifiable) return false;
+        } break;
+
+        case LAYE_MUT_CONVERTIBLE: {
+            bool convertible = a->type_is_modifiable == b->type_is_modifiable || !b->type_is_modifiable;
+            if (!convertible) return false;
+        } break;
+    }
+
     if (laye_type_is_nameref(a)) {
         assert(a->nameref.referenced_type != NULL);
-        return laye_type_equals(a->nameref.referenced_type, b);
+        return laye_type_equals(a->nameref.referenced_type, b, mut_compare);
     }
 
     if (laye_type_is_nameref(b)) {
         assert(b->nameref.referenced_type != NULL);
-        return laye_type_equals(a, b->nameref.referenced_type);
+        return laye_type_equals(a, b->nameref.referenced_type, mut_compare);
     }
 
     assert(!laye_type_is_nameref(a));
@@ -696,12 +701,12 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
 
     if (laye_type_is_alias(a)) {
         assert(a->type_alias.underlying_type != NULL);
-        return laye_type_equals(a->type_alias.underlying_type, b);
+        return laye_type_equals(a->type_alias.underlying_type, b, mut_compare);
     }
 
     if (laye_type_is_alias(b)) {
         assert(b->type_alias.underlying_type != NULL);
-        return laye_type_equals(a, b->type_alias.underlying_type);
+        return laye_type_equals(a, b->type_alias.underlying_type, mut_compare);
     }
 
     assert(!laye_type_is_alias(a));
@@ -747,14 +752,14 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
             if (a->type_error_pair.error_type != NULL) {
                 if (
                     b->type_error_pair.error_type == NULL ||
-                    !laye_type_equals(a->type_error_pair.error_type, b->type_error_pair.error_type)
+                    !laye_type_equals(a->type_error_pair.error_type, b->type_error_pair.error_type, mut_compare)
                 ) {
                     return false;
                 }
             } else if (b->type_error_pair.error_type != NULL)
                 return false;
 
-            return laye_type_equals(a->type_error_pair.value_type, b->type_error_pair.value_type);
+            return laye_type_equals(a->type_error_pair.value_type, b->type_error_pair.value_type, mut_compare);
         }
 
         // an overload set never has a unique type, and they're never associated with
@@ -770,7 +775,7 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
         case LAYE_NODE_TYPE_BUFFER: {
             assert(a->type_container.element_type != NULL);
             assert(b->type_container.element_type != NULL);
-            return laye_type_equals(a->type_container.element_type, b->type_container.element_type);
+            return laye_type_equals(a->type_container.element_type, b->type_container.element_type, mut_compare);
         }
 
         case LAYE_NODE_TYPE_ARRAY: {
@@ -802,7 +807,7 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
                     return false;
             }
 
-            return laye_type_equals(a->type_container.element_type, b->type_container.element_type);
+            return laye_type_equals(a->type_container.element_type, b->type_container.element_type, mut_compare);
         }
 
         case LAYE_NODE_TYPE_FUNCTION: {
@@ -816,7 +821,7 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
             if (arr_count(a->type_function.parameter_types) != arr_count(b->type_function.parameter_types))
                 return false;
 
-            if (!laye_type_equals(a->type_function.return_type, b->type_function.return_type))
+            if (!laye_type_equals(a->type_function.return_type, b->type_function.return_type, mut_compare))
                 return false;
 
             for (int64_t i = 0, count = arr_count(a->type_function.parameter_types); i < count; i++) {
@@ -826,7 +831,7 @@ bool laye_type_equals_ignore_mut(laye_node* a, laye_node* b) {
                 assert(a_type != NULL);
                 assert(b_type != NULL);
 
-                if (!laye_type_equals(a_type, b_type))
+                if (!laye_type_equals(a_type, b_type, mut_compare))
                     return false;
             }
 

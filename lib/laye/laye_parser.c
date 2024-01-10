@@ -429,6 +429,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_BOOL, p->token.location, p->context->laye_types.type);
                 assert(result.node != NULL);
                 result.node->type_primitive.bit_width = p->context->target->laye.size_of_bool;
+                result.node->type_primitive.is_platform_specified = true;
             }
             laye_next_token(p);
         } break;
@@ -449,6 +450,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 assert(result.node != NULL);
                 result.node->type_primitive.bit_width = p->context->target->laye.size_of_int;
                 result.node->type_primitive.is_signed = true;
+                result.node->type_primitive.is_platform_specified = true;
             }
             laye_next_token(p);
         } break;
@@ -470,6 +472,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 assert(result.node != NULL);
                 result.node->type_primitive.bit_width = p->context->target->laye.size_of_int;
                 result.node->type_primitive.is_signed = false;
+                result.node->type_primitive.is_platform_specified = true;
             }
             laye_next_token(p);
         } break;

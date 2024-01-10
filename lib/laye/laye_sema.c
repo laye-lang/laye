@@ -455,6 +455,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 laye_sema_convert_or_error(sema, &node->assignment.rhs, nonref_target_type);
             }
 
+            if (!node->assignment.lhs->type->type_is_modifiable) {
+                layec_write_error(sema->context, node->assignment.lhs->location, "Left-hand side of assignment is not mutable.");
+                node->sema_state = LAYEC_SEMA_ERRORED;
+            }
+
             if (node->assignment.lhs->sema_state != LAYEC_SEMA_OK || node->assignment.rhs->sema_state != LAYEC_SEMA_OK) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
             }
@@ -832,7 +837,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_no
         from = node->type;
     }
 
-    if (laye_type_equals_ignore_mut(from, to)) {
+    if (laye_type_equals(from, to, LAYE_MUT_CONVERTIBLE)) {
         return LAYE_CONVERT_NOOP;
     }
 
@@ -842,11 +847,11 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_no
     }
 
     if (laye_type_is_reference(from) && laye_type_is_reference(to)) {
-        if (laye_type_equals_ignore_mut(from, to)) {
+        if (laye_type_equals(from, to, LAYE_MUT_CONVERTIBLE)) {
             return LAYE_CONVERT_NOOP;
         }
 
-        if (laye_type_equals(from->type_container.element_type, to->type_container.element_type)) {
+        if (laye_type_equals(from->type_container.element_type, to->type_container.element_type, LAYE_MUT_CONVERTIBLE)) {
             if (from->type_is_modifiable == to->type_is_modifiable || !to->type_is_modifiable)
                 return LAYE_CONVERT_NOOP;
         }
@@ -863,12 +868,21 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_no
         from = laye_type_strip_references(node->type);
     }
 
-    if (laye_type_equals_ignore_mut(from, to)) {
+    if (laye_type_equals(from, to, LAYE_MUT_CONVERTIBLE)) {
         return LAYE_CONVERT_NOOP;
     }
 
     if (laye_type_is_pointer(from) && laye_type_is_reference(to)) {
-        if (laye_type_equals(from->type_container.element_type, to->type_container.element_type)) {
+        if (laye_type_equals(from->type_container.element_type, to->type_container.element_type, LAYE_MUT_CONVERTIBLE)) {
+            if (from->type_is_modifiable == to->type_is_modifiable || !to->type_is_modifiable)
+                return LAYE_CONVERT_NOOP;
+        }
+
+        return LAYE_CONVERT_IMPOSSIBLE;
+    }
+
+    if (laye_type_is_pointer(from) && laye_type_is_pointer(to)) {
+        if (laye_type_equals(from->type_container.element_type, to->type_container.element_type, LAYE_MUT_CONVERTIBLE)) {
             if (from->type_is_modifiable == to->type_is_modifiable || !to->type_is_modifiable)
                 return LAYE_CONVERT_NOOP;
         }
@@ -943,6 +957,7 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_n
         string to_type_string = string_create(sema->context->allocator);
         laye_type_print_to_string(to, &to_type_string, sema->context->use_color);
 
+        (*node)->sema_state = LAYEC_SEMA_ERRORED;
         layec_write_error(
             sema->context,
             (*node)->location,
