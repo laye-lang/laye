@@ -12,7 +12,7 @@
 // +  return int64 %3
 // + }
 int main() {
-    int value = 0;
+    int mut value = 0;
     int mut* value_ptr = &value;
     *value_ptr = 42;
     return value;
