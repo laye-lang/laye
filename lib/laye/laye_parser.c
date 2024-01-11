@@ -679,6 +679,11 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p) {
                         laye_next_token(p);
                     }
                 }
+
+                laye_token foreign_name_token = {0};
+                if (laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &foreign_name_token)) {
+                    foreign_node->meta_attribute.foreign_name = foreign_name_token.string_value;
+                }
             } break;
 
             case LAYE_TOKEN_CALLCONV: {

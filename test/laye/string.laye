@@ -8,6 +8,8 @@
 // +   store %0, ptr @global.0
 // +   %1 = load ptr, %0
 // +   %2 = call ccc int32 @puts(ptr %1)
+// +   %3 = load ptr, %0
+// +   %4 = call ccc int32 @printf(ptr %1, %3)
 // +   return int64 0
 // + }
 int main() {
