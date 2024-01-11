@@ -159,6 +159,23 @@ static void laye_parser_reset_to_mark(laye_parser* p, struct laye_parser_mark ma
     p->current_char = p->source.text.data[mark.lexer_position];
 }
 
+static void laye_parser_push_scope(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->module != NULL);
+
+    laye_scope* parent_scope = p->scope;
+    laye_scope* scope = laye_scope_create(p->module, parent_scope);
+    p->scope = scope;
+}
+
+static void laye_parser_pop_scope(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->scope != NULL);
+
+    laye_scope* scope = p->scope;
+    p->scope = scope->parent;
+}
+
 static bool laye_parser_at(laye_parser* p, laye_token_kind kind) {
     assert(p != NULL);
     return p->token.kind == kind;
@@ -728,6 +745,8 @@ static laye_node* laye_parse_compound_expression(laye_parser* p) {
 
     dynarr(laye_node*) children = NULL;
 
+    laye_parser_push_scope(p);
+
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
         laye_node* child_expr = laye_parse_declaration(p, true);
         assert(child_expr != NULL);
@@ -750,6 +769,8 @@ static laye_node* laye_parse_compound_expression(laye_parser* p) {
 
         layec_write_error(p->context, p->token.location, "Expected '}'.");
     }
+
+    laye_parser_pop_scope(p);
 
     layec_location total_location = start_location;
     assert(end_location.offset >= start_location.offset);
@@ -831,6 +852,10 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
         function_type->type_function.calling_convention = function_node->attributes.calling_convention;
 
+        laye_parser_push_scope(p);
+        p->scope->name = name_token.string_value;
+        p->scope->is_function_scope = true;
+
         laye_node* function_body = NULL;
         if (!laye_parser_consume(p, ';', NULL)) {
             if (laye_parser_consume(p, LAYE_TOKEN_EQUALGREATER, NULL)) {
@@ -865,6 +890,8 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
 
             assert(function_body != NULL);
         }
+
+        laye_parser_pop_scope(p);
 
         function_node->decl_function.body = function_body;
         return function_node;
@@ -1122,6 +1149,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
         case '{': {
             laye_node* expr = laye_parse_compound_expression(p);
             assert(expr != NULL);
+            expr->compound.is_expr = true;
             return laye_parse_primary_expression_continue(p, expr);
         } break;
 
@@ -1174,6 +1202,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
         case LAYE_TOKEN_IF: {
             laye_node* expr = laye_parse_if(p, true);
             assert(expr != NULL);
+            expr->_if.is_expr = true;
             return expr;
         } break;
 
@@ -1183,6 +1212,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             arr_push(nameref_expr->nameref.pieces, p->token);
             nameref_expr->nameref.scope = p->scope;
             assert(nameref_expr->nameref.scope != NULL);
+            assert(nameref_expr->nameref.scope->module != NULL);
             laye_next_token(p);
             return laye_parse_primary_expression_continue(p, nameref_expr);
         }
@@ -1269,8 +1299,13 @@ static laye_node* laye_parse_statement(laye_parser* p) {
             stmt = laye_parse_compound_expression(p);
             assert(stmt != NULL);
 
-            stmt = laye_maybe_parse_assignment(p, stmt);
-            assert(stmt != NULL);
+            laye_node* assignment = laye_maybe_parse_assignment(p, stmt);
+            assert(assignment != NULL);
+
+            if (assignment != stmt) {
+                stmt->compound.is_expr = true;
+                stmt = assignment;
+            }
         } break;
 
         case LAYE_TOKEN_IF: {

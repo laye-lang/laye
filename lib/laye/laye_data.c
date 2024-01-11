@@ -99,6 +99,8 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
 
 static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_node*) declarations, string_view name) {
     assert(scope != NULL);
+    assert(scope->module != NULL);
+
     for (int64_t i = 0, count = arr_count(declarations); i < count; i++) {
         laye_node* declaration = declarations[i];
         assert(declaration != NULL);

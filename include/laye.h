@@ -585,6 +585,7 @@ struct laye_node {
         } decl_test;
 
         struct {
+            bool is_expr;
             // the scope name for this compound block, if one was provided.
             // e.g.:
             //   init: { x = 10; }
@@ -617,6 +618,7 @@ struct laye_node {
         } delete;
 
         struct {
+            bool is_expr;
             // the conditions of this if(/else if) statement.
             dynarr(laye_node*) conditions;
             // if a label was specified on the pass body, it is stored here and

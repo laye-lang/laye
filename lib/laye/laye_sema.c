@@ -320,7 +320,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_IF: {
-            bool is_expression = expected_type != NULL;
+            bool is_expression = node->_if.is_expr;
             bool is_noreturn = true;
 
             assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
@@ -429,6 +429,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
 
                 assert(sema->current_yield_target->kind == LAYE_NODE_COMPOUND);
                 sema->current_yield_target->type = node->yield.value->type;
+
+                if (sema->current_yield_target->compound.is_expr && laye_expr_is_lvalue(node->yield.value)) {
+                    laye_expr_set_lvalue(sema->current_yield_target, true);
+                }
             }
         } break;
 
@@ -466,12 +470,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_COMPOUND: {
-            bool is_expression = expected_type != NULL;
+            bool is_expression = node->compound.is_expr;
 
             laye_node* prev_yield_target = sema->current_yield_target;
 
             if (is_expression) {
-                assert(expected_type != NULL);
+                //assert(expected_type != NULL);
                 sema->current_yield_target = node;
             }
 
