@@ -18,6 +18,22 @@ int main() {
     return value;
 }
 
+// * define layecc shorter() -> int64 {
+// + entry:
+// +  %0 = alloca int64
+// +  store %0, int64 42
+// +  %1 = alloca ptr
+// +  store %1, ptr %0
+// +  %2 = load ptr, %1
+// +  %3 = load int64, %2
+// +  return int64 %3
+// + }
+int shorter() {
+    int mut value = 42;
+    int mut* value_ptr = &value;
+    return *value_ptr;
+}
+
 // * define layecc other() -> int64 {
 // + entry:
 // +  %0 = alloca int64
@@ -35,4 +51,3 @@ int other() {
     { yield *value_ptr; } = 42;
     return value;
 }
-
