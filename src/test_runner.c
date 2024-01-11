@@ -29,7 +29,7 @@ typedef struct test_state {
 static bool ensure_fchk_installed(void);
 static bool cstring_ends_with(const char* s, const char* ending);
 static bool run_fchk_test(const char* test_file_path);
-static bool run_exec_test(const char* test_file_path, bool create_output);
+static bool run_exec_test(const char* test_file_path, bool generate);
 static void run_tests_in_directory(test_state* state, const char* test_directory, const char* extension);
 
 int main(int argc, char** argv) {
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     const char* program = nob_shift_args(&argc, &argv);
 
     test_state state = {0};
-    state.create_exec_test_output = argc > 0 && 0 == strcmp("create_output", nob_shift_args(&argc, &argv));
+    state.create_exec_test_output = argc > 0 && 0 == strcmp("generate", nob_shift_args(&argc, &argv));
     run_tests_in_directory(&state, "./test/laye", ".laye");
 
     int64_t num_tests_failed = arr_count(state.failed_tests);
@@ -153,7 +153,7 @@ static bool run_fchk_test(const char* test_file_path) {
 }
 
 
-static bool run_exec_test(const char* test_file_path, bool create_output) {
+static bool run_exec_test(const char* test_file_path, bool generate) {
     nob_log(NOB_INFO, "-- Running execution test for \"%s\"", test_file_path);
 
     const char* output_file = nob_temp_sprintf("%s.output", test_file_path);
@@ -185,26 +185,26 @@ static bool run_exec_test(const char* test_file_path, bool create_output) {
     nob_cmd_free(cmd);
     remove(exec_file);
 
-    if (create_output) {
+    if (generate) {
         bool success = true;
 
         FILE* f = fopen(output_file, "w");
         if (f == NULL) {
             nob_log(NOB_ERROR, "Failed to open test output file %s for writing", output_file);
             success = false;
-            goto create_output_exit;
+            goto generate_exit;
         }
 
         fprintf(f, "%d\n", exec_result.exit_code);
 
-    create_output_exit:;
+    generate_exit:;
         if (f) fclose(f);
         if (!success) remove(output_file);
         return success;
     } else {
         Nob_String_Builder sb = {0};
         if (!nob_read_entire_file(output_file, &sb)) {
-            nob_log(NOB_INFO, "Run 'test_runner create_output' to create the executable test output files.");
+            nob_log(NOB_INFO, "Run 'test_runner generate' to create the executable test output files.");
             nob_sb_free(sb);
             return false;
         }
