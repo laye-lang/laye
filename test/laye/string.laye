@@ -13,8 +13,12 @@
 int main() {
     i8[*] message = "Hello, hunter!";
     puts(message);
+    printf("%s\n", message);
     return 0;
 }
 
 // * declare ccc puts(ptr %0) -> int32
 foreign callconv(cdecl) i32 puts(i8[*] str);
+
+// * declare ccc printf(ptr %0) variadic -> int32
+foreign callconv(cdecl) i32 printf(i8[*] format, varargs);

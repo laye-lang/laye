@@ -385,7 +385,7 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         case LAYE_NODE_TYPE_INT: {
             if (type->type_primitive.is_platform_specified) {
                 string_append_format(s, "%s%sint", COL(COL_KEYWORD), (type->type_primitive.is_signed ? "" : "u"));
-            } else {
+            } else { 
                 string_append_format(s, "%s%s%d", COL(COL_KEYWORD), (type->type_primitive.is_signed ? "i" : "u"), type->type_primitive.bit_width);
             }
         } break;

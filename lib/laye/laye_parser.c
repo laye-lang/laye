@@ -796,9 +796,22 @@ static laye_node* laye_parse_declaration_continue(laye_parser* p, dynarr(laye_no
         dynarr(laye_node*) parameters = NULL;
 
         laye_varargs_style varargs_style = LAYE_VARARGS_NONE;
+        bool has_errored_for_additional_params = false;
 
         while (!laye_parser_at2(p, LAYE_TOKEN_EOF, ')')) {
-            // TODO(local): varargs
+            if (varargs_style != LAYE_VARARGS_NONE && !has_errored_for_additional_params) {
+                has_errored_for_additional_params = true;
+                layec_write_error(p->context, p->token.location, "Additional parameters are not allowed after `varargs`.");
+            }
+
+            if (laye_parser_consume(p, LAYE_TOKEN_VARARGS, NULL)) {
+                varargs_style = LAYE_VARARGS_C;
+                if (laye_parser_at2(p, LAYE_TOKEN_EOF, ')') || laye_parser_consume(p, ',', NULL)) {
+                    continue;
+                } else {
+                    varargs_style = LAYE_VARARGS_LAYE;
+                }
+            }
 
             laye_node* parameter_type = laye_parse_type_or_error(p);
             assert(parameter_type != NULL);

@@ -1747,6 +1747,10 @@ static void layec_function_print(layec_print_context* print_context, layec_value
 
     lca_string_append_format(print_context->output, "%s)", COL(COL_DELIM));
 
+    if (function_type->function.is_variadic) {
+        lca_string_append_format(print_context->output, " %svariadic", COL(COL_KEYWORD));
+    }
+
     if (!layec_type_is_void(return_type)) {
         lca_string_append_format(print_context->output, " %s-> ", COL(COL_DELIM));
         layec_type_print_to_string(return_type, print_context->output, use_color);

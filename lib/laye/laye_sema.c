@@ -526,14 +526,16 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     assert(callee_type->type_function.return_type != NULL);
                     node->type = callee_type->type_function.return_type;
 
+                    int64_t param_count = arr_count(callee_type->type_function.parameter_types);
+
                     if (callee_type->type_function.varargs_style == LAYE_VARARGS_NONE) {
-                        if (arr_count(node->call.arguments) != arr_count(callee_type->type_function.parameter_types)) {
+                        if (arr_count(node->call.arguments) != param_count) {
                             node->sema_state = LAYEC_SEMA_ERRORED;
                             layec_write_error(
                                 sema->context,
                                 node->location,
                                 "Expected %lld arguments to call, got %lld.",
-                                arr_count(callee_type->type_function.parameter_types),
+                                param_count,
                                 arr_count(node->call.arguments)
                             );
                             break;
@@ -541,6 +543,26 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
 
                         for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
                             laye_sema_convert_or_error(sema, &node->call.arguments[i], callee_type->type_function.parameter_types[i]);
+                        }
+                    } else if (callee_type->type_function.varargs_style == LAYE_VARARGS_C) {
+                        if (arr_count(node->call.arguments) < param_count) {
+                            node->sema_state = LAYEC_SEMA_ERRORED;
+                            layec_write_error(
+                                sema->context,
+                                node->location,
+                                "Expected at least %lld arguments to call, got %lld.",
+                                param_count,
+                                arr_count(node->call.arguments)
+                            );
+                            break;
+                        }
+
+                        for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
+                            if (i < param_count) {
+                                laye_sema_convert_or_error(sema, &node->call.arguments[i], callee_type->type_function.parameter_types[i]);
+                            } else {
+                                laye_sema_convert_to_c_varargs_or_error(sema, &node->call.arguments[i]);
+                            }
                         }
                     } else {
                         assert(false && "todo analyse call unhandled varargs");
@@ -976,7 +998,37 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_n
 }
 
 static void laye_sema_convert_to_c_varargs_or_error(laye_sema* sema, laye_node** node) {
-    assert(false && "todo");
+    assert(sema != NULL);
+    assert(sema->context != NULL);
+
+    laye_node* varargs_type = NULL;
+    laye_sema_lvalue_to_rvalue(sema, node, true);
+
+    int type_size = laye_type_size_in_bits((*node)->type);
+
+    if (laye_type_is_int((*node)->type)) {
+        if (type_size < sema->context->target->c.size_of_int) {
+            laye_node* ffi_int_type = laye_node_create((*node)->module, LAYE_NODE_TYPE_INT, (*node)->location, sema->context->laye_types.type);
+            assert(ffi_int_type != NULL);
+            ffi_int_type->type_primitive.is_signed = (*node)->type->type_primitive.is_signed;
+            ffi_int_type->type_primitive.bit_width = sema->context->target->c.size_of_int;
+            laye_sema_insert_implicit_cast(sema, node, ffi_int_type);
+            laye_sema_analyse_node(sema, node, NULL);
+            return;
+        }
+    }
+
+    if (type_size <= sema->context->target->size_of_pointer) {
+        return; // fine
+    }
+
+    string type_string = string_create(default_allocator);
+    laye_type_print_to_string((*node)->type, &type_string, sema->context->use_color);
+    layec_write_error(sema->context, (*node)->location, "Cannot convert type %.*s to a type correct for C varargs.", STR_EXPAND(type_string));
+    string_destroy(&type_string);
+
+    (*node)->sema_state = LAYEC_SEMA_ERRORED;
+    (*node)->type = sema->context->laye_types.poison;
 }
 
 static bool laye_sema_convert_to_common_type(laye_sema* sema, laye_node** a, laye_node** b) {
