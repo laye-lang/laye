@@ -1,7 +1,7 @@
-#include <assert.h>
-
-#include "layec.h"
 #include "laye.h"
+#include "layec.h"
+
+#include <assert.h>
 
 typedef struct laye_sema {
     layec_context* context;
@@ -475,7 +475,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             laye_node* prev_yield_target = sema->current_yield_target;
 
             if (is_expression) {
-                //assert(expected_type != NULL);
+                // assert(expected_type != NULL);
                 sema->current_yield_target = node;
             }
 
@@ -634,6 +634,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         case LAYE_NODE_UNARY: {
             if (!laye_sema_analyse_node(sema, &node->unary.operand, NULL)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
+                node->type = sema->context->laye_types.poison;
             }
 
             switch (node->unary.operator.kind) {
@@ -686,6 +687,78 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     string_destroy(&type_string);
                     node->sema_state = LAYEC_SEMA_ERRORED;
                     node->type = sema->context->laye_types.poison;
+                } break;
+            }
+        } break;
+
+        case LAYE_NODE_BINARY: {
+            if (!laye_sema_analyse_node(sema, &node->binary.lhs, NULL) || !laye_sema_analyse_node(sema, &node->binary.rhs, NULL)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+                node->type = sema->context->laye_types.poison;
+                break;
+            }
+
+            switch (node->binary.operator.kind) {
+                default: {
+                    fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->binary.operator.kind));
+                    assert(false && "unhandled binary operator");
+                } break;
+
+                case LAYE_TOKEN_EQUALEQUAL:
+                case LAYE_TOKEN_BANGEQUAL:
+                case LAYE_TOKEN_LESS:
+                case LAYE_TOKEN_LESSEQUAL:
+                case LAYE_TOKEN_GREATER:
+                case LAYE_TOKEN_GREATEREQUAL: {
+                    node->type = sema->context->laye_types._bool;
+
+                    laye_sema_implicit_dereference(sema, &node->binary.lhs);
+                    laye_sema_implicit_dereference(sema, &node->binary.rhs);
+
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.lhs, true);
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.rhs, true);
+
+                    laye_node* lhs_type = node->binary.lhs->type;
+                    assert(lhs_type != NULL);
+                    laye_node* rhs_type = node->binary.rhs->type;
+                    assert(rhs_type != NULL);
+
+                    if (laye_type_is_int(lhs_type) && laye_type_is_int(rhs_type)) {
+                        if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
+                            goto cannot_compare_types;
+                        }
+                    } else if (laye_type_is_bool(lhs_type) && laye_type_is_bool(rhs_type)) {
+                        // xyzzy;
+                    } else if (laye_type_is_pointer(lhs_type) && laye_type_is_pointer(rhs_type)) {
+                        if (!laye_type_equals(lhs_type->type_container.element_type, rhs_type->type_container.element_type, LAYE_MUT_IGNORE)) {
+                            goto cannot_compare_types;
+                        }
+                    } else {
+                        goto cannot_compare_types;
+                    }
+
+                    break;
+
+                cannot_compare_types:;
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    node->type = sema->context->laye_types.poison;
+
+                    string lhs_type_string = string_create(default_allocator);
+                    string rhs_type_string = string_create(default_allocator);
+
+                    laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
+                    laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
+
+                    layec_write_error(
+                        sema->context,
+                        node->location,
+                        "Cannot compare %.*s and %.*s.",
+                        STR_EXPAND(lhs_type_string),
+                        STR_EXPAND(rhs_type_string)
+                    );
+
+                    string_destroy(&rhs_type_string);
+                    string_destroy(&lhs_type_string);
                 } break;
             }
         } break;
@@ -991,7 +1064,7 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_n
             STR_EXPAND(from_type_string),
             STR_EXPAND(to_type_string)
         );
-        
+
         string_destroy(&to_type_string);
         string_destroy(&from_type_string);
     }
@@ -1041,7 +1114,11 @@ static bool laye_sema_convert_to_common_type(laye_sema* sema, laye_node** a, lay
     assert(*b != NULL);
     assert((*b)->type != NULL);
 
-    return laye_sema_convert(sema, a, (*b)->type) || laye_sema_convert(sema, b, (*a)->type);
+    if (laye_sema_try_convert(sema, a, (*b)->type) >= 0) {
+        return laye_sema_convert(sema, a, (*b)->type);
+    }
+
+    return laye_sema_convert(sema, b, (*a)->type);
 }
 
 static int laye_sema_try_convert(laye_sema* sema, laye_node** node, laye_node* to) {
@@ -1162,7 +1239,6 @@ static bool laye_sema_implicit_dereference(laye_sema* sema, laye_node** node) {
 
     return laye_expr_is_lvalue(*node);
 }
-
 
 static laye_node* laye_sema_get_pointer_to_type(laye_sema* sema, laye_node* element_type, bool is_modifiable) {
     assert(sema != NULL);

@@ -539,10 +539,19 @@ layec_value* layec_build_load(layec_builder* builder, layec_location location, l
 layec_value* layec_build_branch(layec_builder* builder, layec_location location, layec_value* block);
 layec_value* layec_build_branch_conditional(layec_builder* builder, layec_location location, layec_value* condition, layec_value* pass_block, layec_value* fail_block);
 layec_value* layec_build_phi(layec_builder* builder, layec_location location, layec_type* type);
-layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_bitcast(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 layec_value* layec_build_sign_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 layec_value* layec_build_zero_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 layec_value* layec_build_truncate(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
+layec_value* layec_build_eq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_slt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sle(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sgt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 
 #endif // LAYEC_H

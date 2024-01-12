@@ -1,7 +1,7 @@
-#include <assert.h>
-
-#include "layec.h"
 #include "laye.h"
+#include "layec.h"
+
+#include <assert.h>
 
 typedef struct laye_parser {
     layec_context* context;
@@ -134,6 +134,40 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
 }
 
 // ========== Parser ==========
+
+typedef struct operator_info {
+    laye_token_kind operator_kind;
+    int precedence;
+} operator_info;
+
+static operator_info operator_precedences[] = {
+    {LAYE_TOKEN_OR, 5},
+    {LAYE_TOKEN_XOR, 5},
+    {LAYE_TOKEN_AND, 6},
+
+    {LAYE_TOKEN_EQUALEQUAL, 10},
+    {LAYE_TOKEN_BANGEQUAL, 10},
+
+    {LAYE_TOKEN_LESS, 20},
+    {LAYE_TOKEN_LESSEQUAL, 20},
+    {LAYE_TOKEN_GREATER, 20},
+    {LAYE_TOKEN_GREATEREQUAL, 20},
+
+    {LAYE_TOKEN_AMPERSAND, 30},
+    {LAYE_TOKEN_PIPE, 30},
+    {LAYE_TOKEN_TILDE, 30},
+    {LAYE_TOKEN_LESSLESS, 30},
+    {LAYE_TOKEN_GREATERGREATER, 30},
+
+    {LAYE_TOKEN_PLUS, 40},
+    {LAYE_TOKEN_MINUS, 40},
+
+    {LAYE_TOKEN_SLASH, 50},
+    {LAYE_TOKEN_STAR, 50},
+    {LAYE_TOKEN_PERCENT, 50},
+
+    {0, 0}
+};
 
 struct laye_parser_mark {
     laye_token token;
@@ -1186,7 +1220,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand->location, reftype);
             assert(expr != NULL);
             expr->unary.operand = operand;
-            expr->unary.operator = operator_token;
+            expr->unary.operator= operator_token;
 
             return expr;
         } break;
@@ -1212,7 +1246,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             assert(expr != NULL);
             laye_expr_set_lvalue(expr, true);
             expr->unary.operand = operand;
-            expr->unary.operator = operator_token;
+            expr->unary.operator= operator_token;
 
             return expr;
         } break;
@@ -1384,6 +1418,59 @@ static laye_node* laye_parse_statement(laye_parser* p) {
     return stmt;
 }
 
+static bool laye_parser_at_binary_operator_with_precedence(laye_parser* p, int precedence, int* next_precedence) {
+    assert(p != NULL);
+    assert(next_precedence != NULL);
+
+    for (int64_t i = 0; operator_precedences[i].operator_kind != 0; i++) {
+        if (!laye_parser_at(p, operator_precedences[i].operator_kind)) {
+            continue;
+        }
+
+        int p = operator_precedences[i].precedence;
+        if (p >= precedence) {
+            *next_precedence = p;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static laye_node* laye_parse_binary_expression(laye_parser* p, laye_node* lhs, int precedence) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    int next_precedence = 0;
+    while (laye_parser_at_binary_operator_with_precedence(p, precedence, &next_precedence)) {
+        // TODO(local): template early out
+
+        laye_token operator_token = p->token;
+        laye_next_token(p);
+
+        laye_node* rhs = laye_parse_primary_expression(p);
+        assert(rhs != NULL);
+
+        int rhs_precedence = next_precedence;
+        while (laye_parser_at_binary_operator_with_precedence(p, rhs_precedence, &next_precedence)) {
+            rhs = laye_parse_binary_expression(p, rhs, rhs_precedence);
+            assert(rhs != NULL);
+        }
+
+        laye_node* binary_expr = laye_node_create(p->module, LAYE_NODE_BINARY, operator_token.location, p->context->laye_types.unknown);
+        assert(binary_expr != NULL);
+        binary_expr->binary.operator = operator_token;
+        binary_expr->binary.lhs = lhs;
+        binary_expr->binary.rhs = rhs;
+
+        lhs = binary_expr;
+    }
+
+    return lhs;
+}
+
 static laye_node* laye_parse_expression(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1394,7 +1481,8 @@ static laye_node* laye_parse_expression(laye_parser* p) {
 
     assert(result_expression != NULL);
     assert(result_expression->type != NULL);
-    return result_expression;
+
+    return laye_parse_binary_expression(p, result_expression, 0);
 }
 
 // ========== Lexer ==========

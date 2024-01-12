@@ -1,6 +1,7 @@
 // R %layec --ir %s
 
 // * define global.0 = int8\[15\] "Hello, hunter!\\00"
+// * define global.1 = int8\[4\] "%s\\0A\\00"
 
 // * define exported ccc main() -> int64 {
 // + entry:
@@ -9,7 +10,7 @@
 // +   %1 = load ptr, %0
 // +   %2 = call ccc int32 @puts(ptr %1)
 // +   %3 = load ptr, %0
-// +   %4 = call ccc int32 @printf(ptr %1, %3)
+// +   %4 = call ccc int32 @printf(ptr @global.1, ptr %3)
 // +   return int64 0
 // + }
 int main() {

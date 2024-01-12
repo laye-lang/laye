@@ -1,5 +1,4 @@
 // R %layec --ir %s
-// d t %[0-9]+
 
 // * declare ccc puts(ptr %0) -> int32
 foreign "puts" callconv(cdecl) i32 my_wacky_function(i8[*] s);

@@ -110,7 +110,10 @@ static layec_type* laye_convert_type(laye_node* type) {
             return layec_void_type(context);
         }
 
-        case LAYE_NODE_TYPE_BOOL:
+        case LAYE_NODE_TYPE_BOOL: {
+            return layec_int_type(context, 1);
+        }
+
         case LAYE_NODE_TYPE_INT: {
             return layec_int_type(context, type->type_primitive.bit_width);
         }
@@ -245,10 +248,6 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 assert(condition_type != NULL);
                 assert(layec_type_is_integer(condition_type));
 
-                layec_value* condition = layec_build_ne(builder, node->_if.conditions[i]->location, condition_value, layec_int_constant(context, (layec_location){0}, condition_type, 0));
-                assert(condition != NULL);
-                assert(layec_type_is_integer(layec_value_get_type(condition)));
-
                 layec_value* block = pass_blocks[i];
                 assert(block != NULL);
 
@@ -262,7 +261,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
 
                 assert(else_block != NULL);
-                layec_build_branch_conditional(builder, node->_if.conditions[i]->location, condition, block, else_block);
+                layec_build_branch_conditional(builder, node->_if.conditions[i]->location, condition_value, block, else_block);
 
                 layec_builder_position_at_end(builder, block);
                 layec_value* pass_value = laye_generate_node(builder, node->_if.passes[i]);
@@ -388,24 +387,6 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return result_value;
         }
 
-        case LAYE_NODE_UNARY: {
-            layec_value* operand_value = laye_generate_node(builder, node->unary.operand);
-            assert(operand_value != NULL);
-
-            switch (node->unary.operator.kind) {
-                default: {
-                    fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
-                    assert(false && "unimplemented unary operator in irgen");
-                    return NULL;
-                }
-
-                case '&':
-                case '*': {
-                    return operand_value;
-                }
-            }
-        }
-
         case LAYE_NODE_CAST: {
             laye_node* from = node->cast.operand->type;
             laye_node* to = node->type;
@@ -454,6 +435,78 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
                 case LAYE_CAST_LVALUE_TO_RVALUE: {
                     return layec_build_load(builder, node->location, operand, cast_type);
+                }
+            }
+        }
+
+        case LAYE_NODE_UNARY: {
+            layec_value* operand_value = laye_generate_node(builder, node->unary.operand);
+            assert(operand_value != NULL);
+
+            switch (node->unary.operator.kind) {
+                default: {
+                    fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
+                    assert(false && "unimplemented unary operator in irgen");
+                    return NULL;
+                }
+
+                case '&':
+                case '*': {
+                    return operand_value;
+                }
+            }
+        }
+
+        case LAYE_NODE_BINARY: {
+            layec_value* lhs_value = laye_generate_node(builder, node->binary.lhs);
+            assert(lhs_value != NULL);
+
+            layec_value* rhs_value = laye_generate_node(builder, node->binary.rhs);
+            assert(rhs_value != NULL);
+
+            bool are_signed_ints = laye_type_is_signed_int(node->binary.lhs->type) && laye_type_is_signed_int(node->binary.rhs->type);
+            bool are_signed = are_signed_ints || (laye_type_is_float(node->binary.lhs->type) && laye_type_is_float(node->binary.rhs->type));
+
+            switch (node->binary.operator.kind) {
+                default: {
+                    fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
+                    assert(false && "unimplemented binary operator in irgen");
+                    return NULL;
+                }
+
+                case LAYE_TOKEN_EQUALEQUAL: return layec_build_eq(builder, node->location, lhs_value, rhs_value);
+                case LAYE_TOKEN_BANGEQUAL: return layec_build_ne(builder, node->location, lhs_value, rhs_value);
+
+                case LAYE_TOKEN_LESS: {
+                    if (are_signed) {
+                        return layec_build_slt(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_ult(builder, node->location, lhs_value, rhs_value);
+                    }
+                }
+                
+                case LAYE_TOKEN_LESSEQUAL: {
+                    if (are_signed) {
+                        return layec_build_sle(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_ule(builder, node->location, lhs_value, rhs_value);
+                    }
+                }
+
+                case LAYE_TOKEN_GREATER: {
+                    if (are_signed) {
+                        return layec_build_sgt(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_ugt(builder, node->location, lhs_value, rhs_value);
+                    }
+                }
+                
+                case LAYE_TOKEN_GREATEREQUAL: {
+                    if (are_signed) {
+                        return layec_build_sge(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_uge(builder, node->location, lhs_value, rhs_value);
+                    }
                 }
             }
         }

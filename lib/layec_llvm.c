@@ -266,13 +266,6 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, ")");
         } break;
 
-        case LAYEC_IR_NE: {
-            lca_string_append_format(codegen->output, "icmp ne ");
-            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
-            lca_string_append_format(codegen->output, ", ");
-            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
-        } break;
-
         case LAYEC_IR_BRANCH: {
             lca_string_append_format(codegen->output, "br label");
             llvm_print_value(codegen, layec_branch_pass(instruction), false);
@@ -299,6 +292,76 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                 llvm_print_value(codegen, layec_phi_incoming_block_at_index(instruction, i), false);
                 lca_string_append_format(codegen->output, " ]");
             }
+        } break;
+
+        case LAYEC_IR_EQ: {
+            lca_string_append_format(codegen->output, "icmp eq ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_NE: {
+            lca_string_append_format(codegen->output, "icmp ne ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SLT: {
+            lca_string_append_format(codegen->output, "icmp slt ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_ULT: {
+            lca_string_append_format(codegen->output, "icmp ult ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SLE: {
+            lca_string_append_format(codegen->output, "icmp sle ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_ULE: {
+            lca_string_append_format(codegen->output, "icmp ule ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SGT: {
+            lca_string_append_format(codegen->output, "icmp sgt ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_UGT: {
+            lca_string_append_format(codegen->output, "icmp ugt ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SGE: {
+            lca_string_append_format(codegen->output, "icmp sge ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_UGE: {
+            lca_string_append_format(codegen->output, "icmp uge ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
         } break;
     }
 
