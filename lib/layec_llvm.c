@@ -294,6 +294,146 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             }
         } break;
 
+        case LAYEC_IR_NEG: {
+            layec_value* operand = layec_instruction_operand(instruction);
+            lca_string_append_format(codegen->output, "sub ");
+            llvm_print_type(codegen, layec_value_get_type(operand));
+            lca_string_append_format(codegen->output, " 0, ");
+            llvm_print_value(codegen, operand, false);
+        } break;
+
+        case LAYEC_IR_COMPL: {
+            lca_string_append_format(codegen->output, "xor ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
+            lca_string_append_format(codegen->output, ", -1");
+        } break;
+
+        case LAYEC_IR_ADD: {
+            lca_string_append_format(codegen->output, "add ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_FADD: {
+            lca_string_append_format(codegen->output, "fadd ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SUB: {
+            lca_string_append_format(codegen->output, "sub ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_FSUB: {
+            lca_string_append_format(codegen->output, "fsub ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_MUL: {
+            lca_string_append_format(codegen->output, "mul ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_FMUL: {
+            lca_string_append_format(codegen->output, "fmul ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SDIV: {
+            lca_string_append_format(codegen->output, "sdiv ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_UDIV: {
+            lca_string_append_format(codegen->output, "udiv ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_FDIV: {
+            lca_string_append_format(codegen->output, "fdiv ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SMOD: {
+            lca_string_append_format(codegen->output, "srem ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_UMOD: {
+            lca_string_append_format(codegen->output, "urem ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_FMOD: {
+            lca_string_append_format(codegen->output, "frem ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_AND: {
+            lca_string_append_format(codegen->output, "and ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_OR: {
+            lca_string_append_format(codegen->output, "or ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_XOR: {
+            lca_string_append_format(codegen->output, "xor ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SHL: {
+            lca_string_append_format(codegen->output, "shl ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SAR: {
+            lca_string_append_format(codegen->output, "ashr ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
+        case LAYEC_IR_SHR: {
+            lca_string_append_format(codegen->output, "lshr ");
+            llvm_print_value(codegen, layec_binary_lhs(instruction), true);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_binary_rhs(instruction), false);
+        } break;
+
         case LAYEC_IR_EQ: {
             lca_string_append_format(codegen->output, "icmp eq ");
             llvm_print_value(codegen, layec_binary_lhs(instruction), true);

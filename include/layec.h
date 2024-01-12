@@ -295,12 +295,17 @@ typedef enum layec_value_kind {
 
     // Binary instructions
     LAYEC_IR_ADD,
+    LAYEC_IR_FADD,
     LAYEC_IR_SUB,
+    LAYEC_IR_FSUB,
     LAYEC_IR_MUL,
+    LAYEC_IR_FMUL,
     LAYEC_IR_SDIV,
     LAYEC_IR_UDIV,
-    LAYEC_IR_SREM,
-    LAYEC_IR_UREM,
+    LAYEC_IR_FDIV,
+    LAYEC_IR_SMOD,
+    LAYEC_IR_UMOD,
+    LAYEC_IR_FMOD,
     LAYEC_IR_SHL,
     LAYEC_IR_SAR,
     LAYEC_IR_SHR,
@@ -553,5 +558,20 @@ layec_value* layec_build_sgt(layec_builder* builder, layec_location location, la
 layec_value* layec_build_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_add(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sub(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_mul(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sdiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_udiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_smod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_umod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_and(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_or(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_xor(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_shl(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_shr(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_sar(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_neg(layec_builder* builder, layec_location location, layec_value* operand);
+layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand);
 
 #endif // LAYEC_H

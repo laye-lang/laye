@@ -635,12 +635,46 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             if (!laye_sema_analyse_node(sema, &node->unary.operand, NULL)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
                 node->type = sema->context->laye_types.poison;
+                break;
             }
 
             switch (node->unary.operator.kind) {
                 default: {
                     fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
                     assert(false && "unimplemented unary operator");
+                } break;
+
+                case '+':
+                case '-': {
+                    laye_sema_implicit_dereference(sema, &node->unary.operand);
+                    laye_sema_lvalue_to_rvalue(sema, &node->unary.operand, true);
+                    
+                    if (
+                        !laye_type_is_int(node->unary.operand->type) &&
+                        !laye_type_is_float(node->unary.operand->type) &&
+                        !laye_type_is_buffer(node->unary.operand->type)
+                    ) {
+                        layec_write_error(sema->context, node->location, "Expression must have an arithmetic type.");
+                        node->sema_state = LAYEC_SEMA_ERRORED;
+                        node->type = sema->context->laye_types.poison;
+                        break;
+                    }
+
+                    node->type = node->unary.operand->type;
+                } break;
+
+                case '~': {
+                    laye_sema_implicit_dereference(sema, &node->unary.operand);
+                    laye_sema_lvalue_to_rvalue(sema, &node->unary.operand, true);
+
+                    if (!laye_type_is_int(node->unary.operand->type)) {
+                        layec_write_error(sema->context, node->location, "Expression must have an integer type.");
+                        node->sema_state = LAYEC_SEMA_ERRORED;
+                        node->type = sema->context->laye_types.poison;
+                        break;
+                    }
+
+                    node->type = node->unary.operand->type;
                 } break;
 
                 case '&': {
@@ -651,7 +685,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                         break;
                     }
 
-                    assert(node->type->kind == LAYE_NODE_TYPE_POINTER);
+                    assert(node->type->kind == LAYE_NODE_TYPE_POINTER); // from the parser, already constructed
                     node->type->type_container.element_type = node->unary.operand->type;
                     node->type->type_is_modifiable = true;
                 } break;
@@ -704,12 +738,86 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     assert(false && "unhandled binary operator");
                 } break;
 
+                case LAYE_TOKEN_PLUS:
+                case LAYE_TOKEN_MINUS:
+                case LAYE_TOKEN_STAR:
+                case LAYE_TOKEN_SLASH:
+                case LAYE_TOKEN_PERCENT:
+                case LAYE_TOKEN_AMPERSAND:
+                case LAYE_TOKEN_PIPE:
+                case LAYE_TOKEN_TILDE:
+                case LAYE_TOKEN_LESSLESS:
+                case LAYE_TOKEN_GREATERGREATER: {
+                    // clang-format off
+                    bool is_bitwise_operation =
+                        node->binary.operator.kind == LAYE_TOKEN_AMPERSAND ||
+                        node->binary.operator.kind == LAYE_TOKEN_PIPE ||
+                        node->binary.operator.kind == LAYE_TOKEN_TILDE ||
+                        node->binary.operator.kind == LAYE_TOKEN_LESSLESS ||
+                        node->binary.operator.kind == LAYE_TOKEN_GREATERGREATER;
+                    // clang-format on
+
+                    laye_sema_implicit_dereference(sema, &node->binary.lhs);
+                    laye_sema_implicit_dereference(sema, &node->binary.rhs);
+
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.lhs, true);
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.rhs, true);
+
+                    laye_node* lhs_type = node->binary.lhs->type;
+                    assert(lhs_type != NULL);
+                    laye_node* rhs_type = node->binary.rhs->type;
+                    assert(rhs_type != NULL);
+
+                    if (laye_type_is_int(lhs_type) && laye_type_is_int(rhs_type)) {
+                        if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
+                            goto cannot_arith_types;
+                        }
+
+                        node->type = node->binary.lhs->type;
+                    } else if (laye_type_is_float(lhs_type) && laye_type_is_float(rhs_type)) {
+                        if (is_bitwise_operation || !laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
+                            goto cannot_arith_types;
+                        }
+
+                        node->type = node->binary.lhs->type;
+                    } else {
+                        // TODO(local): pointer arith
+                        goto cannot_arith_types;
+                    }
+
+                    assert(node->type->kind != LAYE_NODE_TYPE_UNKNOWN);
+                    break;
+
+                cannot_arith_types:;
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    node->type = sema->context->laye_types.poison;
+
+                    string lhs_type_string = string_create(default_allocator);
+                    string rhs_type_string = string_create(default_allocator);
+
+                    laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
+                    laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
+
+                    layec_write_error(
+                        sema->context,
+                        node->location,
+                        "Cannot perform arithmetic on %.*s and %.*s.",
+                        STR_EXPAND(lhs_type_string),
+                        STR_EXPAND(rhs_type_string)
+                    );
+
+                    string_destroy(&rhs_type_string);
+                    string_destroy(&lhs_type_string);
+                } break;
+
                 case LAYE_TOKEN_EQUALEQUAL:
                 case LAYE_TOKEN_BANGEQUAL:
                 case LAYE_TOKEN_LESS:
                 case LAYE_TOKEN_LESSEQUAL:
                 case LAYE_TOKEN_GREATER:
                 case LAYE_TOKEN_GREATEREQUAL: {
+                    bool is_equality_compare = node->binary.operator.kind == LAYE_TOKEN_EQUALEQUAL || node->binary.operator.kind == LAYE_TOKEN_BANGEQUAL;
+
                     node->type = sema->context->laye_types._bool;
 
                     laye_sema_implicit_dereference(sema, &node->binary.lhs);
@@ -727,9 +835,17 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                         if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
                             goto cannot_compare_types;
                         }
+                    } else if (laye_type_is_float(lhs_type) && laye_type_is_float(rhs_type)) {
+                        if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
+                            goto cannot_compare_types;
+                        }
                     } else if (laye_type_is_bool(lhs_type) && laye_type_is_bool(rhs_type)) {
                         // xyzzy;
                     } else if (laye_type_is_pointer(lhs_type) && laye_type_is_pointer(rhs_type)) {
+                        if (!is_equality_compare || !laye_type_equals(lhs_type->type_container.element_type, rhs_type->type_container.element_type, LAYE_MUT_IGNORE)) {
+                            goto cannot_compare_types;
+                        }
+                    } else if (laye_type_is_buffer(lhs_type) && laye_type_is_buffer(rhs_type)) {
                         if (!laye_type_equals(lhs_type->type_container.element_type, rhs_type->type_container.element_type, LAYE_MUT_IGNORE)) {
                             goto cannot_compare_types;
                         }

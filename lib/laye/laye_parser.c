@@ -1205,6 +1205,24 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             return laye_parse_primary_expression_continue(p, expr);
         } break;
 
+        case '-':
+        case '+':
+        case '~': {
+            laye_token operator_token = p->token;
+            laye_next_token(p);
+
+            laye_node* operand = laye_parse_primary_expression(p);
+            assert(operand != NULL);
+            assert(operand->type != NULL);
+
+            laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand->location, operand->type);
+            assert(expr != NULL);
+            expr->unary.operand = operand;
+            expr->unary.operator = operator_token;
+
+            return expr;
+        } break;
+
         case '&': {
             laye_token operator_token = p->token;
             laye_next_token(p);
@@ -1220,7 +1238,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand->location, reftype);
             assert(expr != NULL);
             expr->unary.operand = operand;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
 
             return expr;
         } break;
@@ -1246,7 +1264,7 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             assert(expr != NULL);
             laye_expr_set_lvalue(expr, true);
             expr->unary.operand = operand;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
 
             return expr;
         } break;

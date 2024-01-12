@@ -1,0 +1,91 @@
+// R %layec --ir %s
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +  %0 = alloca int64
+// +  store %0, int64 42
+// +  %1 = alloca int64
+// +  store %1, int64 69
+// +  %2 = alloca int64
+// +  %3 = load int64, %0
+// +  %4 = load int64, %1
+// +  %5 = add int64 %3, %4
+// +  store %2, int64 %5
+// +  %6 = alloca int64
+// +  %7 = load int64, %0
+// +  %8 = load int64, %1
+// +  %9 = sub int64 %7, %8
+// +  store %6, int64 %9
+// +  %10 = alloca int64
+// +  %11 = load int64, %0
+// +  %12 = load int64, %1
+// +  %13 = mul int64 %11, %12
+// +  store %10, int64 %13
+// +  %14 = alloca int64
+// +  %15 = load int64, %0
+// +  %16 = load int64, %1
+// +  %17 = sdiv int64 %15, %16
+// +  store %14, int64 %17
+// +  %18 = alloca int64
+// +  %19 = load int64, %0
+// +  %20 = load int64, %1
+// +  %21 = smod int64 %19, %20
+// +  store %18, int64 %21
+// +  %22 = alloca int64
+// +  %23 = load int64, %0
+// +  %24 = load int64, %1
+// +  %25 = and int64 %23, %24
+// +  store %22, int64 %25
+// +  %26 = alloca int64
+// +  %27 = load int64, %0
+// +  %28 = load int64, %1
+// +  %29 = or int64 %27, %28
+// +  store %26, int64 %29
+// +  %30 = alloca int64
+// +  %31 = load int64, %0
+// +  %32 = load int64, %1
+// +  %33 = xor int64 %31, %32
+// +  store %30, int64 %33
+// +  %34 = alloca int64
+// +  %35 = load int64, %0
+// +  %36 = shl int64 %35, 2
+// +  store %34, int64 %36
+// +  %37 = alloca int64
+// +  %38 = load int64, %1
+// +  %39 = sar int64 %38, 2
+// +  store %37, int64 %39
+// +  %40 = alloca int64
+// +  %41 = load int64, %0
+// +  store %40, int64 %41
+// +  %42 = alloca int64
+// +  %43 = load int64, %0
+// +  %44 = neg int64 %43
+// +  store %42, int64 %44
+// +  %45 = alloca int64
+// +  %46 = load int64, %0
+// +  %47 = compl int64 %46
+// +  store %45, int64 %47
+// +   return int64 0
+// + }
+int main() {
+    int foo = 42;
+    int bar = 69;
+
+    int add = foo + bar;
+    int sub = foo - bar;
+    int mul = foo * bar;
+    int div = foo / bar;
+    int mod = foo % bar;
+
+    int bitand = foo & bar;
+    int bitor  = foo | bar;
+    int bitxor = foo ~ bar;
+    int bitlsh = foo << 2;
+    int bitrsh = bar >> 2;
+
+    int pos   = +foo;
+    int neg   = -foo;
+    int compl = ~foo;
+
+    return 0;
+}

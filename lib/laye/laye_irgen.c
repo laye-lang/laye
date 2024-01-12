@@ -450,6 +450,18 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                     return NULL;
                 }
 
+                case '+': {
+                    return operand_value;
+                }
+
+                case '-': {
+                    return layec_build_neg(builder, node->location, operand_value);
+                }
+
+                case '~': {
+                    return layec_build_compl(builder, node->location, operand_value);
+                }
+
                 case '&':
                 case '*': {
                     return operand_value;
@@ -465,13 +477,66 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             assert(rhs_value != NULL);
 
             bool are_signed_ints = laye_type_is_signed_int(node->binary.lhs->type) && laye_type_is_signed_int(node->binary.rhs->type);
-            bool are_signed = are_signed_ints || (laye_type_is_float(node->binary.lhs->type) && laye_type_is_float(node->binary.rhs->type));
+            bool are_floats = laye_type_is_float(node->binary.lhs->type) && laye_type_is_float(node->binary.rhs->type);
+            bool are_signed = are_signed_ints || are_floats;
 
             switch (node->binary.operator.kind) {
                 default: {
                     fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
                     assert(false && "unimplemented binary operator in irgen");
                     return NULL;
+                }
+
+                case LAYE_TOKEN_PLUS: {
+                    return layec_build_add(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_MINUS: {
+                    return layec_build_sub(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_STAR: {
+                    return layec_build_mul(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_SLASH: {
+                    if (are_signed) {
+                        return layec_build_sdiv(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_udiv(builder, node->location, lhs_value, rhs_value);
+                    }
+                }
+
+                case LAYE_TOKEN_PERCENT: {
+                    if (are_signed) {
+                        return layec_build_smod(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_umod(builder, node->location, lhs_value, rhs_value);
+                    }
+                }
+
+                case LAYE_TOKEN_AMPERSAND: {
+                    return layec_build_and(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_PIPE: {
+                    return layec_build_or(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_TILDE: {
+                    return layec_build_xor(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_LESSLESS: {
+                    return layec_build_shl(builder, node->location, lhs_value, rhs_value);
+                }
+
+                case LAYE_TOKEN_GREATERGREATER: {
+                    if (are_signed) {
+                        return layec_build_sar(builder, node->location, lhs_value, rhs_value);
+                    } else {
+                        return layec_build_shr(builder, node->location, lhs_value, rhs_value);
+                    }
                 }
 
                 case LAYE_TOKEN_EQUALEQUAL: return layec_build_eq(builder, node->location, lhs_value, rhs_value);
