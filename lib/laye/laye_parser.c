@@ -1198,6 +1198,21 @@ static laye_node* laye_parse_primary_expression(laye_parser* p) {
             return invalid_expr;
         }
 
+        case '(': {
+            layec_location start_location = p->token.location;
+            laye_next_token(p);
+
+            laye_node* expr = laye_parse_expression(p);
+            assert(expr != NULL);
+
+            laye_token close_token = {0};
+            if (!laye_parser_consume(p, ')', &close_token)) {
+                start_location.length = close_token.location.offset + close_token.location.length - start_location.offset;
+            }
+
+            return laye_parse_primary_expression_continue(p, expr);
+        } break;
+
         case '{': {
             laye_node* expr = laye_parse_compound_expression(p);
             assert(expr != NULL);
