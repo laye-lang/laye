@@ -470,21 +470,64 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         }
 
         case LAYE_NODE_BINARY: {
-            layec_value* lhs_value = laye_generate_node(builder, node->binary.lhs);
-            assert(lhs_value != NULL);
-
-            layec_value* rhs_value = laye_generate_node(builder, node->binary.rhs);
-            assert(rhs_value != NULL);
+            bool is_short_circuit = node->binary.operator.kind == LAYE_TOKEN_AND || node->binary.operator.kind == LAYE_TOKEN_OR;
 
             bool are_signed_ints = laye_type_is_signed_int(node->binary.lhs->type) && laye_type_is_signed_int(node->binary.rhs->type);
             bool are_floats = laye_type_is_float(node->binary.lhs->type) && laye_type_is_float(node->binary.rhs->type);
             bool are_signed = are_signed_ints || are_floats;
+
+            layec_value* lhs_value = laye_generate_node(builder, node->binary.lhs);
+            assert(lhs_value != NULL);
+
+            layec_value* rhs_value = NULL;
+            if (is_short_circuit) {
+                bool is_or = node->binary.operator.kind == LAYE_TOKEN_OR;
+
+                layec_type* bool_type = layec_int_type(context, 1);
+
+                layec_value* lhs_block = layec_builder_get_insert_block(builder);
+                assert(lhs_block != NULL);
+                layec_value* rhs_block = layec_function_append_block(function, SV_EMPTY);
+                assert(rhs_block != NULL);
+                layec_value* merge_block = layec_function_append_block(function, SV_EMPTY);
+                assert(merge_block != NULL);
+
+                if (is_or) {
+                    layec_build_branch_conditional(builder, node->location, lhs_value, merge_block, rhs_block);
+                } else {
+                    layec_build_branch_conditional(builder, node->location, lhs_value, rhs_block, merge_block);
+                }
+
+                layec_builder_position_at_end(builder, rhs_block);
+                rhs_value = laye_generate_node(builder, node->binary.rhs);
+                assert(rhs_value != NULL);
+                layec_build_branch(builder, node->location, merge_block);
+
+                layec_builder_position_at_end(builder, merge_block);
+                layec_value* phi = layec_build_phi(builder, node->location, bool_type);
+                layec_phi_add_incoming_value(phi, lhs_value, lhs_block);
+                layec_phi_add_incoming_value(phi, rhs_value, rhs_block);
+
+                return phi;
+            }
+
+            rhs_value = laye_generate_node(builder, node->binary.rhs);
+            assert(rhs_value != NULL);
 
             switch (node->binary.operator.kind) {
                 default: {
                     fprintf(stderr, "for token kind %s\n", laye_token_kind_to_cstring(node->unary.operator.kind));
                     assert(false && "unimplemented binary operator in irgen");
                     return NULL;
+                }
+
+                case LAYE_TOKEN_AND:
+                case LAYE_TOKEN_OR: {
+                    assert(false);
+                }
+
+                case LAYE_TOKEN_XOR: {
+                    return layec_build_ne(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_PLUS: {

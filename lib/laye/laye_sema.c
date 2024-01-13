@@ -738,6 +738,21 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     assert(false && "unhandled binary operator");
                 } break;
 
+                case LAYE_TOKEN_AND:
+                case LAYE_TOKEN_OR:
+                case LAYE_TOKEN_XOR: {
+                    node->type = sema->context->laye_types._bool;
+
+                    laye_sema_implicit_dereference(sema, &node->binary.lhs);
+                    laye_sema_implicit_dereference(sema, &node->binary.rhs);
+
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.lhs, true);
+                    laye_sema_lvalue_to_rvalue(sema, &node->binary.rhs, true);
+
+                    laye_sema_convert_or_error(sema, &node->binary.lhs, sema->context->laye_types._bool);
+                    laye_sema_convert_or_error(sema, &node->binary.rhs, sema->context->laye_types._bool);
+                } break;
+
                 case LAYE_TOKEN_PLUS:
                 case LAYE_TOKEN_MINUS:
                 case LAYE_TOKEN_STAR:

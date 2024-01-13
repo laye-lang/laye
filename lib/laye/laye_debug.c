@@ -293,6 +293,10 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             string_append_format(print_context->output, " %s%lld", COL(COL_CONST), node->litint.value);
         } break;
 
+        case LAYE_NODE_LITBOOL: {
+            string_append_format(print_context->output, " %s%s", COL(COL_CONST), node->litbool.value ? "true" : "false");
+        } break;
+
         case LAYE_NODE_LITSTRING: {
             layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->location.length, source.text.data + node->location.offset);
