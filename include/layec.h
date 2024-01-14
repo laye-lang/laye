@@ -252,6 +252,16 @@ typedef enum layec_type_kind {
     LAYEC_TYPE_STRUCT,
 } layec_type_kind;
 
+typedef enum layec_builtin_kind {
+    LAYEC_BUILTIN_DEBUGTRAP,
+    LAYEC_BUILTIN_FILENAME,
+    LAYEC_BUILTIN_INLINE,
+    LAYEC_BUILTIN_LINE,
+    LAYEC_BUILTIN_MEMCOPY,
+    LAYEC_BUILTIN_MEMSET,
+    LAYEC_BUILTIN_SYSCALL,
+} layec_builtin_kind;
+
 typedef enum layec_value_kind {
     LAYEC_IR_INVALID,
 
@@ -273,7 +283,7 @@ typedef enum layec_value_kind {
     LAYEC_IR_CALL,
     LAYEC_IR_GET_ELEMENT_PTR,
     LAYEC_IR_GET_MEMBER_PTR,
-    LAYEC_IR_INTRINSIC,
+    LAYEC_IR_BUILTIN,
     LAYEC_IR_LOAD,
     LAYEC_IR_PHI,
     LAYEC_IR_STORE,
@@ -491,6 +501,8 @@ bool layec_block_is_terminated(layec_value* block);
 
 // - Instruction API
 
+layec_builtin_kind layec_instruction_builtin_kind(layec_value* instruction);
+
 bool layec_global_is_string(layec_value* global);
 
 bool layec_instruction_return_has_value(layec_value* _return);
@@ -509,6 +521,8 @@ layec_value* layec_branch_fail(layec_value* instruction);
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
 layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index);
+int64_t layec_instruction_builtin_argument_count(layec_value* builtin);
+layec_value* layec_instruction_builtin_get_argument_at_index(layec_value* builtin, int64_t argument_index);
 
 void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block);
 int64_t layec_phi_incoming_value_count(layec_value* phi);
@@ -537,7 +551,7 @@ layec_value* layec_build_nop(layec_builder* builder, layec_location location);
 layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);
 layec_value* layec_build_return_void(layec_builder* builder, layec_location location);
 layec_value* layec_build_unreachable(layec_builder* builder, layec_location location);
-layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* type);
+layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* element_type, int64_t count);
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name);
 layec_value* layec_build_store(layec_builder* builder, layec_location location, layec_value* address, layec_value* value);
 layec_value* layec_build_load(layec_builder* builder, layec_location location, layec_value* address, layec_type* type);
@@ -573,5 +587,7 @@ layec_value* layec_build_shr(layec_builder* builder, layec_location location, la
 layec_value* layec_build_sar(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_neg(layec_builder* builder, layec_location location, layec_value* operand);
 layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand);
+layec_value* layec_build_builtin_memset(layec_builder* builder, layec_location location, layec_value* address, layec_value* value, layec_value* count);
+layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location location, layec_value* source_address, layec_value* dest_address, layec_value* count);
 
 #endif // LAYEC_H

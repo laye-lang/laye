@@ -954,6 +954,39 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 }
             }
         } break;
+
+        case LAYE_NODE_TYPE_ARRAY: {
+            if (!laye_sema_analyse_node(sema, &node->type_container.element_type, NULL)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+            }
+
+            for (int64_t i = 0, count = arr_count(node->type_container.length_values); i < count; i++) {
+                if (!laye_sema_analyse_node(sema, &node->type_container.length_values[i], NULL)) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    continue;
+                }
+
+                layec_evaluated_constant constant_value = {0};
+                if (!laye_expr_evaluate(node->type_container.length_values[i], &constant_value, true)) {
+                    layec_write_error(sema->context, node->type_container.length_values[i]->location, "Array length value must be a compile-time known integer value. This expression was unable to be evaluated at compile time.");
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    continue;
+                }
+
+                if (constant_value.kind != LAYEC_EVAL_INT) {
+                    layec_write_error(sema->context, node->type_container.length_values[i]->location, "Array length value must be a compile-time known integer value. This expression did not evaluate to an integer.");
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    continue;
+                }
+
+                laye_node* evaluated_constant = laye_node_create(node->module, LAYE_NODE_EVALUATED_CONSTANT, node->type_container.length_values[i]->location, sema->context->laye_types._int);
+                assert(evaluated_constant != NULL);
+                evaluated_constant->evaluated_constant.expr = node->type_container.length_values[i];
+                evaluated_constant->evaluated_constant.result = constant_value;
+
+                node->type_container.length_values[i] = evaluated_constant;
+            }
+        } break;
     }
 
     assert(node != NULL);

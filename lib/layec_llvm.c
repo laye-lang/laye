@@ -2,7 +2,8 @@
 
 #include "layec.h"
 
-#define LLVM_MEMCPY_INTRINSIC "llvm.memcpy.p0.p0.i64"
+// declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg)
+#define LLVM_MEMCPY_INTRINSIC "llvm.memset.p0.i64"
 
 typedef struct llvm_codegen {
     layec_context* context;
@@ -62,6 +63,9 @@ static void llvm_print_module(llvm_codegen* codegen, layec_module* module) {
 static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
     lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(layec_module_name(module)));
+    lca_string_append_format(codegen->output, "\n");
+
+    lca_string_append_format(codegen->output, "declare void @%s(ptr nocapture writeonly, i8, i64, i1 immarg)\n", LLVM_MEMCPY_INTRINSIC);
     lca_string_append_format(codegen->output, "\n");
 }
 
@@ -260,6 +264,32 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                 }
 
                 layec_value* argument = layec_instruction_call_get_argument_at_index(instruction, i);
+                llvm_print_value(codegen, argument, true);
+            }
+
+            lca_string_append_format(codegen->output, ")");
+        } break;
+
+        case LAYEC_IR_BUILTIN: {
+            layec_builtin_kind builtin_kind = layec_instruction_builtin_kind(instruction);
+
+            const char* intrinsic_name = "";
+            switch (builtin_kind) {
+                default: {
+                    assert(false && "unsupported intrinsic in LLVM IR backend");
+                }
+
+                case LAYEC_BUILTIN_MEMCOPY: intrinsic_name = LLVM_MEMCPY_INTRINSIC; break;
+            }
+
+            lca_string_append_format(codegen->output, "call void @%s(", intrinsic_name);
+
+            for (int64_t i = 0, count = layec_instruction_builtin_argument_count(instruction); i < count; i++) {
+                if (i > 0) {
+                    lca_string_append_format(codegen->output, ", ");
+                }
+
+                layec_value* argument = layec_instruction_builtin_get_argument_at_index(instruction, i);
                 llvm_print_value(codegen, argument, true);
             }
 

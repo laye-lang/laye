@@ -76,6 +76,11 @@ struct layec_value {
         int64_t int_value;
 
         struct {
+            layec_builtin_kind kind;
+            dynarr(layec_value*) arguments;
+        } builtin;
+
+        struct {
             bool is_string_literal;
             char* data;
             int64_t length;
@@ -96,7 +101,10 @@ struct layec_value {
 
         int64_t parameter_index;
 
-        layec_type* allocated_type;
+        struct {
+            layec_type* element_type;
+            int64_t element_count;
+        } alloca;
 
         layec_value* return_value;
 
@@ -309,7 +317,8 @@ layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_l
     global_string_ptr->index = arr_count(module->globals);
     global_string_ptr->linkage = LAYEC_LINK_INTERNAL;
     global_string_ptr->value = array_constant;
-    global_string_ptr->allocated_type = array_type;
+    global_string_ptr->alloca.element_type = array_type;
+    global_string_ptr->alloca.element_count = 1;
     arr_push(module->globals, global_string_ptr);
 
     return global_string_ptr;
@@ -458,6 +467,12 @@ string_view layec_function_name(layec_value* function) {
     return string_as_view(function->function.name);
 }
 
+layec_builtin_kind layec_instruction_builtin_kind(layec_value* instruction) {
+    assert(instruction != NULL);
+    assert(instruction->kind == LAYEC_IR_BUILTIN);
+    return instruction->builtin.kind;
+}
+
 bool layec_global_is_string(layec_value* global) {
     assert(global != NULL);
     assert(global->value != NULL);
@@ -480,8 +495,8 @@ layec_value* layec_instruction_return_value(layec_value* _return) {
 
 layec_type* layec_instruction_alloca_type(layec_value* alloca) {
     assert(alloca != NULL);
-    assert(alloca->allocated_type != NULL);
-    return alloca->allocated_type;
+    assert(alloca->alloca.element_type != NULL);
+    return alloca->alloca.element_type;
 }
 
 layec_value* layec_instruction_address(layec_value* instruction) {
@@ -550,6 +565,23 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
     return argument;
 }
 
+int64_t layec_instruction_builtin_argument_count(layec_value* builtin) {
+    assert(builtin != NULL);
+    assert(builtin->kind == LAYEC_IR_CALL);
+    return arr_count(builtin->builtin.arguments);
+}
+
+layec_value* layec_instruction_builtin_get_argument_at_index(layec_value* builtin, int64_t argument_index) {
+    assert(builtin != NULL);
+    assert(builtin->kind == LAYEC_IR_BUILTIN);
+    assert(argument_index >= 0);
+    int64_t count = arr_count(builtin->builtin.arguments);
+    assert(argument_index < count);
+    layec_value* argument = builtin->builtin.arguments[argument_index];
+    assert(argument != NULL);
+    return argument;
+}
+
 void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block) {
     assert(phi != NULL);
     assert(phi->kind == LAYEC_IR_PHI);
@@ -611,7 +643,7 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
         case LAYEC_IR_CALL: return "CALL";
         case LAYEC_IR_GET_ELEMENT_PTR: return "GET_ELEMENT_PTR";
         case LAYEC_IR_GET_MEMBER_PTR: return "GET_MEMBER_PTR";
-        case LAYEC_IR_INTRINSIC: return "INTRINSIC";
+        case LAYEC_IR_BUILTIN: return "INTRINSIC";
         case LAYEC_IR_LOAD: return "LOAD";
         case LAYEC_IR_PHI: return "PHI";
         case LAYEC_IR_STORE: return "STORE";
@@ -1237,17 +1269,18 @@ layec_value* layec_build_unreachable(layec_builder* builder, layec_location loca
     return unreachable;
 }
 
-layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* type) {
+layec_value* layec_build_alloca(layec_builder* builder, layec_location location, layec_type* element_type, int64_t count) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
     assert(builder->function->module != NULL);
     assert(builder->block != NULL);
-    assert(type != NULL);
+    assert(element_type != NULL);
 
     layec_value* alloca = layec_value_create(builder->function->module, location, LAYEC_IR_ALLOCA, layec_ptr_type(builder->context), SV_EMPTY);
     assert(alloca != NULL);
-    alloca->allocated_type = type;
+    alloca->alloca.element_type = element_type;
+    alloca->alloca.element_count = count;
 
     layec_builder_insert(builder, alloca);
     return alloca;
@@ -1500,6 +1533,39 @@ layec_value* layec_build_compl(layec_builder* builder, layec_location location, 
     return layec_build_unary(builder, location, LAYEC_IR_COMPL, operand, operand->type);
 }
 
+static layec_value* layec_build_builtin(layec_builder* builder, layec_location location, layec_builtin_kind kind) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+
+    layec_value* builtin = layec_value_create(builder->function->module, location, LAYEC_IR_BUILTIN, layec_void_type(builder->context), SV_EMPTY);
+    assert(builtin != NULL);
+    builtin->builtin.kind = kind;
+
+    layec_builder_insert(builder, builtin);
+    return builtin;
+}
+
+layec_value* layec_build_builtin_memset(layec_builder* builder, layec_location location, layec_value* address, layec_value* value, layec_value* count) {
+    layec_value* builtin = layec_build_builtin(builder, location, LAYEC_BUILTIN_MEMSET);
+    assert(builtin != NULL);
+    arr_push(builtin->builtin.arguments, address);
+    arr_push(builtin->builtin.arguments, value);
+    arr_push(builtin->builtin.arguments, count);
+    return builtin;
+}
+
+layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location location, layec_value* source_address, layec_value* dest_address, layec_value* count) {
+    layec_value* builtin = layec_build_builtin(builder, location, LAYEC_BUILTIN_MEMSET);
+    assert(builtin != NULL);
+    arr_push(builtin->builtin.arguments, source_address);
+    arr_push(builtin->builtin.arguments, dest_address);
+    arr_push(builtin->builtin.arguments, count);
+    return builtin;
+}
+
 // IR Printer
 
 #define COL_COMMENT  WHITE
@@ -1619,7 +1685,10 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
 
         case LAYEC_IR_ALLOCA: {
             lca_string_append_format(print_context->output, "%salloca ", COL(COL_KEYWORD));
-            layec_type_print_to_string(instruction->allocated_type, print_context->output, use_color);
+            layec_type_print_to_string(instruction->alloca.element_type, print_context->output, use_color);
+            if (instruction->alloca.element_count != 1) {
+                lca_string_append_format(print_context->output, "%s, %s%lld", COL(COL_DELIM), COL(COL_CONSTANT), instruction->alloca.element_count);
+            }
         } break;
 
         case LAYEC_IR_STORE: {
@@ -1689,6 +1758,29 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
                 }
 
                 layec_value* argument = instruction->call.arguments[i];
+                layec_value_print_to_string(argument, print_context->output, true, use_color);
+            }
+
+            lca_string_append_format(print_context->output, "%s)", COL(COL_DELIM));
+        } break;
+
+        case LAYEC_IR_BUILTIN: {
+            const char* builtin_name = "";
+            switch (instruction->builtin.kind) {
+                default: builtin_name = "unknown"; break;
+                case LAYEC_BUILTIN_MEMSET: builtin_name = "memset"; break;
+                case LAYEC_BUILTIN_MEMCOPY: builtin_name = "memcopy"; break;
+            }
+
+            lca_string_append_format(print_context->output, "%sbuiltin ", COL(COL_KEYWORD));
+            lca_string_append_format(print_context->output, "%s@%s%s(", COL(COL_NAME), builtin_name, COL(COL_DELIM));
+
+            for (int64_t i = 0, count = arr_count(instruction->builtin.arguments); i < count; i++) {
+                if (i > 0) {
+                    lca_string_append_format(print_context->output, "%s, ", COL(COL_DELIM));
+                }
+
+                layec_value* argument = instruction->builtin.arguments[i];
                 layec_value_print_to_string(argument, print_context->output, true, use_color);
             }
 
@@ -1954,7 +2046,7 @@ static void layec_global_print(layec_print_context* print_context, layec_value* 
     assert(global != NULL);
     assert(layec_type_is_ptr(global->type));
 
-    layec_type* global_type = global->allocated_type;
+    layec_type* global_type = global->alloca.element_type;
     assert(global_type != NULL);
 
     bool use_color = print_context->use_color;

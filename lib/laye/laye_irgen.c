@@ -168,8 +168,12 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         }
 
         case LAYE_NODE_DECL_BINDING: {
-            layec_type* declared_type = laye_convert_type(node->declared_type);
-            layec_value* alloca = layec_build_alloca(builder, node->location, declared_type);
+            laye_node* declared_type_node = node->declared_type;
+
+            layec_type* type_to_alloca = laye_convert_type(declared_type_node);
+            int64_t element_count = 1;
+
+            layec_value* alloca = layec_build_alloca(builder, node->location, type_to_alloca, element_count);
             assert(alloca != NULL);
             assert(layec_type_is_ptr(layec_value_get_type(alloca)));
 
