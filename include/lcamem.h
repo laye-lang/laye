@@ -213,7 +213,7 @@ void lca_arena_dump(lca_arena* arena) {
     fprintf(stderr, "  Block Storage: %p\n", (void*)arena->blocks);
     fprintf(stderr, "  Allocator:\n");
     fprintf(stderr, "    User Data: %p\n", (void*)arena->allocator.user_data);
-    fprintf(stderr, "    Function: %p\n", (void*)arena->allocator.allocator_function);
+    //fprintf(stderr, "    Function: %p\n", arena->allocator.allocator_function);
     fprintf(stderr, "  Blocks:\n");
 
     for (int64_t i = 0, count = lca_da_count(arena->blocks); i < count; i++) {

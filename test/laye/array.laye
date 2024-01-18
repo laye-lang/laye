@@ -7,6 +7,7 @@
 // +   return int64 0
 // + }
 int main() {
-    int[10] arr;
-    return 0;
+    int mut[10] arr;
+    arr[2] = 2;
+    return arr[2];
 }

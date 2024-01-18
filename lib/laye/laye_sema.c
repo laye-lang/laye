@@ -571,6 +571,58 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             }
         } break;
 
+        case LAYE_NODE_INDEX: {
+            laye_sema_analyse_node(sema, &node->index.value, NULL);
+
+            for (int64_t i = 0, count = arr_count(node->index.indices); i < count; i++) {
+                laye_node** index_node_ref = &node->index.indices[i];
+                assert(*index_node_ref != NULL);
+                laye_sema_analyse_node(sema, index_node_ref, sema->context->laye_types._int);
+                // laye_sema_convert_or_error(sema, index_node_ref, sema->context->laye_types._int);
+
+                if ((*index_node_ref)->type->kind != LAYE_NODE_TYPE_INT) {
+                    layec_write_error(sema->context, (*index_node_ref)->location, "Indices must be of integer type or convertible to an integer.");
+                }
+            }
+
+            laye_node* value_type = node->index.value->type;
+            assert(value_type->sema_state == LAYEC_SEMA_OK || value_type->sema_state == LAYEC_SEMA_ERRORED);
+
+            switch (value_type->kind) {
+                default: {
+                    string type_string = string_create(sema->context->allocator);
+                    laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
+                    layec_write_error(sema->context, node->index.value->location, "Cannot index type %.*s.", STR_EXPAND(type_string));
+                    string_destroy(&type_string);
+                    node->type = sema->context->laye_types.poison;
+                } break;
+
+                case LAYE_NODE_TYPE_ARRAY: {
+                    if (arr_count(node->index.indices) != arr_count(value_type->type_container.length_values)) {
+                        string type_string = string_create(sema->context->allocator);
+                        laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
+                        layec_write_error(
+                            sema->context,
+                            node->location,
+                            "Expected %lld indices to type %.*s, got %lld.",
+                            arr_count(value_type->type_container.length_values),
+                            STR_EXPAND(type_string),
+                            arr_count(node->index.indices)
+                        );
+                        string_destroy(&type_string);
+                    }
+
+                    node->type = value_type->type_container.element_type;
+                } break;
+            }
+
+            assert(node->type != NULL);
+            assert(node->type->kind != LAYE_NODE_INVALID);
+
+            bool is_lvalue = laye_node_is_lvalue(node->index.value);
+            laye_expr_set_lvalue(node, is_lvalue);
+        } break;
+
         case LAYE_NODE_NAMEREF: {
             laye_node* referenced_decl_node = node->nameref.referenced_declaration;
 
@@ -648,7 +700,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 case '-': {
                     laye_sema_implicit_dereference(sema, &node->unary.operand);
                     laye_sema_lvalue_to_rvalue(sema, &node->unary.operand, true);
-                    
+
                     if (
                         !laye_type_is_int(node->unary.operand->type) &&
                         !laye_type_is_float(node->unary.operand->type) &&

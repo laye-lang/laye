@@ -38,6 +38,7 @@ void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 lca_string_view lca_string_view_from_cstring(const char* s);
 lca_string_view lca_string_as_view(lca_string s);
 bool lca_string_view_equals(lca_string_view a, lca_string_view b);
+bool lca_string_view_equals_cstring(lca_string_view a, const char* b);
 lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s);
 char* lca_string_view_to_cstring(lca_allocator allocator, lca_string_view s);
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext);
@@ -61,6 +62,7 @@ typedef struct lca_string_view string_view;
 #    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
 #    define string_as_view(S)                     lca_string_as_view(S)
 #    define string_view_equals(A, B)              lca_string_view_equals(A, B)
+#    define string_view_equals_cstring(A, B)      lca_string_view_equals_cstring(A, B)
 #    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
 #    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
@@ -200,6 +202,16 @@ bool lca_string_view_equals(lca_string_view a, lca_string_view b) {
             return false;
     }
     return true;
+}
+
+bool lca_string_view_equals_cstring(lca_string_view a, const char* b) {
+    for (int64_t i = 0; i < a.count; i++) {
+        if (a.data[i] != b[i])
+            return false;
+        if (b[i] == 0)
+            return false;
+    }
+    return b[a.count] == 0;
 }
 
 lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s) {

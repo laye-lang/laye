@@ -222,6 +222,15 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_INDEX: {
+            assert(node->index.value != NULL);
+            arr_push(children, node->index.value);
+
+            for (int64_t i = 0, count = arr_count(node->index.indices); i < count; i++) {
+                arr_push(children, node->index.indices[i]);
+            }
+        } break;
+
         case LAYE_NODE_UNARY: {
             arr_push(children, node->unary.operand);
 
@@ -494,6 +503,38 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         case LAYE_NODE_TYPE_SLICE: {
             laye_type_print_to_string(type->type_container.element_type, s, use_color);
             string_append_format(s, "%s[]", COL(COL_DELIM));
+        } break;
+
+        case LAYE_NODE_TYPE_ARRAY: {
+            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            string_append_format(s, "%s[", COL(COL_DELIM));
+            for (int i = 0, count = arr_count(type->type_container.length_values); i < count; i++) {
+                laye_node* length_value = type->type_container.length_values[i];
+                assert(length_value != NULL);
+
+                if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT) {
+                    layec_evaluated_constant constant = length_value->evaluated_constant.result;
+                    switch (constant.kind) {
+                        default: {
+                            //fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type->kind));
+                            assert(false && "unreachable");
+                        } break;
+
+                        case LAYEC_EVAL_INT: {
+                            string_append_format(s, "%s%lld", COL(COL_CONST), constant.int_value);
+                        } break;
+
+                        case LAYEC_EVAL_FLOAT: {
+                            string_append_format(s, "%s%f", COL(COL_CONST), constant.float_value);
+                        } break;
+                    }
+                } else if (length_value->kind == LAYE_NODE_LITINT) {
+                    string_append_format(s, "%s%lld", COL(COL_CONST), length_value->litint.value);
+                } else {
+                    string_append_format(s, "%s<expr>", COL(COL_CONST), length_value->litint.value);
+                }
+            }
+            string_append_format(s, "%s]", COL(COL_DELIM));
         } break;
     }
 
