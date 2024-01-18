@@ -297,29 +297,36 @@ bool layec_context_get_location_info(layec_context* context, layec_location loca
 void layec_context_print_location_info(layec_context* context, layec_location location, layec_status status, FILE* stream, bool use_color) {
     assert(context != NULL);
 
-    string_view name = {0};
-    int64_t line = 0;
-    int64_t column = 0;
-
-    if (!layec_context_get_location_info(context, location, &name, &line, &column)) {
-        fprintf(stream, "%s<unknown>:0:0%s:", COL(WHITE), COL(RESET));
-        return;
-    }
+    layec_source source = layec_context_get_source(context, location.sourceid);
+    string_view name = string_as_view(source.name);
 
     const char* col = "";
     const char* status_string = "";
 
     switch (status) {
         default: break;
-        case LAYEC_INFO: col = COL(CYAN); status_string = " Info:"; break;
-        case LAYEC_NOTE: col = COL(BRIGHT_GREEN); status_string = " Note:"; break;
-        case LAYEC_WARN: col = COL(YELLOW); status_string = " Warning:"; break;
-        case LAYEC_ERROR: col = COL(RED); status_string = " Error:"; break;
-        case LAYEC_FATAL: col = COL(BRIGHT_RED); status_string = " Fatal:"; break;
-        case LAYEC_ICE: col = COL(MAGENTA); status_string = " Internal Compiler Exception:"; break;
+        case LAYEC_INFO: col = COL(CYAN); status_string = "Info:"; break;
+        case LAYEC_NOTE: col = COL(BRIGHT_GREEN); status_string = "Note:"; break;
+        case LAYEC_WARN: col = COL(YELLOW); status_string = "Warning:"; break;
+        case LAYEC_ERROR: col = COL(RED); status_string = "Error:"; break;
+        case LAYEC_FATAL: col = COL(BRIGHT_RED); status_string = "Fatal:"; break;
+        case LAYEC_ICE: col = COL(MAGENTA); status_string = "Internal Compiler Exception:"; break;
     }
 
-    fprintf(stream, "%s%.*s:%ld:%ld:%s%s", col, STR_EXPAND(name), line, column, status_string, COL(RESET));
+    fprintf(stream, "%s%.*s", col, STR_EXPAND(name));
+
+    if (context->use_byte_positions_in_diagnostics) {
+        fprintf(stream, "[%ld]", location.offset);
+    } else {
+        int64_t line = 0, column = 0;
+        if (layec_context_get_location_info(context, location, &name, &line, &column)) {
+            fprintf(stream, "(%ld, %ld)", line, column);
+        } else {
+            fprintf(stream, "(0, 0)");
+        }
+    }
+
+    fprintf(stream, ": %s%s", status_string, COL(RESET));
 }
 
 #define GET_MESSAGE \

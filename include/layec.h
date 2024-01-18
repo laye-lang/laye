@@ -75,6 +75,7 @@ typedef struct layec_context {
 
     bool use_color;
     bool has_reported_errors;
+    bool use_byte_positions_in_diagnostics;
 
     dynarr(layec_source) sources;
     dynarr(string) include_directories;

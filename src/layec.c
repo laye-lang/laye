@@ -23,6 +23,8 @@ typedef struct args {
         COLOR_NEVER,
     } use_color;
 
+    bool use_byte_positions_in_diagnostics;
+
     bool print_ast;
     bool print_ir;
     bool print_llvm;
@@ -55,7 +57,7 @@ int main(int argc, char** argv) {
     int exit_code = 0;
 
     args args = {
-        .use_color = -1,
+        .use_color = COLOR_AUTO,
     };
     if (!parse_args(&args, &argc, &argv) || args.help) {
         fprintf(stderr, "Usage: %.*s [options...] files...\n", STR_EXPAND(args.program_name));
@@ -67,6 +69,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "  --llvm               Print the generated LLVM modules for the input source files, then exit.\n");
         fprintf(stderr, "  --syntax             Do not perform type checking, exiting after all files have been parsed.\n");
         fprintf(stderr, "  --nocolor            Explicitly disable output coloring. The default detects automatically if colors can be used.\n");
+        fprintf(stderr, "  --byte-diagnostics   Report diagnostic information about a source file with byte positions instead of line/column information.\n");
         return 1;
     }
 
@@ -86,6 +89,8 @@ int main(int argc, char** argv) {
     } else {
         context->use_color = lca_plat_stdout_isatty();
     }
+
+    context->use_byte_positions_in_diagnostics = args.use_byte_positions_in_diagnostics;
 
     dynarr(laye_module*) source_modules = NULL;
     dynarr(layec_module*) ir_modules = NULL;
@@ -300,6 +305,8 @@ static bool parse_args(args* args, int* argc, char*** argv) {
             args->syntax_only = true;
         } else if (string_view_equals(arg, SV_CONSTANT("--nocolor"))) {
             args->use_color = COLOR_NEVER;
+        } else if (string_view_equals(arg, SV_CONSTANT("--byte-diagnostics"))) {
+            args->use_byte_positions_in_diagnostics = true;
         } else if (string_view_equals(arg, SV_CONSTANT("-o"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-o' requires a file path as the output file, but no additional arguments were provided\n");
