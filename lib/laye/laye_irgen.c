@@ -145,6 +145,23 @@ static layec_type* laye_convert_type(laye_node* type) {
         case LAYE_NODE_TYPE_BUFFER: {
             return layec_ptr_type(context);
         }
+
+        case LAYE_NODE_TYPE_ARRAY: {
+            layec_type* element_type = laye_convert_type(type->type_container.element_type);
+            assert(element_type != NULL);
+
+            int64_t length = 1;
+            assert(arr_count(type->type_container.length_values) > 0);
+            for (int64_t i = 0, count = arr_count(type->type_container.length_values); i < count; i++) {
+                laye_node* length_value = type->type_container.length_values[i];
+                assert(length_value != NULL);
+                assert(length_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
+                assert(length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT);
+                length *= length_value->evaluated_constant.result.int_value;
+            }
+
+            return layec_array_type(context, length, element_type);
+        }
     }
 }
 
@@ -646,6 +663,31 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             return layec_build_call(builder, node->location, callee, callee_type, argument_values, SV_EMPTY);
+        }
+
+        case LAYE_NODE_INDEX: {
+            layec_value* value = laye_generate_node(builder, node->index.value);
+            assert(value != NULL);
+
+            dynarr(layec_value*) indices = NULL;
+            for (int64_t i = 0, count = arr_count(node->index.indices); i < count; i++) {
+                layec_value* index_value = laye_generate_node(builder, node->index.indices[i]);
+                arr_push(indices, index_value);
+                assert(indices[i] != NULL);
+            }
+
+            assert(layec_type_is_ptr(layec_value_get_type(value)));
+            layec_value* underlying_type = laye_convert_type(node->index.value->type);
+
+            if (layec_type_is_array(underlying_type)) {
+                int64_t byte_index = 0;
+
+                return layec_build_gep(builder, node->location, value, SV_EMPTY);
+            } else {
+                fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(underlying_type)));
+                assert(false && "unsupported indexable type");
+                return NULL;
+            }
         }
 
         case LAYE_NODE_LITBOOL: {
