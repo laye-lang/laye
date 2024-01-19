@@ -677,12 +677,38 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             }
 
             assert(layec_type_is_ptr(layec_value_get_type(value)));
-            layec_value* underlying_type = laye_convert_type(node->index.value->type);
+            layec_type* underlying_type = laye_convert_type(node->index.value->type);
 
             if (layec_type_is_array(underlying_type)) {
-                int64_t byte_index = 0;
+                layec_type* element_type = layec_type_element_type(underlying_type);
+                assert(element_type != NULL);
 
-                return layec_build_gep(builder, node->location, value, SV_EMPTY);
+                laye_node* laye_array_type = node->index.value->type;
+                assert(laye_array_type != NULL);
+                assert(laye_array_type->kind == LAYE_NODE_TYPE_ARRAY);
+
+                assert(arr_count(indices) == arr_count(laye_array_type->type_container.length_values));
+
+                layec_value* calc_index_value = indices[arr_count(indices) - 1];
+                int64_t current_stride = 1;
+
+                for (int64_t i = arr_count(indices) - 2; i >= 0; i--) {
+                    laye_node* length_value = laye_array_type->type_container.length_values[i + 1];
+                    assert(length_value != NULL);
+                    assert(length_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
+                    assert(length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT);
+                    int64_t next_length = length_value->evaluated_constant.result.int_value;
+                    assert(next_length >= 0);
+
+                    current_stride *= next_length;
+                    layec_value* stride_constant = layec_int_constant(context, length_value->location, layec_int_type(context, context->target->laye.size_of_int), current_stride);
+                    layec_value* curr_index_value = layec_build_mul(builder, node->index.indices[i]->location, indices[i], stride_constant);
+
+                    calc_index_value = layec_build_add(builder, node->index.indices[i]->location, calc_index_value, curr_index_value);
+                }
+
+                arr_free(indices);
+                return layec_build_gep(builder, node->location, value, element_type, calc_index_value);
             } else {
                 fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(underlying_type)));
                 assert(false && "unsupported indexable type");

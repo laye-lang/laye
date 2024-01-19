@@ -580,7 +580,14 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 laye_sema_analyse_node(sema, index_node_ref, sema->context->laye_types._int);
                 // laye_sema_convert_or_error(sema, index_node_ref, sema->context->laye_types._int);
 
-                if ((*index_node_ref)->type->kind != LAYE_NODE_TYPE_INT) {
+                if ((*index_node_ref)->type->kind == LAYE_NODE_TYPE_INT) {
+                    if ((*index_node_ref)->type->type_primitive.is_signed) {
+                        laye_sema_convert_or_error(sema, index_node_ref, sema->context->laye_types._int);
+                        laye_sema_insert_implicit_cast(sema, index_node_ref, sema->context->laye_types._uint);
+                    } else {
+                        laye_sema_convert_or_error(sema, index_node_ref, sema->context->laye_types._uint);
+                    }
+                } else {
                     layec_write_error(sema->context, (*index_node_ref)->location, "Indices must be of integer type or convertible to an integer.");
                 }
             }

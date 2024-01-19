@@ -590,5 +590,7 @@ layec_value* layec_build_neg(layec_builder* builder, layec_location location, la
 layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand);
 layec_value* layec_build_builtin_memset(layec_builder* builder, layec_location location, layec_value* address, layec_value* value, layec_value* count);
 layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location location, layec_value* source_address, layec_value* dest_address, layec_value* count);
+layec_value* layec_build_gep(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, layec_value* index_value);
+layec_value* layec_build_gep_many(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, dynarr(layec_value*) index_values);
 
 #endif // LAYEC_H

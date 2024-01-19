@@ -81,6 +81,11 @@ struct layec_value {
         } builtin;
 
         struct {
+            dynarr(layec_value*) indices;
+            layec_type* element_type;
+        } gep;
+
+        struct {
             bool is_string_literal;
             char* data;
             int64_t length;
@@ -193,6 +198,10 @@ void layec_value_destroy(layec_value* value) {
 
         case LAYEC_IR_PHI: {
             arr_free(value->incoming_values);
+        } break;
+
+        case LAYEC_IR_GET_ELEMENT_PTR: {
+            arr_free(value->gep.indices);
         } break;
     }
 }
@@ -1566,6 +1575,53 @@ layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location l
     return builtin;
 }
 
+layec_value* layec_build_gep(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, layec_value* index_value) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(address != NULL);
+    assert(layec_type_is_ptr(layec_value_get_type(address)));
+    assert(element_type != NULL);
+    assert(index_value != NULL);
+    assert(layec_type_is_integer(layec_value_get_type(index_value)));
+
+    layec_value* gep = layec_value_create(builder->function->module, location, LAYEC_IR_GET_ELEMENT_PTR, layec_ptr_type(builder->context), SV_EMPTY);
+    assert(gep != NULL);
+    gep->address = address;
+    arr_push(gep->gep.indices, index_value);
+    gep->gep.element_type = element_type;
+
+    layec_builder_insert(builder, gep);
+    return gep;
+}
+
+layec_value* layec_build_gep_many(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, dynarr(layec_value*) index_values) {
+    assert(builder != NULL);
+    assert(builder->context != NULL);
+    assert(builder->function != NULL);
+    assert(builder->function->module != NULL);
+    assert(builder->block != NULL);
+    assert(address != NULL);
+    assert(layec_type_is_ptr(layec_value_get_type(address)));
+    assert(element_type != NULL);
+    for (int64_t i = 0, count = arr_count(index_values); i < count; i++) {
+        layec_value* index_value = index_values[i];
+        assert(index_value != NULL);
+        assert(layec_type_is_integer(layec_value_get_type(index_value)));
+    }
+
+    layec_value* gep = layec_value_create(builder->function->module, location, LAYEC_IR_GET_ELEMENT_PTR, layec_ptr_type(builder->context), SV_EMPTY);
+    assert(gep != NULL);
+    gep->address = address;
+    gep->gep.indices = index_values;
+    gep->gep.element_type = element_type;
+
+    layec_builder_insert(builder, gep);
+    return gep;
+}
+
 // IR Printer
 
 #define COL_COMMENT  WHITE
@@ -2019,6 +2075,17 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_GET_ELEMENT_PTR: {
+            lca_string_append_format(print_context->output, "%sgep ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->gep.element_type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->address, print_context->output, true, use_color);
+            for (int64_t i = 0, count = arr_count(instruction->gep.indices); i < count; i++) {
+                lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+                layec_value_print_to_string(instruction->gep.indices[i], print_context->output, true, use_color);
+            }
         } break;
     }
 
