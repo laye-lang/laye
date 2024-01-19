@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
             Nob_Cmd cmd = {0};
             nob_cmd_append(&cmd, "./out/test_runner");
-            nob_cmd_append(&cmd, "create_output");
+            nob_cmd_append(&cmd, "generate");
             nob_cmd_run_sync(cmd);
         } else {
             fprintf(stderr, "Unknown nob command: %s", command);

@@ -530,6 +530,10 @@ int64_t layec_phi_incoming_value_count(layec_value* phi);
 layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index);
 layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index);
 
+layec_type* layec_instruction_gep_element_type(layec_value* gep);
+int64_t layec_instruction_gep_index_count(layec_value* gep);
+layec_value* layec_instruction_gep_index_at_index(layec_value* gep, int64_t index);
+
 // Builder API
 
 layec_builder* layec_builder_create(layec_context* context);

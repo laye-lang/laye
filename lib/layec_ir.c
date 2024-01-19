@@ -200,6 +200,10 @@ void layec_value_destroy(layec_value* value) {
             arr_free(value->incoming_values);
         } break;
 
+        case LAYEC_IR_BUILTIN: {
+            arr_free(value->builtin.arguments);
+        } break;
+
         case LAYEC_IR_GET_ELEMENT_PTR: {
             arr_free(value->gep.indices);
         } break;
@@ -576,7 +580,7 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
 
 int64_t layec_instruction_builtin_argument_count(layec_value* builtin) {
     assert(builtin != NULL);
-    assert(builtin->kind == LAYEC_IR_CALL);
+    assert(builtin->kind == LAYEC_IR_BUILTIN);
     return arr_count(builtin->builtin.arguments);
 }
 
@@ -628,6 +632,27 @@ layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index) 
     assert(block->kind == LAYEC_IR_BLOCK);
     return block;
 }
+
+layec_type* layec_instruction_gep_element_type(layec_value* gep) {
+    assert(gep != NULL);
+    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
+    return gep->gep.element_type;
+}
+
+int64_t layec_instruction_gep_index_count(layec_value* gep) {
+    assert(gep != NULL);
+    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
+    return arr_count(gep->gep.indices);
+}
+
+layec_value* layec_instruction_gep_index_at_index(layec_value* gep, int64_t index) {
+    assert(gep != NULL);
+    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
+    assert(index >= 0);
+    assert(index < arr_count(gep->gep.indices));
+    return gep->gep.indices[index];
+}
+
 
 int64_t layec_value_integer_constant(layec_value* value) {
     assert(value != NULL);
@@ -794,6 +819,10 @@ int layec_type_size_in_bits(layec_type* type) {
         case LAYEC_TYPE_POINTER: return type->context->target->size_of_pointer;
 
         case LAYEC_TYPE_INTEGER: return type->primitive_bit_width;
+
+        case LAYEC_TYPE_ARRAY: {
+            return type->array.length * layec_type_align_in_bytes(type->array.element_type) * 8;
+        }
     }
 }
 

@@ -2,8 +2,11 @@
 
 #include "layec.h"
 
-// declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg)
-#define LLVM_MEMCPY_INTRINSIC "llvm.memset.p0.i64"
+// declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)
+#define LLVM_MEMCPY_INTRINSIC "llvm.memcpy.p0.p0.i64"
+
+// declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)
+#define LLVM_MEMSET_INTRINSIC "llvm.memset.p0.i64"
 
 typedef struct llvm_codegen {
     layec_context* context;
@@ -65,7 +68,10 @@ static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
     lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "\n");
 
-    lca_string_append_format(codegen->output, "declare void @%s(ptr nocapture writeonly, i8, i64, i1 immarg)\n", LLVM_MEMCPY_INTRINSIC);
+    //lca_string_append_format(codegen->output, "declare void @%s(ptr, i8, i64, i1 immarg)\n", LLVM_MEMCPY_INTRINSIC);
+    //lca_string_append_format(codegen->output, "\n");
+
+    lca_string_append_format(codegen->output, "declare void @%s(ptr, i8, i64, i1 immarg)\n", LLVM_MEMSET_INTRINSIC);
     lca_string_append_format(codegen->output, "\n");
 }
 
@@ -270,6 +276,17 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, ")");
         } break;
 
+        case LAYEC_IR_GET_ELEMENT_PTR: {
+            lca_string_append_format(codegen->output, "getelementptr ");
+            llvm_print_type(codegen, layec_instruction_gep_element_type(instruction));
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_instruction_address(instruction), true);
+            for (int64_t i = 0, count = layec_instruction_gep_index_count(instruction); i < count; i++) {
+                lca_string_append_format(codegen->output, ", ");
+                llvm_print_value(codegen, layec_instruction_gep_index_at_index(instruction, i), true);
+            }
+        } break;
+
         case LAYEC_IR_BUILTIN: {
             layec_builtin_kind builtin_kind = layec_instruction_builtin_kind(instruction);
 
@@ -280,6 +297,7 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                 }
 
                 case LAYEC_BUILTIN_MEMCOPY: intrinsic_name = LLVM_MEMCPY_INTRINSIC; break;
+                case LAYEC_BUILTIN_MEMSET: intrinsic_name = LLVM_MEMSET_INTRINSIC; break;
             }
 
             lca_string_append_format(codegen->output, "call void @%s(", intrinsic_name);
@@ -291,6 +309,15 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
 
                 layec_value* argument = layec_instruction_builtin_get_argument_at_index(instruction, i);
                 llvm_print_value(codegen, argument, true);
+            }
+
+            switch (builtin_kind) {
+                default: {
+                    assert(false && "unsupported intrinsic in LLVM IR backend");
+                }
+
+                case LAYEC_BUILTIN_MEMCOPY:
+                case LAYEC_BUILTIN_MEMSET: lca_string_append_format(codegen->output, ", i1 false"); break;
             }
 
             lca_string_append_format(codegen->output, ")");

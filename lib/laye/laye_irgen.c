@@ -199,6 +199,11 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 assert(initial_value != NULL);
 
                 layec_build_store(builder, node->location, alloca, initial_value);
+            } else {
+                int64_t size_in_bytes = layec_type_size_in_bytes(type_to_alloca);
+                layec_value* zero_const = layec_int_constant(context, node->location, layec_int_type(context, 8), 0);
+                layec_value* byte_count = layec_int_constant(context, node->location, layec_int_type(context, context->target->laye.size_of_int), size_in_bytes);
+                layec_build_builtin_memset(builder, node->location, alloca, zero_const, byte_count);
             }
 
             node->ir_value = alloca;
