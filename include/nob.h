@@ -494,11 +494,13 @@ Nob_Proc nob_cmd_run_async(Nob_Cmd cmd)
     }
 
     Nob_String_Builder sb = {0};
+#ifndef NOB_NO_CMD_RENDER
     nob_cmd_render(cmd, &sb);
     nob_sb_append_null(&sb);
     nob_log(NOB_INFO, "CMD: %s", sb.items);
     nob_sb_free(sb);
     memset(&sb, 0, sizeof(sb));
+#endif
 
 #ifdef _WIN32
     // https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
@@ -618,9 +620,11 @@ Nob_Proc_Result nob_proc_wait_result(Nob_Proc proc)
 
         if (WIFEXITED(wstatus)) {
             int exit_status = WEXITSTATUS(wstatus);
+#ifndef NOB_NO_LOG_EXIT_STATUS
             if (exit_status != 0) {
                 nob_log(NOB_ERROR, "command exited with exit code %d", exit_status);
             }
+#endif
 
             result.exit_code = exit_status;
             result.exited = true;

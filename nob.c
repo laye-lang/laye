@@ -116,14 +116,6 @@ int main(int argc, char** argv) {
             Nob_Cmd cmd = {0};
             nob_cmd_append(&cmd, "./out/exec_test_runner");
             nob_cmd_run_sync(cmd);
-        } else if (0 == strcmp("test-exec-generate", command)) {
-            build_layec_driver();
-            build_exec_test_runner();
-
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, "./out/exec_test_runner");
-            nob_cmd_append(&cmd, "generate");
-            nob_cmd_run_sync(cmd);
         } else if (0 == strcmp("test-fchk", command)) {
             run_fchk(false);
         } else if (0 == strcmp("test-fchk-build", command)) {

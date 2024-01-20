@@ -1,3 +1,4 @@
+// 0
 // R %layec --ir %s
 
 // * define global.0 = int8\[15\] "Hello, hunter!\\00"

@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <stdio.h>
 
+#define NOB_NO_LOG_EXIT_STATUS
+#define NOB_NO_CMD_RENDER
+
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
@@ -20,20 +23,18 @@ typedef struct test_info {
 } test_info;
 
 typedef struct test_state {
-    bool create_exec_test_output;
     int test_count;
     dynarr(test_info) failed_tests;
 } test_state;
 
 static bool cstring_ends_with(const char* s, const char* ending);
-static bool run_exec_test(const char* test_file_path, bool generate);
+static bool run_exec_test(const char* test_file_path);
 static void run_tests_in_directory(test_state* state, const char* test_directory, const char* extension);
 
 int main(int argc, char** argv) {
     const char* program = nob_shift_args(&argc, &argv);
 
     test_state state = {0};
-    state.create_exec_test_output = argc > 0 && 0 == strcmp("generate", nob_shift_args(&argc, &argv));
     run_tests_in_directory(&state, "./test/laye", ".laye");
 
     int64_t num_tests_failed = arr_count(state.failed_tests);
@@ -89,18 +90,10 @@ static void run_tests_in_directory(test_state* state, const char* test_directory
         bool is_noexec = cstring_ends_with(test_file_path, noexec_extension);
         if (is_noexec) continue;
 
-        if (state->create_exec_test_output) {
-            bool exec_test_success = run_exec_test(test_full_name, true);
-            state->test_count++;
-            if (!exec_test_success) {
-                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
-            }
-        } else {
-            bool exec_test_success = run_exec_test(test_full_name, false);
-            state->test_count++;
-            if (!exec_test_success) {
-                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
-            }
+        bool exec_test_success = run_exec_test(test_full_name);
+        state->test_count++;
+        if (!exec_test_success) {
+            arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
         }
     }
 
@@ -118,10 +111,27 @@ static bool cstring_ends_with(const char* s, const char* ending) {
     return 0 == strncmp(s + sLength - endingLength, ending, endingLength);
 }
 
-static bool run_exec_test(const char* test_file_path, bool generate) {
+#define INVALID_EXIT_CODE (-255)
+
+static int read_expected_exit_code(const char* test_file_path) {
+    FILE* s = fopen(test_file_path, "r");
+    if (s == NULL) {
+        return INVALID_EXIT_CODE;
+    }
+
+    int expected_exit_code = 0;
+    if (fscanf(s, "// %d", &expected_exit_code) != 1) {
+        fclose(s);
+        return INVALID_EXIT_CODE;
+    }
+
+    fclose(s);
+    return expected_exit_code;
+}
+
+static bool run_exec_test(const char* test_file_path) {
     nob_log(NOB_INFO, "-- Running execution test for \"%s\"", test_file_path);
 
-    const char* output_file = nob_temp_sprintf("%s.output", test_file_path);
 #ifdef _WIN32
     const char* exec_file = nob_temp_sprintf("%s.out.exe", test_file_path);
 #else
@@ -150,36 +160,10 @@ static bool run_exec_test(const char* test_file_path, bool generate) {
     nob_cmd_free(cmd);
     remove(exec_file);
 
-    if (generate) {
-        bool success = true;
-
-        FILE* f = fopen(output_file, "w");
-        if (f == NULL) {
-            nob_log(NOB_ERROR, "Failed to open test output file %s for writing", output_file);
-            success = false;
-            goto generate_exit;
-        }
-
-        fprintf(f, "%d\n", exec_result.exit_code);
-
-    generate_exit:;
-        if (f) fclose(f);
-        if (!success) remove(output_file);
-        return success;
-    } else {
-        Nob_String_Builder sb = {0};
-        if (!nob_read_entire_file(output_file, &sb)) {
-            nob_log(NOB_INFO, "Run 'test_runner generate' to create the executable test output files.");
-            nob_sb_free(sb);
-            return false;
-        }
-
-        nob_sb_append_null(&sb);
-
-        char* contents = sb.items;
-        int exit_code = (int)strtol(contents, &contents, 10);
-
-        nob_sb_free(sb);
-        return exit_code == exec_result.exit_code;
+    int expected_exit_code = read_expected_exit_code(test_file_path);
+    if (expected_exit_code == INVALID_EXIT_CODE) {
+        return false;
     }
+
+    return expected_exit_code == exec_result.exit_code;
 }

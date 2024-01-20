@@ -8,6 +8,9 @@
 #include "laye.h"
 #include "layec.h"
 
+#define NOB_NO_LOG_EXIT_STATUS
+#define NOB_NO_CMD_RENDER
+
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
@@ -225,6 +228,7 @@ int main(int argc, char** argv) {
     nob_cmd_append(
         &clang_ll_cmd,
         "clang",
+        "-Wno-override-module",
         "-o",
         lca_string_as_cstring(output_file_path)
     );

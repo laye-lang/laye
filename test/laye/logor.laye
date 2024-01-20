@@ -1,3 +1,4 @@
+// 1
 // R %layec --ir %s
 
 // * define exported ccc main() -> int64 {
