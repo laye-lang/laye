@@ -39,7 +39,7 @@ Run `./out/layec --help` for a list of avaliable options.
 The test suite is written for the [`fchk`](https://github.com/Sirraide/fchk) tool, which has a few additional dependencies as listed in [requirements](#requirements).
 
 ```bash
-$ ./out/test_runner
+$ ./nob test
 ```
 
 Tests are located in the `./test` directory. Each test file is a source file which defines the test inline, as well as how it should be invoked by the tooling. Read the [`fchk`](https://github.com/Sirraide/fchk) documentation to understand how it works.
