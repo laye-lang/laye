@@ -129,7 +129,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         }
 
         if (node->attributes.foreign_name.count != 0) {
-            lca_string_append_format(print_context->output, " FOREIGN \"%s\"", STR_EXPAND(node->attributes.foreign_name));
+            lca_string_append_format(print_context->output, " FOREIGN \"%.*s\"", STR_EXPAND(node->attributes.foreign_name));
         }
     }
 

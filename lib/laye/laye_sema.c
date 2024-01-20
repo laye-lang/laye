@@ -309,7 +309,22 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             sema->current_function = node;
 
             if (node->decl_function.body != NULL) {
+                assert(node->decl_function.body->kind == LAYE_NODE_COMPOUND);
                 laye_sema_analyse_node(sema, &node->decl_function.body, NULL);
+
+                if (!laye_type_is_noreturn(node->decl_function.body->type)) {
+                    if (laye_type_is_void(node->decl_function.return_type)) {
+                        laye_node* implicit_return = laye_node_create(node->module, LAYE_NODE_RETURN, node->decl_function.body->location, sema->context->laye_types.noreturn);
+                        assert(implicit_return != NULL);
+                        implicit_return->compiler_generated = true;
+                        arr_push(node->decl_function.body->compound.children, implicit_return);
+                        node->decl_function.body->type = sema->context->laye_types.noreturn;
+                    } else if (laye_type_is_noreturn(node->decl_function.return_type)) {
+                        layec_write_error(sema->context, node->location, "Control flow reaches the end of a `noreturn` function.");
+                    } else {
+                        layec_write_error(sema->context, node->location, "Not all code paths return a value.");
+                    }
+                }
             }
 
             sema->current_function = prev_function;
@@ -418,6 +433,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
 
                     layec_evaluated_constant condition_constant;
                     if (laye_expr_evaluate(node->_for.condition, &condition_constant, false) && condition_constant.kind == LAYEC_EVAL_BOOL && condition_constant.bool_value) {
+                        laye_node* eval_condition = laye_node_create(node->module, LAYE_NODE_EVALUATED_CONSTANT, node->_for.condition->location, sema->context->laye_types._bool);
+                        assert(eval_condition != NULL);
+                        eval_condition->compiler_generated = true;
+                        eval_condition->evaluated_constant.expr = node->_for.condition;
+                        eval_condition->evaluated_constant.result = condition_constant;
+                        node->_for.condition = eval_condition;
                         is_condition_always_true = true;
                     }
                 }
@@ -439,6 +460,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 }
             }
 
+            // TODO(local): if there is a `break` within the body anywhere, then this is not true
             if (is_condition_always_true) {
                 node->type = sema->context->laye_types.noreturn;
             }
@@ -493,6 +515,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             assert(sema->current_function->type != NULL);
             assert(laye_node_is_type(sema->current_function->type));
             assert(laye_type_is_function(sema->current_function->declared_type));
+
+            assert(laye_type_is_noreturn(node->type));
+            //node->type = sema->context->laye_types.noreturn;
 
             laye_node* expected_return_type = sema->current_function->declared_type->type_function.return_type;
             assert(expected_return_type != NULL);

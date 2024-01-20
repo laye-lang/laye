@@ -348,6 +348,180 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return result_value;
         }
 
+        case LAYE_NODE_FOR: {
+            assert(node->_for.pass != NULL);
+
+            bool has_initializer = node->_for.initializer != NULL && node->_for.initializer->kind != LAYE_NODE_XYZZY;
+            bool has_increment = node->_for.increment != NULL && node->_for.increment->kind != LAYE_NODE_XYZZY;
+            bool has_always_true_condition = node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
+            
+            bool is_infinite_for = node->_for.initializer == NULL && node->_for.condition == NULL && node->_for.increment == NULL;
+            bool is_effectively_infinite_for = !has_initializer && has_always_true_condition && !has_increment && node->_for.fail == NULL;
+
+            if (is_infinite_for || is_effectively_infinite_for) {
+                assert(node->_for.fail == NULL);
+
+                layec_value* body_block = layec_function_append_block(function, SV_EMPTY);
+                assert(body_block != NULL);
+
+                layec_build_branch(builder, node->location, body_block);
+                layec_builder_position_at_end(builder, body_block);
+                laye_generate_node(builder, node->_for.pass);
+
+                if (!laye_type_is_noreturn(node->_for.pass->type)) {
+                    assert(!layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    layec_build_branch(builder, node->location, body_block);
+                }
+
+                assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                return layec_void_constant(context);
+            }
+
+            // 1. handle the initializer
+            if (has_initializer) {
+                laye_generate_node(builder, node->_for.initializer);
+
+                if (laye_type_is_noreturn(node->_for.initializer->type)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    return layec_void_constant(context);
+                }
+            }
+
+            layec_value* for_early_condition_block = NULL;
+            if (!has_always_true_condition && node->_for.fail != NULL) {
+                for_early_condition_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_early_condition_block != NULL);
+            }
+
+            layec_value* for_condition_block = NULL;
+            if (!has_always_true_condition) {
+                for_condition_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_condition_block != NULL);
+            }
+
+            layec_value* for_pass_block = layec_function_append_block(function, SV_EMPTY);
+            assert(for_pass_block != NULL);
+            
+            layec_value* for_increment_block = NULL;
+            if (has_increment && !laye_type_is_noreturn(node->_for.pass->type)) {
+                for_increment_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_increment_block != NULL);
+            }
+
+            layec_value* for_fail_block = NULL;
+            if (!has_always_true_condition && node->_for.fail != NULL) {
+                for_fail_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_fail_block != NULL);
+            }
+
+            layec_value* for_continue_block = NULL;
+            if (!laye_type_is_noreturn(node->type)) {
+                for_continue_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_continue_block != NULL);
+            }
+
+            // 2. early condition for branching to `else`
+            if (!has_always_true_condition && node->_for.fail != NULL) {
+                assert(for_early_condition_block != NULL);
+                assert(for_fail_block != NULL);
+
+                layec_build_branch(builder, node->_for.condition->location, for_early_condition_block);
+                layec_builder_position_at_end(builder, for_early_condition_block);
+
+                layec_value* early_condition_value = laye_generate_node(builder, node->_for.condition);
+                assert(early_condition_value != NULL);
+
+                if (laye_type_is_noreturn(node->_for.condition)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    return layec_void_constant(context);
+                }
+
+                layec_build_branch_conditional(builder, node->_for.condition->location, early_condition_value, for_pass_block, for_fail_block);
+            }
+
+            // 3. regular condition for looping
+            if (has_always_true_condition) {
+                assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
+                layec_build_branch(builder, node->_for.condition->location, for_pass_block);
+            } else {
+                assert(for_condition_block != NULL);
+
+                layec_build_branch(builder, node->_for.condition->location, for_condition_block);
+                layec_builder_position_at_end(builder, for_condition_block);
+
+                layec_value* condition_value = laye_generate_node(builder, node->_for.condition);
+                assert(condition_value != NULL);
+
+                if (laye_type_is_noreturn(node->_for.condition->type)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    return layec_void_constant(context);
+                }
+
+                layec_build_branch_conditional(builder, node->_for.condition->location, condition_value, for_pass_block, for_continue_block);
+            }
+
+            // 4. handle incrementing and returning to the condition (or pass if the condition is always true)
+            if (has_increment && !laye_type_is_noreturn(node->_for.pass->type)) {
+                assert(for_increment_block != NULL);
+
+                layec_builder_position_at_end(builder, for_increment_block);
+                laye_generate_node(builder, node->_for.increment);
+
+                if (laye_type_is_noreturn(node->_for.condition->type)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                } else {
+                    if (has_always_true_condition) {
+                        layec_build_branch(builder, node->_for.increment->location, for_pass_block);
+                    } else {
+                        layec_build_branch(builder, node->_for.increment->location, for_condition_block);
+                    }
+                }
+            }
+
+            // 5. generate the "pass" loop body
+            layec_builder_position_at_end(builder, for_pass_block);
+            laye_generate_node(builder, node->_for.pass);
+
+            if (laye_type_is_noreturn(node->_for.pass->type)) {
+                assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+            } else {
+                if (for_increment_block != NULL) {
+                    layec_build_branch(builder, node->_for.pass->location, for_increment_block);
+                } else {
+                    if (has_always_true_condition) {
+                        layec_build_branch(builder, node->_for.pass->location, for_pass_block);
+                    } else {
+                        layec_build_branch(builder, node->_for.pass->location, for_condition_block);
+                    }
+                }
+            }
+
+            // 6. generate the "fail" `else` body
+            if (!has_always_true_condition && node->_for.fail != NULL) {
+                assert(for_fail_block != NULL);
+
+                layec_builder_position_at_end(builder, for_fail_block);
+                laye_generate_node(builder, node->_for.fail);
+
+                if (laye_type_is_noreturn(node->_for.fail->type)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                } else {
+                    layec_build_branch(builder, node->_for.fail->location, for_continue_block);
+                }
+            }
+
+            // 7. the loop is done, continue with the remaining code : )
+            if (laye_type_is_noreturn(node->type)) {
+                assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                return layec_void_constant(context);
+            } else {
+                assert(for_continue_block != NULL);
+                layec_builder_position_at_end(builder, for_continue_block);
+            }
+
+            return layec_void_constant(context);
+        }
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value == NULL) {
                 return layec_build_return_void(builder, node->location);
@@ -392,6 +566,10 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
 
                 if (child->kind == LAYE_NODE_RETURN || child->kind == LAYE_NODE_BREAK || child->kind == LAYE_NODE_CONTINUE || child->kind == LAYE_NODE_YIELD) {
+                    break;
+                }
+
+                if (laye_type_is_noreturn(child->type)) {
                     break;
                 }
             }

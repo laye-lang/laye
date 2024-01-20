@@ -996,12 +996,12 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
                     layec_write_error(p->context, p->token.location, "Expected ';'.");
                 }
 
-                laye_node* implicit_return_node = laye_node_create(p->module, LAYE_NODE_RETURN, function_body_expr->location, p->context->laye_types._void);
+                laye_node* implicit_return_node = laye_node_create(p->module, LAYE_NODE_RETURN, function_body_expr->location, p->context->laye_types.noreturn);
                 assert(implicit_return_node != NULL);
                 implicit_return_node->compiler_generated = true;
                 implicit_return_node->_return.value = function_body_expr;
 
-                function_body = laye_node_create(p->module, LAYE_NODE_COMPOUND, function_body_expr->location, p->context->laye_types._void);
+                function_body = laye_node_create(p->module, LAYE_NODE_COMPOUND, function_body_expr->location, p->context->laye_types.noreturn);
                 assert(function_body != NULL);
                 function_body->compiler_generated = true;
                 function_body->compound.scope_name = name_token.string_value;
