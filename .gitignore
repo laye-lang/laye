@@ -8,6 +8,7 @@ test/laye/*
 !test/laye/*.laye.output
 
 out
+test-out
 nob
 nob.old
 *.ll

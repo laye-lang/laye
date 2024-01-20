@@ -318,7 +318,7 @@ void layec_context_print_location_info(layec_context* context, layec_location lo
         case LAYEC_ICE: col = COL(MAGENTA); status_string = "Internal Compiler Exception:"; break;
     }
 
-    fprintf(stream, "%s%.*s", col, STR_EXPAND(name));
+    fprintf(stream, "%.*s", STR_EXPAND(name));
 
     if (context->use_byte_positions_in_diagnostics) {
         fprintf(stream, "[%ld]", location.offset);
@@ -331,7 +331,7 @@ void layec_context_print_location_info(layec_context* context, layec_location lo
         }
     }
 
-    fprintf(stream, ": %s%s", status_string, COL(RESET));
+    fprintf(stream, ": %s%s%s", col, status_string, COL(RESET));
 }
 
 #define GET_MESSAGE \

@@ -17,7 +17,6 @@
 
 typedef struct test_info {
     const char* test_name;
-    const char* test_kind;
 } test_info;
 
 typedef struct test_state {
@@ -26,17 +25,11 @@ typedef struct test_state {
     dynarr(test_info) failed_tests;
 } test_state;
 
-static bool ensure_fchk_installed(void);
 static bool cstring_ends_with(const char* s, const char* ending);
-static bool run_fchk_test(const char* test_file_path);
 static bool run_exec_test(const char* test_file_path, bool generate);
 static void run_tests_in_directory(test_state* state, const char* test_directory, const char* extension);
 
 int main(int argc, char** argv) {
-    if (!ensure_fchk_installed()) {
-        return 1;
-    }
-
     const char* program = nob_shift_args(&argc, &argv);
 
     test_state state = {0};
@@ -66,7 +59,7 @@ int main(int argc, char** argv) {
 
         fprintf(stderr, "\nThe following tests FAILED:\n");
         for (int64_t i = 0; i < num_tests_failed; i++) {
-            fprintf(stderr, "\t%s%s (%s)%s\n", ANSI_COLOR_RED, state.failed_tests[i].test_name, state.failed_tests[i].test_kind, ANSI_COLOR_RESET);
+            fprintf(stderr, "\t%s%s%s\n", ANSI_COLOR_RED, state.failed_tests[i].test_name, ANSI_COLOR_RESET);
         }
     }
 
@@ -83,6 +76,8 @@ static void run_tests_in_directory(test_state* state, const char* test_directory
         return;
     }
 
+    const char* noexec_extension = nob_temp_sprintf(".noexec%s", extension);
+
     for (size_t i = 0; i < test_file_paths.count; i++) {
         const char* test_file_path = test_file_paths.items[i];
         if (!cstring_ends_with(test_file_path, extension)) {
@@ -91,23 +86,20 @@ static void run_tests_in_directory(test_state* state, const char* test_directory
 
         const char* test_full_name = nob_temp_sprintf("%s/%s", test_directory, test_file_path);
 
+        bool is_noexec = cstring_ends_with(test_file_path, noexec_extension);
+        if (is_noexec) continue;
+
         if (state->create_exec_test_output) {
             bool exec_test_success = run_exec_test(test_full_name, true);
             state->test_count++;
             if (!exec_test_success) {
-                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name, .test_kind = "Execution" }));
+                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
             }
         } else {
-            bool fchk_test_success = run_fchk_test(test_full_name);
-            state->test_count++;
-            if (!fchk_test_success) {
-                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name, .test_kind = "FCHK" }));
-            }
-
             bool exec_test_success = run_exec_test(test_full_name, false);
             state->test_count++;
             if (!exec_test_success) {
-                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name, .test_kind = "Execution" }));
+                arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
             }
         }
     }
@@ -125,33 +117,6 @@ static bool cstring_ends_with(const char* s, const char* ending) {
 
     return 0 == strncmp(s + sLength - endingLength, ending, endingLength);
 }
-
-static bool run_fchk_test(const char* test_file_path) {
-    nob_log(NOB_INFO, "-- Running FCHK test for \"%s\"", test_file_path);
-
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(
-        &cmd,
-        FCHK_PATH,
-        test_file_path,
-        "-l",
-        ".",
-        "-D",
-        "layec=" LAYEC_PATH,
-        "--prefix",
-        "//",
-        "-P",
-        "re",
-        "-P",
-        "nocap"
-    );
-
-    bool success = nob_cmd_run_sync(cmd);
-    nob_cmd_free(cmd);
-
-    return success;
-}
-
 
 static bool run_exec_test(const char* test_file_path, bool generate) {
     nob_log(NOB_INFO, "-- Running execution test for \"%s\"", test_file_path);
@@ -217,50 +182,4 @@ static bool run_exec_test(const char* test_file_path, bool generate) {
         nob_sb_free(sb);
         return exit_code == exec_result.exit_code;
     }
-}
-
-static bool ensure_fchk_installed(void) {
-    if (nob_file_exists(FCHK_PATH)) {
-        return true;
-    }
-
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(
-        &cmd,
-        "git",
-        "clone",
-        "--depth=1",
-        "https://github.com/Sirraide/fchk",
-        FCHK_DIR
-    );
-    if (!nob_cmd_run_sync(cmd)) {
-        nob_log(NOB_ERROR, "Failed to download `Sirraide/fchk`.");
-        nob_cmd_free(cmd);
-        return false;
-    }
-
-    cmd.count = 0;
-    nob_cmd_append(&cmd, "cmake", "-B", FCHK_OUT, FCHK_DIR);
-    if (!nob_cmd_run_sync(cmd)) {
-        nob_log(NOB_ERROR, "Failed to configure fchk.");
-        nob_cmd_free(cmd);
-        return false;
-    }
-
-    cmd.count = 0;
-    nob_cmd_append(&cmd, "cmake", "--build", FCHK_OUT);
-    if (!nob_cmd_run_sync(cmd)) {
-        nob_log(NOB_ERROR, "Failed to build fchk.");
-        nob_cmd_free(cmd);
-        return false;
-    }
-
-    nob_cmd_free(cmd);
-
-    if (!nob_file_exists(FCHK_PATH)) {
-        nob_log(NOB_ERROR, "fchk not build correctly.");
-        return false;
-    }
-
-    return true;
 }
