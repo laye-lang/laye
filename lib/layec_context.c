@@ -88,6 +88,10 @@ layec_context* layec_context_create(lca_allocator allocator) {
     assert(context->laye_types.unknown != NULL);
     context->laye_types.unknown->sema_state = LAYEC_SEMA_OK;
 
+    context->laye_types.var = laye_node_create_in_context(context, LAYE_NODE_TYPE_VAR, context->laye_types.type);
+    assert(context->laye_types.var != NULL);
+    context->laye_types.var->sema_state = LAYEC_SEMA_OK;
+
     context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, context->laye_types.type);
     assert(context->laye_types._void != NULL);
     context->laye_types._void->sema_state = LAYEC_SEMA_OK;
@@ -167,6 +171,7 @@ void layec_context_destroy(layec_context* context) {
 
     lca_deallocate(allocator, context->laye_types.poison);
     lca_deallocate(allocator, context->laye_types.unknown);
+    lca_deallocate(allocator, context->laye_types.var);
     lca_deallocate(allocator, context->laye_types.type);
     lca_deallocate(allocator, context->laye_types._void);
     lca_deallocate(allocator, context->laye_types.noreturn);

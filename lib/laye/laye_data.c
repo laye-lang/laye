@@ -398,8 +398,17 @@ int laye_type_size_in_bits(laye_node* type) {
     layec_context* context = type->context;
 
     switch (type->kind) {
-        default: assert(false && "unreachable"); return 0;
+        default: {
+            fprintf(stderr, "for type %s\n", laye_node_kind_to_cstring(type->kind));
+            assert(false && "unreachable");
+            return 0;
+        }
         
+        case LAYE_NODE_TYPE_VOID:
+        case LAYE_NODE_TYPE_NORETURN: {
+            return 0;
+        }
+
         case LAYE_NODE_TYPE_BOOL:
         case LAYE_NODE_TYPE_INT:
         case LAYE_NODE_TYPE_FLOAT: {
@@ -407,6 +416,7 @@ int laye_type_size_in_bits(laye_node* type) {
             return type->type_primitive.bit_width;
         }
 
+        case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
             return context->target->size_of_pointer;
@@ -421,8 +431,16 @@ int laye_type_size_in_bits(laye_node* type) {
 int laye_type_align_in_bytes(laye_node* type) {
     assert(type != NULL);
     assert(laye_node_is_type(type));
+    assert(type->context != NULL);
+    layec_context* context = type->context;
+
     switch (type->kind) {
         default: return 1;
+        
+        case LAYE_NODE_TYPE_VOID:
+        case LAYE_NODE_TYPE_NORETURN: {
+            return 1;
+        }
 
         case LAYE_NODE_TYPE_BOOL: return 1;
 
@@ -449,6 +467,12 @@ int laye_type_align_in_bytes(laye_node* type) {
         case LAYE_NODE_TYPE_NILABLE: {
             assert(type->type_container.element_type != NULL);
             return laye_type_align_in_bytes(type->type_container.element_type);
+        }
+
+        case LAYE_NODE_TYPE_REFERENCE:
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER: {
+            return context->target->align_of_pointer;
         }
     }
     return 0;

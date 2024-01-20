@@ -1481,11 +1481,15 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
     assert(foreach_node != NULL);
     assert(foreach_node->kind == LAYE_NODE_FOREACH);
     
-    string index_name = {0};
     if (laye_parser_consume(p, LAYE_TOKEN_ENUM, NULL)) {
         laye_token index_name_token = {0};
         if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &index_name_token)) {
-            index_name = index_name_token.string_value;
+            foreach_node->foreach.index_binding = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, index_name_token.location, p->context->laye_types._void);
+            assert(foreach_node->foreach.index_binding != NULL);
+            foreach_node->foreach.index_binding->declared_name = index_name_token.string_value;
+            foreach_node->foreach.index_binding->declared_type = p->context->laye_types.var;
+            assert(p->scope != NULL);
+            laye_scope_declare(p->scope, foreach_node->foreach.index_binding);
         } else {
             arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected identifer as iterator index binding name."));
         }
@@ -1495,20 +1499,23 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
         }
     }
 
-    string element_name = {0};
     laye_token element_name_token = {0};
     if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &element_name_token)) {
-        element_name = element_name_token.string_value;
+        foreach_node->foreach.element_binding = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, element_name_token.location, p->context->laye_types._void);
+        assert(foreach_node->foreach.element_binding != NULL);
+        foreach_node->foreach.element_binding->declared_name = element_name_token.string_value;
+        foreach_node->foreach.element_binding->declared_type = p->context->laye_types.var;
+        assert(p->scope != NULL);
+        laye_scope_declare(p->scope, foreach_node->foreach.element_binding);
     } else {
         arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected identifer as iterator element binding name."));
     }
 
+    assert(foreach_node->foreach.element_binding != NULL);
+
     if (!laye_parser_consume(p, ':', NULL)) {
         arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected ':'."));
     }
-
-    foreach_node->foreach.index_name = index_name;
-    foreach_node->foreach.element_name = element_name;
 
     foreach_result = laye_parse_result_combine(foreach_result, laye_parse_expression(p));
     assert(foreach_result.node != NULL);
@@ -1603,7 +1610,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
             for_result = laye_parse_result_combine(for_result, laye_parse_expression(p));
             for_node->_for.condition = for_result.node;
         } else {
-            for_node->_for.condition = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, p->context->laye_types._void);
+            for_node->_for.condition = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, p->context->laye_types._bool);
             assert(for_node->_for.condition != NULL);
             for_node->_for.condition->compiler_generated = true;
             for_node->_for.condition->litbool.value = true;
@@ -1713,7 +1720,9 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
         } break;
 
         case LAYE_TOKEN_FOR: {
+            laye_parser_push_scope(p);
             result = laye_parse_for(p);
+            laye_parser_pop_scope(p);
             assert(result.node != NULL);
         } break;
 

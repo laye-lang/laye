@@ -195,10 +195,11 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_FOREACH: {
-            if (node->foreach.index_name.count != 0) {
-                string_append_format(print_context->output, " %senum %s%.*s%s,", COL(COL_NODE), COL(COL_NAME), STR_EXPAND(node->foreach.index_name), COL(RESET));
+            if (node->foreach.index_binding != NULL) {
+                arr_push(children, node->foreach.index_binding);
             }
-            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->foreach.element_name));
+
+            arr_push(children, node->foreach.element_binding);
 
             if (node->foreach.iterable != NULL) {
                 arr_push(children, node->foreach.iterable);
@@ -414,6 +415,10 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
 
         case LAYE_NODE_TYPE_UNKNOWN: {
             string_append_format(s, "%sunknown", COL(COL_UNREAL));
+        } break;
+
+        case LAYE_NODE_TYPE_VAR: {
+            string_append_format(s, "%svar", COL(COL_UNREAL));
         } break;
 
         case LAYE_NODE_TYPE_TYPE: {

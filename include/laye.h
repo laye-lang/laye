@@ -315,6 +315,7 @@ struct laye_token {
     X(LITRUNE)                 \
     X(TYPE_POISON)             \
     X(TYPE_UNKNOWN)            \
+    X(TYPE_VAR)                \
     X(TYPE_TYPE)               \
     X(TYPE_VOID)               \
     X(TYPE_NORETURN)           \
@@ -667,11 +668,11 @@ struct laye_node {
         } _for;
 
         struct {
-            // the name of the "index" variable storing the current iteration index.
-            string index_name;
-            // the name of the "element" variable storing the current iteration result.
+            // the declaration of the "index" variable storing the current iteration index.
+            laye_node* index_binding;
+            // the declaration of the "element" variable storing the current iteration result.
             // this is an lvalue to the iteration result.
-            string element_name;
+            laye_node* element_binding;
             // the value to iterate over.
             // as long as only trivial iteration is supported, this must be a
             // built-in collection type with known bounds.

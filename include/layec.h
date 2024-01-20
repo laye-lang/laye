@@ -95,6 +95,7 @@ typedef struct layec_context {
     struct {
         laye_node* poison;
         laye_node* unknown;
+        laye_node* var;
         laye_node* type;
         laye_node* _void;
         laye_node* noreturn;
