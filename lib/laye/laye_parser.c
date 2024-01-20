@@ -358,9 +358,9 @@ static laye_node* laye_parser_create_invalid_node_from_child(laye_parser* p, lay
 static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result);
 static bool laye_can_parse_type(laye_parser* p);
 static laye_parse_result laye_parse_type(laye_parser* p);
-static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expression);
+static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expression, bool consume_semi);
 
-static laye_parse_result laye_parse_statement(laye_parser* p);
+static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi);
 static laye_parse_result laye_parse_expression(laye_parser* p);
 
 static laye_node* laye_parse_top_level_node(laye_parser* p) {
@@ -369,7 +369,7 @@ static laye_node* laye_parse_top_level_node(laye_parser* p) {
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    PARSE_UNWRAP(top_level_declaration, laye_parse_declaration, p, false);
+    PARSE_UNWRAP(top_level_declaration, laye_parse_declaration, p, false, true);
     assert(top_level_declaration != NULL);
 
     return top_level_declaration;
@@ -471,6 +471,18 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_node*
                 assert(result.node != NULL);
                 result.node->type_container.element_type = type;
                 result.node->location.length = star_token.location.offset + star_token.location.length - result.node->location.offset;
+            }
+        } break;
+
+        case '&': {
+            laye_token amp_token = p->token;
+            laye_next_token(p);
+
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_REFERENCE, type->location, p->context->laye_types.type);
+                assert(result.node != NULL);
+                result.node->type_container.element_type = type;
+                result.node->location.length = amp_token.location.offset + amp_token.location.length - result.node->location.offset;
             }
         } break;
     }
@@ -695,6 +707,19 @@ static void laye_apply_attributes(laye_node* node, dynarr(laye_node*) attributes
     }
 }
 
+static void laye_expect_semi(laye_parser* p, laye_parse_result* result) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+
+    if (!laye_parser_consume(p, ';', NULL)) {
+        if (result) {
+            arr_push(result->diags, layec_error(p->context, p->token.location, "Expected ';'."));
+        } else {
+            layec_write_error(p->context, p->token.location, "Expected ';'.");
+        }
+    }
+}
+
 static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -840,7 +865,7 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     laye_parser_push_scope(p);
 
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
-        result = laye_parse_result_combine(result, laye_parse_declaration(p, true));
+        result = laye_parse_result_combine(result, laye_parse_declaration(p, true, true));
         assert(result.node != NULL);
         arr_push(compound_expression->compound.children, result.node);
     }
@@ -877,7 +902,7 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     return result;
 }
 
-static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_node* declared_type, laye_token name_token) {
+static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_node* declared_type, laye_token name_token, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1019,14 +1044,13 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
         binding_node->decl_binding.initializer = initial_value;
     }
 
-    if (!laye_parser_consume(p, ';', NULL)) {
-        layec_write_error(p->context, p->token.location, "Expected ';'.");
-    }
+    laye_parse_result result = laye_parse_result_success(binding_node);
+    if (consume_semi) laye_expect_semi(p, &result);
 
-    return laye_parse_result_success(binding_node);
+    return result;
 }
 
-static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expression) {
+static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expression, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1058,7 +1082,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                 arr_push(result.diags, layec_error(p->context, p->token.location, "Cannot apply attributes to non-declarations."));
             }
 
-            return laye_parse_result_combine(result, laye_parse_statement(p));
+            return laye_parse_result_combine(result, laye_parse_statement(p, consume_semi));
         }
 
         default: {
@@ -1071,7 +1095,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                     laye_parse_result_destroy(declared_type_result);
                     arr_free(attributes);
                     laye_parser_reset_to_mark(p, start_mark);
-                    return laye_parse_statement(p);
+                    return laye_parse_statement(p, consume_semi);
                 }
 
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_child(p, declared_type_result.node);
@@ -1089,7 +1113,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                     laye_parse_result_destroy(declared_type_result);
                     arr_free(attributes);
                     laye_parser_reset_to_mark(p, start_mark);
-                    return laye_parse_statement(p);
+                    return laye_parse_statement(p, consume_semi);
                 }
 
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_token(p);
@@ -1103,7 +1127,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             laye_node* declared_type = declared_type_result.node;
             laye_parse_result_destroy(declared_type_result);
 
-            return laye_parse_declaration_continue(p, attributes, declared_type, name_token);
+            return laye_parse_declaration_continue(p, attributes, declared_type, name_token, consume_semi);
         }
     }
 
@@ -1211,7 +1235,7 @@ static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_parse_res
             if_body = result->node;
         } else {
             arr_push(result->diags, layec_error(p->context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)"));
-            *result = laye_parse_result_combine(*result, laye_parse_statement(p));
+            *result = laye_parse_result_combine(*result, laye_parse_statement(p, true));
             if_body = result->node;
         }
     }
@@ -1274,7 +1298,7 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
                     else_body = result.node;
                 } else {
                     arr_push(result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
-                    result = laye_parse_result_combine(result, laye_parse_statement(p));
+                    result = laye_parse_result_combine(result, laye_parse_statement(p, true));
                     else_body = result.node;
                 }
             }
@@ -1446,16 +1470,189 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
     return (laye_parse_result){0};
 }
 
-static void laye_expect_semi(laye_parser* p) {
+static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_parse_result foreach_result) {
     assert(p != NULL);
     assert(p->context != NULL);
+    assert(p->module != NULL);
 
-    if (!laye_parser_consume(p, ';', NULL)) {
-        layec_write_error(p->context, p->token.location, "Expected ';'.");
+    assert(laye_parser_at(p, LAYE_TOKEN_ENUM) || (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, ':')));
+
+    laye_node* foreach_node = foreach_result.node;
+    assert(foreach_node != NULL);
+    assert(foreach_node->kind == LAYE_NODE_FOREACH);
+    
+    string index_name = {0};
+    if (laye_parser_consume(p, LAYE_TOKEN_ENUM, NULL)) {
+        laye_token index_name_token = {0};
+        if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &index_name_token)) {
+            index_name = index_name_token.string_value;
+        } else {
+            arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected identifer as iterator index binding name."));
+        }
+
+        if (!laye_parser_consume(p, ',', NULL)) {
+            arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected ','."));
+        }
     }
+
+    string element_name = {0};
+    laye_token element_name_token = {0};
+    if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &element_name_token)) {
+        element_name = element_name_token.string_value;
+    } else {
+        arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected identifer as iterator element binding name."));
+    }
+
+    if (!laye_parser_consume(p, ':', NULL)) {
+        arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected ':'."));
+    }
+
+    foreach_node->foreach.index_name = index_name;
+    foreach_node->foreach.element_name = element_name;
+
+    foreach_result = laye_parse_result_combine(foreach_result, laye_parse_expression(p));
+    assert(foreach_result.node != NULL);
+    foreach_node->foreach.iterable = foreach_result.node;
+
+    if (!laye_parser_consume(p, ')', NULL)) {
+        arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected ')'."));
+    }
+
+    if (laye_parser_at(p, '{')) {
+        foreach_result = laye_parse_result_combine(foreach_result, laye_parse_compound_expression(p));
+        foreach_node->foreach.pass = foreach_result.node;
+    } else {
+        arr_push(foreach_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        foreach_result = laye_parse_result_combine(foreach_result, laye_parse_statement(p, true));
+        foreach_node->foreach.pass = foreach_result.node;
+    }
+
+    foreach_result.node = foreach_node;
+    return foreach_result;
 }
 
-static laye_parse_result laye_maybe_parse_assignment(laye_parser* p, laye_node* lhs) {
+static laye_parse_result laye_parse_for(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == LAYE_TOKEN_FOR);
+
+    layec_location for_location = p->token.location;
+    laye_next_token(p);
+
+    laye_node* for_node = laye_node_create(p->module, LAYE_NODE_FOR, for_location, p->context->laye_types._void);
+    assert(for_node != NULL);
+
+    laye_parse_result for_result = laye_parse_result_success(for_node);
+
+    if (laye_parser_at(p, '{')) {
+        for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
+        assert(for_result.node != NULL);
+        for_node->_for.pass = for_result.node;
+
+        for_result.node = for_node;
+        return for_result;
+    } else if (!laye_parser_at(p, '(')) {
+        arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
+        assert(for_result.node != NULL);
+        for_node->_for.pass = for_result.node;
+
+        for_result.node = for_node;
+        return for_result;
+    }
+
+    if (!laye_parser_consume(p, '(', NULL)) {
+        arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '('."));
+    }
+
+    if (laye_parser_at(p, LAYE_TOKEN_ENUM) || (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, ':'))) {
+        for_node->kind = LAYE_NODE_FOREACH;
+        for_result.node = for_node;
+        return laye_parse_foreach_from_names(p, for_result);
+    }
+
+    laye_node* first_node = NULL;
+    if (laye_parser_at(p, ';')) {
+        first_node = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types._void);
+        assert(first_node != NULL);
+        first_node->compiler_generated = true;
+        goto continue_parse_cfor;
+    }
+
+    for_result = laye_parse_declaration(p, true, false);
+    first_node = for_result.node;
+
+    if (laye_parser_at(p, ')')) {
+        assert(first_node != NULL);
+        
+        for_node->_for.condition = first_node;
+
+        // TODO(local): also check for "statements".
+        if (laye_node_is_decl(first_node)) {
+            arr_push(for_result.diags, layec_error(p->context, first_node->location, "For loop condition must be an expression."));
+        }
+    } else {
+    continue_parse_cfor:;
+        assert(first_node != NULL);
+
+        for_node->_for.initializer = first_node;
+        laye_expect_semi(p, &for_result);
+
+        if (!laye_parser_at(p, ';')) {
+            for_result = laye_parse_result_combine(for_result, laye_parse_expression(p));
+            for_node->_for.condition = for_result.node;
+        } else {
+            for_node->_for.condition = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, p->context->laye_types._void);
+            assert(for_node->_for.condition != NULL);
+            for_node->_for.condition->compiler_generated = true;
+            for_node->_for.condition->litbool.value = true;
+        }
+
+        assert(for_node->_for.condition != NULL);
+        laye_expect_semi(p, &for_result);
+
+        if (!laye_parser_at(p, ')')) {
+            for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, false));
+            for_node->_for.increment = for_result.node;
+        } else {
+            for_node->_for.increment = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types._void);
+            assert(for_node->_for.increment != NULL);
+            for_node->_for.increment->compiler_generated = true;
+        }
+
+        assert(for_node->_for.increment != NULL);
+    }
+
+    if (!laye_parser_consume(p, ')', NULL)) {
+        arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected ')'."));
+    }
+
+    if (laye_parser_at(p, '{')) {
+        for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
+        for_node->_for.pass = for_result.node;
+    } else {
+        arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
+        for_node->_for.pass = for_result.node;
+    }
+
+    if (laye_parser_consume(p, LAYE_TOKEN_ELSE, NULL)) {
+        if (laye_parser_at(p, '{')) {
+            for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
+            for_node->_for.fail = for_result.node;
+        } else {
+            arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `for` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
+            for_node->_for.fail = for_result.node;
+        }
+    }
+    
+    for_result.node = for_node;
+    return for_result;
+}
+
+static laye_parse_result laye_maybe_parse_assignment(laye_parser* p, laye_node* lhs, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1479,11 +1676,13 @@ static laye_parse_result laye_maybe_parse_assignment(laye_parser* p, laye_node* 
     assign->assignment.reference_reassign = assign_op.kind == LAYE_TOKEN_LESSMINUS;
     assign->assignment.rhs = rhs_result.node;
 
-    laye_expect_semi(p);
+    if (consume_semi) laye_expect_semi(p, &rhs_result);
     return laye_parse_result_combine(rhs_result, laye_parse_result_success(assign));
 }
 
-static laye_parse_result laye_parse_statement(laye_parser* p) {
+static laye_parse_result laye_parse_binary_expression(laye_parser* p, laye_node* lhs, int precedence);
+
+static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1500,7 +1699,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p) {
 
             laye_node* compound_only = result.node;
 
-            result = laye_parse_result_combine(result, laye_maybe_parse_assignment(p, result.node));
+            result = laye_parse_result_combine(result, laye_maybe_parse_assignment(p, result.node, consume_semi));
             assert(result.node != NULL);
 
             if (result.node != compound_only) {
@@ -1510,6 +1709,11 @@ static laye_parse_result laye_parse_statement(laye_parser* p) {
 
         case LAYE_TOKEN_IF: {
             result = laye_parse_if(p, false);
+            assert(result.node != NULL);
+        } break;
+
+        case LAYE_TOKEN_FOR: {
+            result = laye_parse_for(p);
             assert(result.node != NULL);
         } break;
 
@@ -1526,7 +1730,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p) {
                 laye_parse_result_destroy(value_result);
             }
 
-            laye_expect_semi(p);
+            if (consume_semi) laye_expect_semi(p, &result);
         } break;
 
         case LAYE_TOKEN_YIELD: {
@@ -1540,14 +1744,14 @@ static laye_parse_result laye_parse_statement(laye_parser* p) {
             laye_parse_result_copy_diags(&result, value_result);
             laye_parse_result_destroy(value_result);
 
-            laye_expect_semi(p);
+            if (consume_semi) laye_expect_semi(p, &result);
         } break;
 
         case LAYE_TOKEN_XYZZY: {
             result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, p->context->laye_types._void));
             assert(result.node != NULL);
             laye_next_token(p);
-            laye_expect_semi(p);
+            if (consume_semi) laye_expect_semi(p, &result);
         } break;
 
         default: {
@@ -1556,9 +1760,14 @@ static laye_parse_result laye_parse_statement(laye_parser* p) {
 
             laye_node* expr_only = result.node;
 
-            result = laye_parse_result_combine(result, laye_maybe_parse_assignment(p, result.node));
+            result = laye_parse_result_combine(result, laye_maybe_parse_assignment(p, result.node, consume_semi));
+            assert(result.node != NULL);
+
             if (result.node == expr_only) {
-                laye_expect_semi(p);
+                result = laye_parse_result_combine(result, laye_parse_binary_expression(p, result.node, 0));
+                assert(result.node != NULL);
+
+                if (consume_semi) laye_expect_semi(p, &result);
             }
         } break;
     }

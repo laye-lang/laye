@@ -667,9 +667,10 @@ struct laye_node {
         } _for;
 
         struct {
-            // the type of the "element" variable storing the current iteration result.
-            laye_node* element_type;
+            // the name of the "index" variable storing the current iteration index.
+            string index_name;
             // the name of the "element" variable storing the current iteration result.
+            // this is an lvalue to the iteration result.
             string element_name;
             // the value to iterate over.
             // as long as only trivial iteration is supported, this must be a

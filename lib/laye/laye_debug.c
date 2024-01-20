@@ -172,6 +172,43 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_FOR: {
+            if (node->_for.initializer != NULL) {
+                arr_push(children, node->_for.initializer);
+            }
+
+            if (node->_for.condition != NULL) {
+                arr_push(children, node->_for.condition);
+            }
+
+            if (node->_for.increment != NULL) {
+                arr_push(children, node->_for.increment);
+            }
+
+            if (node->_for.pass != NULL) {
+                arr_push(children, node->_for.pass);
+            }
+
+            if (node->_for.fail != NULL) {
+                arr_push(children, node->_for.fail);
+            }
+        } break;
+
+        case LAYE_NODE_FOREACH: {
+            if (node->foreach.index_name.count != 0) {
+                string_append_format(print_context->output, " %senum %s%.*s%s,", COL(COL_NODE), COL(COL_NAME), STR_EXPAND(node->foreach.index_name), COL(RESET));
+            }
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->foreach.element_name));
+
+            if (node->foreach.iterable != NULL) {
+                arr_push(children, node->foreach.iterable);
+            }
+
+            if (node->foreach.pass != NULL) {
+                arr_push(children, node->foreach.pass);
+            }
+        } break;
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value != NULL) {
                 arr_push(children, node->_return.value);
