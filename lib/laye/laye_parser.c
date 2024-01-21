@@ -1726,6 +1726,20 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             assert(result.node != NULL);
         } break;
 
+        case LAYE_TOKEN_DEFER: {
+            result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_DEFER, p->token.location, p->context->laye_types._void));
+            assert(result.node != NULL);
+            laye_next_token(p);
+            
+            laye_parse_result body_result = laye_parse_statement(p, false);
+            assert(body_result.node != NULL);
+            result.node->defer.body = body_result.node;
+            laye_parse_result_copy_diags(&result, body_result);
+            laye_parse_result_destroy(body_result);
+
+            if (consume_semi) laye_expect_semi(p, &result);
+        } break;
+
         case LAYE_TOKEN_RETURN: {
             result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_RETURN, p->token.location, p->context->laye_types.noreturn));
             assert(result.node != NULL);
@@ -1739,6 +1753,41 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                 laye_parse_result_destroy(value_result);
             }
 
+            if (consume_semi) laye_expect_semi(p, &result);
+        } break;
+
+        case LAYE_TOKEN_BREAK: {
+            result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_BREAK, p->token.location, p->context->laye_types._void));
+            assert(result.node != NULL);
+            laye_next_token(p);
+            laye_token target_label = {0};
+            if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &target_label)) {
+                result.node->_break.target = target_label.string_value;
+            }
+            if (consume_semi) laye_expect_semi(p, &result);
+        } break;
+
+        case LAYE_TOKEN_CONTINUE: {
+            result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_CONTINUE, p->token.location, p->context->laye_types._void));
+            assert(result.node != NULL);
+            laye_next_token(p);
+            laye_token target_label = {0};
+            if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &target_label)) {
+                result.node->_continue.target = target_label.string_value;
+            }
+            if (consume_semi) laye_expect_semi(p, &result);
+        } break;
+
+        case LAYE_TOKEN_GOTO: {
+            result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_GOTO, p->token.location, p->context->laye_types._void));
+            assert(result.node != NULL);
+            laye_next_token(p);
+            laye_token target_label = {0};
+            if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &target_label)) {
+                result.node->_goto.label = target_label.string_value;
+            } else {
+                arr_push(result.diags, layec_error(p->context, p->token.location, "Expected an identifier as `goto` target label name."));
+            }
             if (consume_semi) laye_expect_semi(p, &result);
         } break;
 
@@ -1764,6 +1813,15 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
         } break;
 
         default: {
+            if (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, ':')) {
+                result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_LABEL, p->token.location, p->context->laye_types._void));
+                assert(result.node != NULL);
+                result.node->declared_name = p->token.string_value;
+                laye_next_token(p);
+                laye_next_token(p);
+                break;
+            }
+
             result = laye_parse_primary_expression(p);
             assert(result.node != NULL);
 

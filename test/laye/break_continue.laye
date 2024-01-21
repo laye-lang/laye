@@ -1,0 +1,32 @@
+// 40
+// R %layec --ir %s
+
+int simple_break() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        accum = accum + i;
+        if (i == 5) {
+            break;
+        }
+    }
+
+    return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        accum = accum + i;
+    }
+
+    return accum;
+}
+
+int main() {
+    // 15 + 25
+    return simple_break() + simple_continue();
+}

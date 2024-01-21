@@ -210,10 +210,34 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_LABEL: {
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
+        } break;
+
+        case LAYE_NODE_DEFER: {
+            arr_push(children, node->defer.body);
+        } break;
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value != NULL) {
                 arr_push(children, node->_return.value);
             }
+        } break;
+
+        case LAYE_NODE_BREAK: {
+            if (node->_break.target.count != 0) {
+                string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->_break.target));
+            }
+        } break;
+
+        case LAYE_NODE_CONTINUE: {
+            if (node->_continue.target.count != 0) {
+                string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->_continue.target));
+            }
+        } break;
+
+        case LAYE_NODE_GOTO: {
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->_goto.label));
         } break;
 
         case LAYE_NODE_YIELD: {

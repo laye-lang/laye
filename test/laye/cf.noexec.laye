@@ -1,0 +1,61 @@
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if (t) { goto same_region; }
+                    defer g();
+                    if (t) { break loop2; }
+                }
+                one_scope_up:
+                defer h();
+                for {
+                    int w;
+                    defer i();
+                    if (t) { goto forward; }
+                    if (t) { goto one_scope_up; }
+                    forward: if (t) { goto forward2; }
+                    if (t) { goto nested; }
+                    if (t) { continue loop; }
+                }
+                forward2:
+                for {
+                    defer j();
+                    if (t) { continue; }
+                    if (t) { break; }
+                    if (t) { return; }
+                    defer k();
+                    if (t) { break loop; }
+                    if (t) { continue loop2; }
+                }
+            }
+            defer l();
+            if (t) { break; }
+        }
+    }
+}
