@@ -665,6 +665,10 @@ struct laye_node {
             // evaluations resulted in false; this is *only* executed if the very first
             // condition evaluation resulted in `false`.
             laye_node* fail;
+            // flags for easily determining if a loop contains specific control
+            // flow constructs, to influence sema and IRgen.
+            bool has_breaks : 1;
+            bool has_continues : 1;
         } _for;
 
         struct {

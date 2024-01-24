@@ -173,6 +173,14 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_FOR: {
+            if (node->_for.has_breaks) {
+                string_append_format(print_context->output, " %sHAS_BREAKS", COL(COL_TREE));
+            }
+
+            if (node->_for.has_continues) {
+                string_append_format(print_context->output, " %sHAS_CONTINUES", COL(COL_TREE));
+            }
+
             if (node->_for.initializer != NULL) {
                 arr_push(children, node->_for.initializer);
             }
@@ -195,6 +203,14 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_FOREACH: {
+            if (node->foreach.has_breaks) {
+                string_append_format(print_context->output, " %sHAS_BREAKS", COL(COL_TREE));
+            }
+
+            if (node->foreach.has_continues) {
+                string_append_format(print_context->output, " %sHAS_CONTINUES", COL(COL_TREE));
+            }
+
             if (node->foreach.index_binding != NULL) {
                 arr_push(children, node->foreach.index_binding);
             }

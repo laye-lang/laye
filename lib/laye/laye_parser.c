@@ -1798,13 +1798,26 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (consume_semi) laye_expect_semi(p, &result);
 
             if (arr_count(p->break_continue_stack) == 0) {
-                layec_write_error(p->context, result.node->location, "`break` statement can only occur within a `for` loop or `switch` statement.");
+                layec_write_error(p->context, result.node->location, "`break` statement can only occur within a `for` loop.");
             } else {
                 if (result.node->_break.target.count != 0) {
                     layec_write_error(p->context, result.node->location, "`break` currently does not support label targets.");
                 } else {
                     break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
+                    assert(bc_targ.target != NULL);
                     result.node->_break.target_node = bc_targ.target;
+                    switch (bc_targ.target->kind) {
+                        default: assert(false && "unreachable"); break;
+                        case LAYE_NODE_FOR: {
+                            bc_targ.target->_for.has_breaks = true;
+                        } break;
+                        case LAYE_NODE_FOREACH: {
+                            bc_targ.target->foreach.has_breaks = true;
+                        } break;
+                        case LAYE_NODE_DOFOR: {
+                            bc_targ.target->dofor.has_breaks = true;
+                        } break;
+                    }
                 }
             }
         } break;
@@ -1826,7 +1839,20 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                     layec_write_error(p->context, result.node->location, "`continue` currently does not support label targets.");
                 } else {
                     break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
+                    assert(bc_targ.target != NULL);
                     result.node->_continue.target_node = bc_targ.target;
+                    switch (bc_targ.target->kind) {
+                        default: assert(false && "unreachable"); break;
+                        case LAYE_NODE_FOR: {
+                            bc_targ.target->_for.has_continues = true;
+                        } break;
+                        case LAYE_NODE_FOREACH: {
+                            bc_targ.target->foreach.has_continues = true;
+                        } break;
+                        case LAYE_NODE_DOFOR: {
+                            bc_targ.target->dofor.has_continues = true;
+                        } break;
+                    }
                 }
             }
         } break;
