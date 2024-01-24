@@ -687,6 +687,10 @@ struct laye_node {
             laye_node* pass_label;
             // statement to be executed as long as the iterable provides element values.
             laye_node* pass;
+            // flags for easily determining if a loop contains specific control
+            // flow constructs, to influence sema and IRgen.
+            bool has_breaks : 1;
+            bool has_continues : 1;
         } foreach;
 
         struct {
@@ -702,6 +706,10 @@ struct laye_node {
             laye_node* pass;
             // the condition of this for loop.
             laye_node* condition;
+            // flags for easily determining if a loop contains specific control
+            // flow constructs, to influence sema and IRgen.
+            bool has_breaks : 1;
+            bool has_continues : 1;
         } dofor;
 
         struct {
@@ -742,6 +750,9 @@ struct laye_node {
             // applies to loops and switch which have a label associated with
             // their primary "body".
             string target;
+            // the syntax node to break out of. currently populated during sema,
+            // but could be handled at parse time pretty easily instead.
+            laye_node* target_node;
         } _break;
 
         struct {
@@ -749,6 +760,9 @@ struct laye_node {
             // applies to loops and switch which have a label associated with
             // their primary "body".
             string target;
+            // the syntax node to continue to. currently populated during sema,
+            // but could be handled at parse time pretty easily instead.
+            laye_node* target_node;
         } _continue;
 
         // note that yields basically only apply within compound expressions
@@ -774,6 +788,9 @@ struct laye_node {
         struct {
             // the label to go to.
             string label;
+            // the syntax node to go to. this will be the label itself, not the node it
+            // could be labeling.
+            laye_node* target_node;
         } _goto;
 
         struct {

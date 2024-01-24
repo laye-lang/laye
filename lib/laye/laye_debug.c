@@ -228,11 +228,33 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             if (node->_break.target.count != 0) {
                 string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->_break.target));
             }
+
+            if (node->_break.target_node != NULL) {
+                string_append_format(
+                    print_context->output,
+                    " %s%s %s%016llX", 
+                    COL(COL_NODE),
+                    laye_node_kind_to_cstring(node->_break.target_node->kind),
+                    COL(COL_ADDR),
+                    (size_t)node->_break.target_node
+                );
+            }
         } break;
 
         case LAYE_NODE_CONTINUE: {
             if (node->_continue.target.count != 0) {
                 string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->_continue.target));
+            }
+
+            if (node->_break.target_node != NULL) {
+                string_append_format(
+                    print_context->output,
+                    " %s%s %s%016llX", 
+                    COL(COL_NODE),
+                    laye_node_kind_to_cstring(node->_continue.target_node->kind),
+                    COL(COL_ADDR),
+                    (size_t)node->_continue.target_node
+                );
             }
         } break;
 

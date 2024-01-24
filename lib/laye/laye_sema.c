@@ -581,6 +581,28 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             }
         } break;
 
+        case LAYE_NODE_BREAK: {
+            node->type = sema->context->laye_types._void;
+            if (arr_count(sema->break_continue_stack) == 0) {
+                layec_write_error(sema->context, node->location, "`break` statement can only occur within a `for` loop or `switch` statement.");
+                break;
+            }
+
+            break_continue_target bc_targ = sema->break_continue_stack[arr_count(sema->break_continue_stack) - 1];
+            node->_break.target_node = bc_targ.target;
+        } break;
+
+        case LAYE_NODE_CONTINUE: {
+            node->type = sema->context->laye_types._void;
+            if (arr_count(sema->break_continue_stack) == 0) {
+                layec_write_error(sema->context, node->location, "`continue` statement can only occur within a `for` loop.");
+                break;
+            }
+
+            break_continue_target bc_targ = sema->break_continue_stack[arr_count(sema->break_continue_stack) - 1];
+            node->_continue.target_node = bc_targ.target;
+        } break;
+
         case LAYE_NODE_XYZZY: {
         } break;
 
