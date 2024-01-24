@@ -3,19 +3,12 @@
 
 #include <assert.h>
 
-typedef struct break_continue_target {
-    string_view name;
-    laye_node* target;
-} break_continue_target;
-
 typedef struct laye_sema {
     layec_context* context;
     layec_dependency_graph* dependencies;
 
     laye_node* current_function;
     laye_node* current_yield_target;
-
-    dynarr(break_continue_target) break_continue_stack;
 } laye_sema;
 
 static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node, laye_node* expected_type);
@@ -40,19 +33,6 @@ static bool laye_sema_implicit_de_reference(laye_sema* sema, laye_node** node);
 static laye_node* laye_sema_get_pointer_to_type(laye_sema* sema, laye_node* element_type, bool is_modifiable);
 static laye_node* laye_sema_get_buffer_of_type(laye_sema* sema, laye_node* element_type, bool is_modifiable);
 static laye_node* laye_sema_get_reference_to_type(laye_sema* sema, laye_node* element_type, bool is_modifiable);
-
-static void laye_sema_push_break_continue_target(laye_sema* sema, string_view name, laye_node* target) {
-    break_continue_target t = {
-        .name = name,
-        .target = target,
-    };
-    arr_push(sema->break_continue_stack, t);
-}
-
-static void laye_sema_pop_break_continue_target(laye_sema* sema) {
-    assert(arr_count(sema->break_continue_stack) != 0);
-    arr_pop(sema->break_continue_stack);
-}
 
 static laye_node* laye_sema_lookup_value_node(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     assert(sema != NULL);
@@ -202,8 +182,6 @@ void laye_analyse(laye_module* module) {
         laye_sema_analyse_node(&sema, &node, NULL);
         assert(node != NULL);
     }
-
-    arr_free(sema.break_continue_stack);
 
     arr_free(ordered_nodes);
     arr_free(referenced_modules);
@@ -470,8 +448,6 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 }
             }
 
-            laye_sema_push_break_continue_target(sema, SV_EMPTY, node);
-
             if (!laye_sema_analyse_node(sema, &node->_for.pass, NULL)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
             }
@@ -481,8 +457,6 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     node->sema_state = LAYEC_SEMA_ERRORED;
                 }
             }
-
-            laye_sema_pop_break_continue_target(sema);
 
             // TODO(local): if there is a `break` within the body anywhere, then this is not true
             if (is_condition_always_true) {
@@ -582,25 +556,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
         } break;
 
         case LAYE_NODE_BREAK: {
-            node->type = sema->context->laye_types._void;
-            if (arr_count(sema->break_continue_stack) == 0) {
-                layec_write_error(sema->context, node->location, "`break` statement can only occur within a `for` loop or `switch` statement.");
-                break;
-            }
-
-            break_continue_target bc_targ = sema->break_continue_stack[arr_count(sema->break_continue_stack) - 1];
-            node->_break.target_node = bc_targ.target;
         } break;
 
         case LAYE_NODE_CONTINUE: {
-            node->type = sema->context->laye_types._void;
-            if (arr_count(sema->break_continue_stack) == 0) {
-                layec_write_error(sema->context, node->location, "`continue` statement can only occur within a `for` loop.");
-                break;
-            }
-
-            break_continue_target bc_targ = sema->break_continue_stack[arr_count(sema->break_continue_stack) - 1];
-            node->_continue.target_node = bc_targ.target;
         } break;
 
         case LAYE_NODE_XYZZY: {

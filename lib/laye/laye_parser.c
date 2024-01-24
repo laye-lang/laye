@@ -3,6 +3,11 @@
 
 #include <assert.h>
 
+typedef struct break_continue_target {
+    string_view name;
+    laye_node* target;
+} break_continue_target;
+
 typedef struct laye_parser {
     layec_context* context;
     laye_module* module;
@@ -16,6 +21,8 @@ typedef struct laye_parser {
     laye_token next_token;
 
     laye_scope* scope;
+
+    dynarr(break_continue_target) break_continue_stack;
 } laye_parser;
 
 typedef struct laye_parse_result {
@@ -93,6 +100,24 @@ const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind) {
             LAYE_TRIVIA_KINDS(X)
 #undef X
     }
+}
+
+static void laye_parser_push_break_continue_target(laye_parser* p, string_view name, laye_node* target) {
+    break_continue_target t = {
+        .name = name,
+        .target = target,
+    };
+    arr_push(p->break_continue_stack, t);
+}
+
+static void laye_parser_pop_break_continue_target(laye_parser* p) {
+    assert(arr_count(p->break_continue_stack) != 0);
+    arr_pop(p->break_continue_stack);
+}
+
+static break_continue_target laye_parser_peek_break_continue_target(laye_parser* p) {
+    assert(arr_count(p->break_continue_stack) != 0);
+    return p->break_continue_stack[arr_count(p->break_continue_stack) - 1];
 }
 
 const char* laye_token_kind_to_cstring(laye_token_kind kind) {
@@ -179,6 +204,8 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
 
         arr_push(module->top_level_nodes, top_level_node);
     }
+
+    arr_free(p.break_continue_stack);
 
     return module;
 }
@@ -1549,6 +1576,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
 
     laye_node* for_node = laye_node_create(p->module, LAYE_NODE_FOR, for_location, p->context->laye_types._void);
     assert(for_node != NULL);
+    laye_parser_push_break_continue_target(p, SV_EMPTY, for_node);
 
     laye_parse_result for_result = laye_parse_result_success(for_node);
 
@@ -1721,7 +1749,10 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
 
         case LAYE_TOKEN_FOR: {
             laye_parser_push_scope(p);
+            int64_t initial_break_continue_count = arr_count(p->break_continue_stack);
             result = laye_parse_for(p);
+            assert(initial_break_continue_count + 1 == arr_count(p->break_continue_stack));
+            laye_parser_pop_break_continue_target(p);
             laye_parser_pop_scope(p);
             assert(result.node != NULL);
         } break;
@@ -1765,6 +1796,17 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                 result.node->_break.target = target_label.string_value;
             }
             if (consume_semi) laye_expect_semi(p, &result);
+
+            if (arr_count(p->break_continue_stack) == 0) {
+                layec_write_error(p->context, result.node->location, "`break` statement can only occur within a `for` loop or `switch` statement.");
+            } else {
+                if (result.node->_break.target.count != 0) {
+                    layec_write_error(p->context, result.node->location, "`break` currently does not support label targets.");
+                } else {
+                    break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
+                    result.node->_break.target_node = bc_targ.target;
+                }
+            }
         } break;
 
         case LAYE_TOKEN_CONTINUE: {
@@ -1776,6 +1818,17 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                 result.node->_continue.target = target_label.string_value;
             }
             if (consume_semi) laye_expect_semi(p, &result);
+
+            if (arr_count(p->break_continue_stack) == 0) {
+                layec_write_error(p->context, result.node->location, "`continue` statement can only occur within a `for` loop.");
+            } else {
+                if (result.node->_continue.target.count != 0) {
+                    layec_write_error(p->context, result.node->location, "`continue` currently does not support label targets.");
+                } else {
+                    break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
+                    result.node->_continue.target_node = bc_targ.target;
+                }
+            }
         } break;
 
         case LAYE_TOKEN_GOTO: {
