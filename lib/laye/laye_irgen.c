@@ -297,7 +297,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
                 if (!laye_type_is_noreturn(node->_if.passes[i]->type)) {
                     assert(continue_block != NULL);
-                    layec_build_branch(builder, node->_if.passes[i]->location, continue_block);
+                    if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
+                        layec_build_branch(builder, node->_if.passes[i]->location, continue_block);
+                    }
                 }
 
                 if (is_expr) {
@@ -321,7 +323,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
                 if (!laye_type_is_noreturn(node->_if.fail->type)) {
                     assert(continue_block != NULL);
-                    layec_build_branch(builder, node->_if.fail->location, continue_block);
+                    if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
+                        layec_build_branch(builder, node->_if.fail->location, continue_block);
+                    }
                 }
 
                 if (is_expr) {
@@ -354,7 +358,13 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             bool has_initializer = node->_for.initializer != NULL && node->_for.initializer->kind != LAYE_NODE_XYZZY;
             bool has_increment = node->_for.increment != NULL && node->_for.increment->kind != LAYE_NODE_XYZZY;
             bool has_always_true_condition = node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
+
+            bool has_breaks = node->_for.has_breaks;
+            bool has_continues = node->_for.has_continues;
+
+            bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
             
+            #if 0
             bool is_infinite_for = node->_for.initializer == NULL && node->_for.condition == NULL && node->_for.increment == NULL;
             bool is_effectively_infinite_for = !has_initializer && has_always_true_condition && !has_increment && node->_for.fail == NULL;
 
@@ -376,6 +386,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                 return layec_void_constant(context);
             }
+            #endif
 
             // 1. handle the initializer
             if (has_initializer) {
@@ -414,10 +425,26 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 assert(for_fail_block != NULL);
             }
 
-            layec_value* for_continue_block = NULL;
-            if (!laye_type_is_noreturn(node->type)) {
-                for_continue_block = layec_function_append_block(function, SV_EMPTY);
-                assert(for_continue_block != NULL);
+            layec_value* for_join_block = NULL;
+            if (requires_join_block) {
+                for_join_block = layec_function_append_block(function, SV_EMPTY);
+                assert(for_join_block != NULL);
+            }
+
+            // 1.5. assign the correct blocks to the syntax nodes for later lookup by break/continue
+            if (node->_for.has_continues) {
+                if (has_always_true_condition) {
+                    node->_for.continue_target_block = for_pass_block;
+                } else {
+                    node->_for.continue_target_block = for_condition_block;
+                }
+
+                assert(node->_for.continue_target_block != NULL);
+            }
+
+            if (node->_for.has_breaks) {
+                node->_for.break_target_block = for_join_block;
+                assert(node->_for.break_target_block != NULL);
             }
 
             // 2. early condition for branching to `else`
@@ -452,12 +479,12 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 layec_value* condition_value = laye_generate_node(builder, node->_for.condition);
                 assert(condition_value != NULL);
 
-                if (laye_type_is_noreturn(node->_for.condition->type)) {
+                if (!requires_join_block) {
                     assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                     return layec_void_constant(context);
                 }
 
-                layec_build_branch_conditional(builder, node->_for.condition->location, condition_value, for_pass_block, for_continue_block);
+                layec_build_branch_conditional(builder, node->_for.condition->location, condition_value, for_pass_block, for_join_block);
             }
 
             // 4. handle incrementing and returning to the condition (or pass if the condition is always true)
@@ -485,13 +512,15 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             if (laye_type_is_noreturn(node->_for.pass->type)) {
                 assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
             } else {
-                if (for_increment_block != NULL) {
-                    layec_build_branch(builder, node->_for.pass->location, for_increment_block);
-                } else {
-                    if (has_always_true_condition) {
-                        layec_build_branch(builder, node->_for.pass->location, for_pass_block);
+                if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
+                    if (for_increment_block != NULL) {
+                        layec_build_branch(builder, node->_for.pass->location, for_increment_block);
                     } else {
-                        layec_build_branch(builder, node->_for.pass->location, for_condition_block);
+                        if (has_always_true_condition) {
+                            layec_build_branch(builder, node->_for.pass->location, for_pass_block);
+                        } else {
+                            layec_build_branch(builder, node->_for.pass->location, for_condition_block);
+                        }
                     }
                 }
             }
@@ -503,10 +532,10 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 layec_builder_position_at_end(builder, for_fail_block);
                 laye_generate_node(builder, node->_for.fail);
 
-                if (laye_type_is_noreturn(node->_for.fail->type)) {
+                if (!requires_join_block) {
                     assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                 } else {
-                    layec_build_branch(builder, node->_for.fail->location, for_continue_block);
+                    layec_build_branch(builder, node->_for.fail->location, for_join_block);
                 }
             }
 
@@ -515,8 +544,8 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                 return layec_void_constant(context);
             } else {
-                assert(for_continue_block != NULL);
-                layec_builder_position_at_end(builder, for_continue_block);
+                assert(for_join_block != NULL);
+                layec_builder_position_at_end(builder, for_join_block);
             }
 
             return layec_void_constant(context);
@@ -536,6 +565,56 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             layec_value* yield_value = laye_generate_node(builder, node->yield.value);
             assert(yield_value != NULL);
             return yield_value;
+        }
+
+        case LAYE_NODE_BREAK: {
+            assert(node->_break.target_node != NULL);
+            switch (node->_break.target_node->kind) {
+                default: assert(false && "unreachable"); return NULL;
+
+                case LAYE_NODE_FOR: {
+                    assert(node->_break.target_node->_for.break_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_break.target_node->_for.break_target_block);
+                }
+
+                case LAYE_NODE_FOREACH: {
+                    assert(node->_break.target_node->foreach.break_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_break.target_node->foreach.break_target_block);
+                }
+
+                case LAYE_NODE_DOFOR: {
+                    assert(node->_break.target_node->dofor.break_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_break.target_node->dofor.break_target_block);
+                }
+            }
+
+            assert(false && "unreachable");
+            return NULL;
+        }
+
+        case LAYE_NODE_CONTINUE: {
+            assert(node->_continue.target_node != NULL);
+            switch (node->_continue.target_node->kind) {
+                default: assert(false && "unreachable"); return NULL;
+
+                case LAYE_NODE_FOR: {
+                    assert(node->_continue.target_node->_for.continue_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_continue.target_node->_for.continue_target_block);
+                }
+
+                case LAYE_NODE_FOREACH: {
+                    assert(node->_continue.target_node->foreach.continue_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_continue.target_node->foreach.continue_target_block);
+                }
+
+                case LAYE_NODE_DOFOR: {
+                    assert(node->_continue.target_node->dofor.continue_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_continue.target_node->dofor.continue_target_block);
+                }
+            }
+
+            assert(false && "unreachable");
+            return NULL;
         }
 
         case LAYE_NODE_XYZZY: {

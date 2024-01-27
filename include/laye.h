@@ -665,6 +665,8 @@ struct laye_node {
             // evaluations resulted in false; this is *only* executed if the very first
             // condition evaluation resulted in `false`.
             laye_node* fail;
+            layec_value* break_target_block;
+            layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
             bool has_breaks : 1;
@@ -691,6 +693,8 @@ struct laye_node {
             laye_node* pass_label;
             // statement to be executed as long as the iterable provides element values.
             laye_node* pass;
+            layec_value* break_target_block;
+            layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
             bool has_breaks : 1;
@@ -710,6 +714,8 @@ struct laye_node {
             laye_node* pass;
             // the condition of this for loop.
             laye_node* condition;
+            layec_value* break_target_block;
+            layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
             bool has_breaks : 1;
