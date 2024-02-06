@@ -933,6 +933,92 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     return result;
 }
 
+static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(laye_node*) attributes) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == LAYE_TOKEN_STRUCT || p->token.kind == LAYE_TOKEN_VARIANT);
+
+    laye_node* struct_decl = laye_node_create(p->module, LAYE_NODE_DECL_STRUCT, p->token.location, p->context->laye_types._void);
+    laye_apply_attributes(struct_decl, attributes);
+
+    laye_parse_result result = laye_parse_result_success(struct_decl);
+
+    bool is_variant = p->token.kind == LAYE_TOKEN_VAR;
+    laye_next_token(p);
+
+    laye_token ident_token = {0};
+    if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &ident_token)) {
+        result = laye_parse_result_combine(
+            result,
+            laye_parse_result_failure(struct_decl, layec_error(p->context, p->token.location, "Expected an identifier to name this %s.", is_variant ? "variant" : "struct"))
+        );
+
+        if (!laye_parser_at(p, '{')) {
+            return result;
+        }
+    }
+
+    if (!laye_parser_consume(p, '{', NULL)) {
+        return laye_parse_result_combine(
+            result,
+            laye_parse_result_failure(struct_decl, layec_error(p->context, p->token.location, "Expected '{' to begin this %s.", is_variant ? "variant" : "struct"))
+        );
+    }
+
+    while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
+        if (laye_parser_at2(p, LAYE_TOKEN_STRUCT, LAYE_TOKEN_VARIANT)) {
+            bool is_variant = p->token.kind == LAYE_TOKEN_VARIANT;
+            if (!is_variant) {
+                result = laye_parse_result_combine(
+                    result,
+                    laye_parse_result_failure(struct_decl, layec_error(p->context, p->token.location, "Struct variants must be declared with the `variant` keyword."))
+                );
+
+                laye_parse_result variant_result = laye_parse_struct_declaration(p, NULL);
+                laye_node* variant_node = variant_result.node;
+                assert(variant_node != NULL);
+                result = laye_parse_result_combine(result, variant_result);
+                result.node = struct_decl;
+
+                arr_push(struct_decl->decl_struct.variant_declarations, variant_node);
+            }
+
+            continue;
+        }
+
+        laye_node* field_type = laye_parse_type_or_error(p);
+        assert(field_type != NULL);
+
+        laye_token field_name_token = { .location = p->token.location };
+        if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &field_name_token)) {
+            result = laye_parse_result_combine(
+                result,
+                laye_parse_result_failure(struct_decl, layec_error(p->context, p->token.location, "Expected an identifier to name this field."))
+            );
+        }
+
+        laye_expect_semi(p, &result);
+
+        laye_node* field_node = laye_node_create(p->module, LAYE_NODE_DECL_STRUCT_FIELD, field_name_token.location, p->context->laye_types._void);
+        assert(field_node != NULL);
+        field_node->declared_type = field_type;
+        field_node->declared_name = field_name_token.string_value;
+
+        arr_push(struct_decl->decl_struct.field_declarations, field_node);
+    }
+
+    if (!laye_parser_consume(p, '}', NULL)) {
+        result = laye_parse_result_combine(
+            result,
+            laye_parse_result_failure(struct_decl, layec_error(p->context, p->token.location, "Expected '}' to end this %s.", is_variant ? "variant" : "struct"))
+        );
+    }
+
+    result.node = struct_decl;
+    return result;
+}
+
 static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_node* declared_type, laye_token name_token, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1114,6 +1200,10 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             }
 
             return laye_parse_result_combine(result, laye_parse_statement(p, consume_semi));
+        }
+
+        case LAYE_TOKEN_STRUCT: {
+            return laye_parse_result_combine(result, laye_parse_struct_declaration(p, attributes));
         }
 
         default: {
