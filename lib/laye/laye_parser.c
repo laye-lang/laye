@@ -562,6 +562,18 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             }
         } break;
 
+        case LAYE_TOKEN_IDENT: {
+            if (allocate) {
+                result.node = laye_node_create(p->module, LAYE_NODE_TYPE_NAMEREF, p->token.location, p->context->laye_types.type);
+                result.node->nameref.kind = LAYE_NAMEREF_DEFAULT;
+                arr_push(result.node->nameref.pieces, p->token);
+                assert(p->scope != NULL);
+                result.node->nameref.scope = p->scope;
+                assert(result.node != NULL);
+            }
+            laye_next_token(p);
+        } break;
+
         case LAYE_TOKEN_VOID: {
             if (allocate) {
                 result.node = laye_node_create(p->module, LAYE_NODE_TYPE_VOID, p->token.location, p->context->laye_types.type);
