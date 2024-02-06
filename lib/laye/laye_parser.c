@@ -545,6 +545,10 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
         .success = true,
     };
 
+    bool type_is_modifiable = false;
+    // NOTE(local): if we want to disable "west-mut", remove this line.
+    type_is_modifiable |= laye_parse_type_modifiable_modifiers(p, &result, allocate);
+
     switch (p->token.kind) {
         default: {
             result.success = false;
@@ -639,7 +643,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
         } break;
     }
 
-    bool type_is_modifiable = laye_parse_type_modifiable_modifiers(p, &result, allocate);
+    type_is_modifiable |= laye_parse_type_modifiable_modifiers(p, &result, allocate);
     if (allocate) {
         assert(result.node != NULL);
         result.node->type_is_modifiable = type_is_modifiable;
