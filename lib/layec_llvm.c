@@ -324,7 +324,7 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
         } break;
 
         case LAYEC_IR_BRANCH: {
-            lca_string_append_format(codegen->output, "br label");
+            lca_string_append_format(codegen->output, "br label ");
             llvm_print_value(codegen, layec_branch_pass(instruction), false);
         } break;
 

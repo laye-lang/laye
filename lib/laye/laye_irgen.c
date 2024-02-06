@@ -433,12 +433,14 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
             // 1.5. assign the correct blocks to the syntax nodes for later lookup by break/continue
             if (node->_for.has_continues) {
-                if (has_always_true_condition) {
-                    node->_for.continue_target_block = for_pass_block;
-                } else {
+                if (for_increment_block != NULL) {
+                    node->_for.continue_target_block = for_increment_block;
+                } else if (for_condition_block != NULL) {
                     node->_for.continue_target_block = for_condition_block;
+                } else {
+                    node->_for.continue_target_block = for_pass_block;
                 }
-
+                
                 assert(node->_for.continue_target_block != NULL);
             }
 
