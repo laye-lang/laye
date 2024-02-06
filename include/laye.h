@@ -103,6 +103,8 @@ typedef enum laye_mut_compare {
     X(LITFLOAT)             \
     X(LITSTRING)            \
     X(LITRUNE)              \
+    X(PLUSPLUS)             \
+    X(MINUSMINUS)           \
     X(LESSLESS)             \
     X(GREATERGREATER)       \
     X(EQUALEQUAL)           \
@@ -669,7 +671,7 @@ struct laye_node {
             layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
-            bool has_breaks : 1;
+            bool has_breaks    : 1;
             bool has_continues : 1;
         } _for;
 
@@ -697,7 +699,7 @@ struct laye_node {
             layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
-            bool has_breaks : 1;
+            bool has_breaks    : 1;
             bool has_continues : 1;
         } foreach;
 
@@ -718,7 +720,7 @@ struct laye_node {
             layec_value* continue_target_block;
             // flags for easily determining if a loop contains specific control
             // flow constructs, to influence sema and IRgen.
-            bool has_breaks : 1;
+            bool has_breaks    : 1;
             bool has_continues : 1;
         } dofor;
 
