@@ -468,8 +468,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
 
             // 3. regular condition for looping
             if (has_always_true_condition) {
-                assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
-                layec_build_branch(builder, node->_for.condition->location, for_pass_block);
+                //assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
+                layec_location condition_location = node->_for.condition != NULL ? node->_for.condition->location : node->location;
+                layec_build_branch(builder, condition_location, for_pass_block);
             } else {
                 assert(for_condition_block != NULL);
 
