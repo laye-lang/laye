@@ -1282,6 +1282,22 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
             return result;
         }
 
+        case '.': {
+            laye_token field_token = { .location = p->token.location };
+            laye_next_token(p);
+
+            if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &field_token)) {
+                arr_push(result.diags, layec_error(p->context, field_token.location, "Expected an identifier as the member name."));
+            }
+            
+            laye_node* member_expr = laye_node_create(p->module, LAYE_NODE_MEMBER, field_token.location, p->context->laye_types.unknown);
+            assert(member_expr != NULL);
+            member_expr->member.value = primary_expr;
+            member_expr->member.field_name = field_token;
+
+            return laye_parse_result_combine(result, laye_parse_primary_expression_continue(p, member_expr));
+        }
+
         case '(': {
             laye_next_token(p);
 

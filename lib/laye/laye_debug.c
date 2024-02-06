@@ -346,6 +346,13 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_MEMBER: {
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->member.field_name.string_value));
+
+            assert(node->member.value != NULL);
+            arr_push(children, node->member.value);
+        } break;
+
         case LAYE_NODE_UNARY: {
             arr_push(children, node->unary.operand);
 
