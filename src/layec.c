@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 
         laye_module* module = parse_module(&args, context, input_file_path);
         if (module == NULL) {
-            exit_code = 1;
+            if (!args.print_ast) exit_code = 1;
             goto program_exit;
         }
 
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     }
 
     if (context->has_reported_errors) {
-        exit_code = 1;
+        if (!args.print_ast) exit_code = 1;
         goto program_exit;
     }
 
