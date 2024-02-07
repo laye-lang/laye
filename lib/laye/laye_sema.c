@@ -34,7 +34,7 @@ static laye_node* laye_sema_get_pointer_to_type(laye_sema* sema, laye_node* elem
 static laye_node* laye_sema_get_buffer_of_type(laye_sema* sema, laye_node* element_type, bool is_modifiable);
 static laye_node* laye_sema_get_reference_to_type(laye_sema* sema, laye_node* element_type, bool is_modifiable);
 
-static laye_node* laye_sema_lookup_value_node(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
+static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     assert(sema != NULL);
     assert(from_module != NULL);
     assert(from_module->context != NULL);
@@ -61,7 +61,7 @@ static laye_node* laye_sema_lookup_value_node(laye_sema* sema, laye_module* from
     int64_t name_index = found_declaration == NULL ? 0 : 1;
 
     while (found_declaration == NULL && name_index < arr_count(nameref.pieces)) {
-        assert(false && "todo laye_sema_lookup_value_node search through imports");
+        assert(false && "todo laye_sema_lookup_value_declaration search through imports");
     }
 
     if (found_declaration == NULL) {
@@ -91,12 +91,61 @@ static laye_node* laye_sema_lookup_value_node(laye_sema* sema, laye_module* from
     return found_declaration;
 }
 
-static laye_node* laye_sema_lookup_type_node(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
+static laye_node* laye_sema_lookup_type_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
+    assert(sema != NULL);
+    assert(from_module != NULL);
+    assert(from_module->context != NULL);
+
     laye_scope* search_scope = nameref.scope;
     assert(search_scope != NULL);
 
-    assert(false && "todo laye_sema_lookup_type_node");
-    return NULL;
+    assert(arr_count(nameref.pieces) >= 1);
+    string_view first_name = string_as_view(nameref.pieces[0].string_value);
+
+    laye_node* found_declaration = NULL;
+
+    while (search_scope != NULL) {
+        laye_node* lookup = laye_scope_lookup_type(search_scope, first_name);
+        if (lookup != NULL) {
+            found_declaration = lookup;
+            break;
+        }
+
+        search_scope = search_scope->parent;
+    }
+
+    laye_module* search_module = from_module;
+    int64_t name_index = found_declaration == NULL ? 0 : 1;
+
+    while (found_declaration == NULL && name_index < arr_count(nameref.pieces)) {
+        assert(false && "todo laye_sema_lookup_type_declaration search through imports");
+    }
+
+    if (found_declaration == NULL) {
+        assert(name_index >= arr_count(nameref.pieces));
+        layec_write_error(
+            from_module->context,
+            arr_back(nameref.pieces)->location,
+            "'%.*s' is not a type name in this context.",
+            STR_EXPAND(arr_back(nameref.pieces)->string_value)
+        );
+        return NULL;
+    }
+
+    assert(name_index <= arr_count(nameref.pieces));
+    if (name_index < arr_count(nameref.pieces)) {
+        layec_write_error(
+            from_module->context,
+            arr_back(nameref.pieces)->location,
+            "'%.*s' is not a scope.",
+            STR_EXPAND(nameref.pieces[name_index].string_value)
+        );
+        return NULL;
+    }
+
+    assert(name_index == arr_count(nameref.pieces));
+    assert(found_declaration != NULL);
+    return found_declaration;
 }
 
 static void laye_generate_dependencies_for_module(layec_dependency_graph* graph, laye_module* module) {
@@ -115,6 +164,11 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
             default: assert(false && "unreachable"); break;
 
             case LAYE_NODE_DECL_FUNCTION: {
+                // TODO(local): generate dependencies
+                layec_depgraph_ensure_tracked(graph, top_level_node);
+            } break;
+
+            case LAYE_NODE_DECL_STRUCT: {
                 // TODO(local): generate dependencies
                 layec_depgraph_ensure_tracked(graph, top_level_node);
             } break;
@@ -187,6 +241,68 @@ void laye_analyse(laye_module* module) {
     arr_free(referenced_modules);
 }
 
+static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, laye_node* parent_struct) {
+    assert(sema != NULL);
+    assert(sema->context != NULL);
+    assert(node != NULL);
+    if (parent_struct != NULL) {
+        assert(parent_struct->kind == LAYE_NODE_TYPE_STRUCT);
+    }
+
+    laye_node* struct_type = laye_node_create(node->module, LAYE_NODE_TYPE_STRUCT, node->location, sema->context->laye_types.type);
+    assert(struct_type != NULL);
+    struct_type->type_struct.name = node->declared_name;
+    struct_type->type_struct.parent_struct_type = parent_struct;
+
+    for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++) {
+        laye_node* field_node = node->decl_struct.field_declarations[i];
+        assert(field_node != NULL);
+        assert(field_node->kind == LAYE_NODE_DECL_STRUCT_FIELD);
+
+        (void)laye_sema_analyse_node(sema, &field_node->declared_type, NULL);
+
+        layec_evaluated_constant constant_initial_value = {0};
+        if (field_node->decl_struct_field.initializer != NULL) {
+            if (laye_sema_analyse_node(sema, &field_node->decl_struct_field.initializer, field_node->declared_type)) {
+                laye_sema_convert_or_error(sema, &field_node->decl_struct_field.initializer, field_node->declared_type);
+
+                if (!laye_expr_evaluate(field_node->decl_struct_field.initializer, &constant_initial_value, true)) {
+                    // make sure it's still zero'd
+                    constant_initial_value = (layec_evaluated_constant){0};
+                    layec_write_error(sema->context, field_node->decl_struct_field.initializer->location, "Could not evaluate field initializer. Nontrivial compile-time execution is not currently supported.");
+                }
+            }
+        }
+
+        laye_struct_type_field field = {
+            .type = field_node->declared_type,
+            .name = field_node->declared_name,
+            .initial_value = constant_initial_value,
+        };
+
+        arr_push(struct_type->type_struct.fields, field);
+    }
+
+    for (int64_t i = 0, count = arr_count(node->decl_struct.variant_declarations); i < count; i++) {
+        laye_node* variant_node = node->decl_struct.variant_declarations[i];
+        assert(variant_node != NULL);
+        assert(variant_node->kind == LAYE_NODE_DECL_STRUCT);
+
+        laye_node* variant_type = laye_sema_build_struct_type(sema, variant_node, struct_type);
+        assert(variant_type != NULL);
+        assert(variant_type->kind == LAYE_NODE_TYPE_STRUCT);
+
+        laye_struct_type_variant variant = {
+            .type = variant_type,
+            .name = variant_node->declared_name,
+        };
+
+        arr_push(struct_type->type_struct.variants, variant);
+    }
+
+    return struct_type;
+}
+
 static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_ref) {
     laye_node* node = *node_ref;
 
@@ -241,6 +357,12 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
                     // TODO(local): should we allow declarations of main?
                 }
             }
+        } break;
+
+        case LAYE_NODE_DECL_STRUCT: {
+            node->declared_type = laye_sema_build_struct_type(sema, node, NULL);
+            assert(node->declared_type != NULL);
+            assert(node->declared_type->kind == LAYE_NODE_TYPE_STRUCT);
         } break;
     }
 
@@ -337,6 +459,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                     laye_sema_convert_or_error(sema, &node->decl_binding.initializer, node->declared_type);
                 }
             }
+        } break;
+
+        case LAYE_NODE_DECL_STRUCT: {
+            assert(node->declared_type != NULL);
+            assert(node->declared_type->kind == LAYE_NODE_TYPE_STRUCT);
         } break;
 
         case LAYE_NODE_IF: {
@@ -581,7 +708,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
                 laye_sema_convert_or_error(sema, &node->assignment.rhs, nonref_target_type);
             }
 
-            if (!node->assignment.lhs->type->type_is_modifiable) {
+            if (!node->assignment.lhs->type->type_is_modifiable && node->assignment.lhs->type->kind != LAYE_NODE_TYPE_POISON) {
                 layec_write_error(sema->context, node->assignment.lhs->location, "Left-hand side of assignment is not mutable.");
                 node->sema_state = LAYEC_SEMA_ERRORED;
             }
@@ -752,11 +879,45 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             laye_expr_set_lvalue(node, is_lvalue);
         } break;
 
+        case LAYE_NODE_MEMBER: {
+            laye_sema_analyse_node(sema, &node->member.value, NULL);
+            assert(node->member.value != NULL);
+
+            laye_node* value_type = node->member.value->type;
+            assert(value_type->sema_state == LAYEC_SEMA_OK || value_type->sema_state == LAYEC_SEMA_ERRORED);
+
+            laye_expr_set_lvalue(node, laye_expr_is_lvalue(node->member.value));
+            if (!laye_expr_is_lvalue(node->member.value)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+                layec_write_error(sema->context, node->member.value->location, "Expression must be a modifiable lvalue.");
+                break;
+            }
+
+            switch (value_type->kind) {
+                default: {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    node->type = sema->context->laye_types.poison;
+                    string type_string = string_create(sema->context->allocator);
+                    laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
+                    layec_write_error(
+                        sema->context,
+                        node->location,
+                        "Cannot index type %.*s.",
+                        STR_EXPAND(type_string)
+                    );
+                    string_destroy(&type_string);
+                } break;
+
+                case LAYE_NODE_TYPE_STRUCT: {
+                } break;
+            }
+        } break;
+
         case LAYE_NODE_NAMEREF: {
             laye_node* referenced_decl_node = node->nameref.referenced_declaration;
 
             if (referenced_decl_node == NULL) {
-                referenced_decl_node = laye_sema_lookup_value_node(sema, node->module, node->nameref);
+                referenced_decl_node = laye_sema_lookup_value_declaration(sema, node->module, node->nameref);
                 if (referenced_decl_node == NULL) {
                     node->sema_state = LAYEC_SEMA_ERRORED;
                     node->type = sema->context->laye_types.poison;
@@ -781,6 +942,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
 
                 case LAYE_NODE_DECL_BINDING: {
                     laye_expr_set_lvalue(node, true);
+                } break;
+
+                case LAYE_NODE_DECL_STRUCT: {
+                    layec_write_error(sema->context, node->location, "Cannot use a struct as a value.");
                 } break;
             }
         } break;
@@ -1102,6 +1267,49 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_n
             assert(laye_type_is_buffer(node->type));
         } break;
 
+        case LAYE_NODE_TYPE_NAMEREF: {
+            laye_node* referenced_decl_node = node->nameref.referenced_declaration;
+
+            if (referenced_decl_node == NULL) {
+                referenced_decl_node = laye_sema_lookup_type_declaration(sema, node->module, node->nameref);
+                if (referenced_decl_node == NULL) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                    node->type = sema->context->laye_types.poison;
+                    break;
+                }
+            }
+
+            assert(referenced_decl_node != NULL);
+            assert(laye_node_is_decl(referenced_decl_node));
+            node->nameref.referenced_declaration = referenced_decl_node;
+            assert(referenced_decl_node->declared_type != NULL);
+            node->type = referenced_decl_node->declared_type;
+
+            switch (referenced_decl_node->kind) {
+                default: {
+                    fprintf(stderr, "on node kind %s\n", laye_node_kind_to_cstring(referenced_decl_node->kind));
+                    assert(false && "todo nameref unknown declaration");
+                } break;
+
+                case LAYE_NODE_DECL_FUNCTION: {
+                    layec_write_error(sema->context, node->location, "Cannot use a function as a type.");
+                } break;
+
+                case LAYE_NODE_DECL_BINDING: {
+                    layec_write_error(sema->context, node->location, "Cannot use a variable as a type.");
+                } break;
+
+                case LAYE_NODE_DECL_STRUCT: {
+                } break;
+
+                case LAYE_NODE_DECL_ENUM: {
+                } break;
+
+                case LAYE_NODE_DECL_ALIAS: {
+                } break;
+            }
+        } break;
+
         case LAYE_NODE_TYPE_NORETURN:
         case LAYE_NODE_TYPE_VOID:
         case LAYE_NODE_TYPE_BOOL:
@@ -1264,7 +1472,11 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_no
     assert(from != NULL);
     assert(laye_node_is_type(from));
 
-    if (from->sema_state == LAYEC_SEMA_ERRORED || to->sema_state == LAYEC_SEMA_ERRORED || to->kind == LAYE_NODE_TYPE_POISON) {
+    if (from->kind == LAYE_NODE_TYPE_POISON || to->kind == LAYE_NODE_TYPE_POISON) {
+        return LAYE_CONVERT_NOOP;
+    }
+
+    if (from->sema_state == LAYEC_SEMA_ERRORED || to->sema_state == LAYEC_SEMA_ERRORED) {
         return LAYE_CONVERT_CONTAINS_ERRORS;
     }
 
