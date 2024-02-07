@@ -453,9 +453,9 @@ struct laye_node {
 
     // when a expression of this type is an lvalue, can it be written to?
     // when true, this means the `mut` keyword was used with the type.
-    // for example, `mut int` is a platform integer type that can be
-    // assigned to. `int mut[]` is a slice who's value can change, but its
-    // elements cannot. `mut int mut[]` is a slice who's elements and value
+    // for example, `int mut` is a platform integer type that can be
+    // assigned to. `int[] mut` is a slice who's value can change, but its
+    // elements cannot. `int mut[] mut` is a slice who's elements and value
     // can both change.
     bool type_is_modifiable;
 
