@@ -161,6 +161,8 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_DECL_STRUCT: {
+            string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
+            
             for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++)
                 arr_push(children, node->decl_struct.field_declarations[i]);
 
