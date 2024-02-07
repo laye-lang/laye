@@ -952,6 +952,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(la
     assert(p->token.kind == LAYE_TOKEN_STRUCT || p->token.kind == LAYE_TOKEN_VARIANT);
 
     laye_node* struct_decl = laye_node_create(p->module, LAYE_NODE_DECL_STRUCT, p->token.location, p->context->laye_types._void);
+    assert(struct_decl != NULL);
     laye_apply_attributes(struct_decl, attributes);
 
     laye_parse_result result = laye_parse_result_success(struct_decl);
@@ -969,6 +970,11 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(la
         if (!laye_parser_at(p, '{')) {
             return result;
         }
+    } else {
+        struct_decl->declared_name = ident_token.string_value;
+
+        assert(p->scope != NULL);
+        laye_scope_declare(p->scope, struct_decl);
     }
 
     if (!laye_parser_consume(p, '{', NULL)) {
