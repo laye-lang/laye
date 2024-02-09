@@ -359,6 +359,24 @@ typedef enum laye_nameref_kind {
     LAYE_NAMEREF_HEADLESS,
 } laye_nameref_kind;
 
+typedef struct laye_type {
+    // the syntax node of the fully resolved, unqualified type.
+    laye_node* node;
+    // the original syntax node which resolved to this type.
+    // for example, `vec2i` could resolve to a struct type, the type of `struct vec2i { ... }`
+    // but we would still want to be able to report diagnostics as though the
+    // original `vec2i` lookup type were present.
+    // mostly for debug purposes.
+    laye_node* source_node;
+    // when a expression of this type is an lvalue, can it be written to?
+    // when true, this means the `mut` keyword was used with the type.
+    // for example, `int mut` is a platform integer type that can be
+    // assigned to. `int[] mut` is a slice who's value can change, but its
+    // elements cannot. `int mut[] mut` is a slice who's elements and value
+    // can both change.
+    bool is_modifiable;
+} laye_type;
+
 typedef struct laye_nameref {
     laye_nameref_kind kind;
     // the scope this name is used from.
@@ -379,13 +397,13 @@ typedef struct laye_nameref {
 } laye_nameref;
 
 typedef struct laye_struct_type_field {
-    laye_node* type;
+    laye_type type;
     string name;
     layec_evaluated_constant initial_value;
 } laye_struct_type_field;
 
 typedef struct laye_struct_type_variant {
-    laye_node* type;
+    laye_type type;
     string name;
 } laye_struct_type_variant;
 
@@ -424,7 +442,7 @@ struct laye_node {
     layec_value_category value_category;
     // the type of this expression.
     // will be void if this type has no expression.
-    laye_node* type;
+    laye_type type;
 
     // the declared name of this declaration.
     // not all declarations have names, but enough of them do that this
@@ -445,19 +463,11 @@ struct laye_node {
     // this is used for the type of a binding, the combined type of a function,
     // and the types declared by struct, enum or alias declarations.
     // this is not needed for import declarations, for example.
-    laye_node* declared_type;
+    laye_type declared_type;
 
     // should not contain any unique information when compared to the shared fields above,
     // but for syntactic preservation these nodes are stored with every declaration anyway.
     dynarr(laye_node*) attribute_nodes;
-
-    // when a expression of this type is an lvalue, can it be written to?
-    // when true, this means the `mut` keyword was used with the type.
-    // for example, `int mut` is a platform integer type that can be
-    // assigned to. `int[] mut` is a slice who's value can change, but its
-    // elements cannot. `int mut[] mut` is a slice who's elements and value
-    // can both change.
-    bool type_is_modifiable;
 
     // populated during IRgen, makes it easier to keep track of
     // since we don't have usable hash tables woot.
@@ -500,7 +510,7 @@ struct laye_node {
 
         struct {
             // the return type of this function.
-            laye_node* return_type;
+            laye_type return_type;
             // the parameter declarations of this function (of type `FUNCTION_PARAMETER`).
             dynarr(laye_node*) parameter_declarations;
             // the body of the function.
@@ -544,6 +554,7 @@ struct laye_node {
 
         struct {
             // the underlying type of this enum, or null if the default should be used.
+            // NOTE(local): the underlying type is heavily restricted and can never be qualified
             laye_node* underlying_type;
             // the enum variants (of type `ENUM_VARIANT`).
             // an enum variant is a name with an optional assigned constant integral value.
@@ -898,7 +909,7 @@ struct laye_node {
 
         struct {
             // the type argument to the new operator.
-            laye_node* type;
+            laye_type type;
             // additional arguments to the new operator.
             dynarr(laye_node*) arguments;
             // member initializers.
@@ -986,13 +997,13 @@ struct laye_node {
 
         struct {
             // the type of the value case for this node.
-            laye_node* value_type;
+            laye_type value_type;
             // the type of the error case for this node, if any
-            laye_node* error_type;
+            laye_type error_type;
         } type_error_pair;
 
         struct {
-            laye_node* element_type;
+            laye_type element_type;
             dynarr(laye_node*) length_values;
         } type_container;
 
@@ -1002,9 +1013,9 @@ struct laye_node {
             // the calling convention used by this function type.
             layec_calling_convention calling_convention;
             // the return type of this function.
-            laye_node* return_type;
+            laye_type return_type;
             // the parameter types for this function, without parameter name information.
-            dynarr(laye_node*) parameter_types;
+            dynarr(laye_type) parameter_types;
         } type_function;
 
         // note that while struct and variant *types* are distinct,
@@ -1013,18 +1024,25 @@ struct laye_node {
             string name;
             dynarr(laye_struct_type_field) fields;
             dynarr(laye_struct_type_variant) variants;
+            // NOTE(local): The parent struct type need not be as `laye_type`,
+            // as it will never be qualified or come from any source other than its declaration.
             laye_node* parent_struct_type;
         } type_struct;
 
         struct {
             string name;
+            // NOTE(local): the underlying type of an enum is heavily restricted, and cannot be qualified.
             laye_node* underlying_type;
             dynarr(laye_enum_type_variant) variants;
         } type_enum;
 
         struct {
             string name;
-            laye_node* underlying_type;
+            // NOTE(local): while I think you can obviously still apply type qualifiers to
+            // aliased types, allowing them at the alias declaration site (at least for the
+            // outermost type) might be semantically invalid in the future.
+            // keep an eye on it, basically, but for now it'll be a qualified type
+            laye_type underlying_type;
         } type_alias;
 
         struct {
@@ -1077,7 +1095,7 @@ bool laye_node_is_lvalue(laye_node* node);
 bool laye_node_is_rvalue(laye_node* node);
 bool laye_node_is_modifiable_lvalue(laye_node* node);
 
-bool laye_type_is_modifiable(laye_node* node);
+bool laye_type_is_modifiable(laye_type type);
 
 layec_source laye_module_get_source(laye_module* module);
 
@@ -1087,8 +1105,8 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration);
 laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name);
 laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name);
 
-laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_node* type);
-laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind, laye_node* type);
+laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_type type);
+laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind, laye_type type);
 void laye_node_destroy(laye_node* node);
 
 void laye_node_set_sema_in_progress(laye_node* node);
@@ -1103,7 +1121,7 @@ bool laye_node_has_noreturn_semantics(laye_node* node);
 bool laye_decl_is_exported(laye_node* decl);
 bool laye_decl_is_template(laye_node* decl);
 
-laye_node* laye_expr_type(laye_node* expr);
+laye_type laye_expr_type(laye_node* expr);
 bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant, bool is_required);
 bool laye_expr_is_lvalue(laye_node* expr);
 bool laye_expr_is_modifiable_lvalue(laye_node* expr);
@@ -1138,13 +1156,19 @@ bool laye_type_is_enum(laye_node* type);
 bool laye_type_is_alias(laye_node* type);
 bool laye_type_is_strict_alias(laye_node* type);
 
-laye_node* laye_type_strip_pointers_and_references(laye_node* type);
-laye_node* laye_type_strip_references(laye_node* type);
+laye_type laye_type_qualify(laye_node* type_node, bool is_modifiable);
+laye_type laye_type_add_qualifiers(laye_type type, bool is_modifiable);
+laye_type laye_type_with_source(laye_node* type_node, laye_node* source_node, bool is_modifiable);
 
-bool laye_type_equals(laye_node* a, laye_node* b, laye_mut_compare mut_compare);
+laye_type laye_type_strip_pointers_and_references(laye_type type);
+laye_type laye_type_strip_references(laye_type type);
+
+bool laye_type_equals(laye_type a, laye_type b, laye_mut_compare mut_compare);
 
 void laye_type_print_to_string(laye_node* type, string* s, bool use_color);
 
 int laye_type_array_rank(laye_node* array_type);
+
+#define LTY(T) (laye_type_qualify(T, false))
 
 #endif // !LAYEC_LAYE_H
