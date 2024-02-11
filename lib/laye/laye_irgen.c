@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-static layec_type* laye_convert_type(laye_node* type);
+static layec_type* laye_convert_type(laye_type type);
 static layec_value* laye_generate_node(layec_builder* builder, laye_node* node);
 
 layec_module* laye_irgen(laye_module* module) {
@@ -90,17 +90,17 @@ layec_module* laye_irgen(laye_module* module) {
     return ir_module;
 }
 
-static layec_type* laye_convert_type(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
+static layec_type* laye_convert_type(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
     // laye_module* module = type->module;
     // assert(module != NULL);
-    layec_context* context = type->context;
+    layec_context* context = type.node->context;
     assert(context != NULL);
 
-    switch (type->kind) {
+    switch (type.node->kind) {
         default: {
-            fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(type->kind));
+            fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(type.node->kind));
             assert(false && "unimplemented type kind in laye_convert_type");
             return NULL;
         }
@@ -115,30 +115,30 @@ static layec_type* laye_convert_type(laye_node* type) {
         }
 
         case LAYE_NODE_TYPE_INT: {
-            return layec_int_type(context, type->type_primitive.bit_width);
+            return layec_int_type(context, type.node->type_primitive.bit_width);
         }
 
         case LAYE_NODE_TYPE_FUNCTION: {
-            assert(type->type_function.return_type != NULL);
-            layec_type* return_type = laye_convert_type(type->type_function.return_type);
+            assert(type.node->type_function.return_type.node != NULL);
+            layec_type* return_type = laye_convert_type(type.node->type_function.return_type);
             assert(return_type != NULL);
 
             dynarr(layec_type*) parameter_types = NULL;
-            for (int64_t i = 0, count = arr_count(type->type_function.parameter_types); i < count; i++) {
-                laye_node* parameter_type_node = type->type_function.parameter_types[i];
-                assert(parameter_type_node != NULL);
+            for (int64_t i = 0, count = arr_count(type.node->type_function.parameter_types); i < count; i++) {
+                laye_type pt = type.node->type_function.parameter_types[i];
+                assert(pt.node != NULL);
 
-                layec_type* parameter_type = laye_convert_type(parameter_type_node);
+                layec_type* parameter_type = laye_convert_type(pt);
                 assert(parameter_type != NULL);
 
                 arr_push(parameter_types, parameter_type);
             }
 
-            layec_calling_convention calling_convention = type->type_function.calling_convention;
+            layec_calling_convention calling_convention = type.node->type_function.calling_convention;
             assert(calling_convention != LAYEC_DEFAULTCC);
 
-            assert(arr_count(parameter_types) == arr_count(type->type_function.parameter_types));
-            return layec_function_type(context, return_type, parameter_types, calling_convention, type->type_function.varargs_style == LAYE_VARARGS_C);
+            assert(arr_count(parameter_types) == arr_count(type.node->type_function.parameter_types));
+            return layec_function_type(context, return_type, parameter_types, calling_convention, type.node->type_function.varargs_style == LAYE_VARARGS_C);
         }
 
         case LAYE_NODE_TYPE_POINTER:
@@ -147,13 +147,13 @@ static layec_type* laye_convert_type(laye_node* type) {
         }
 
         case LAYE_NODE_TYPE_ARRAY: {
-            layec_type* element_type = laye_convert_type(type->type_container.element_type);
+            layec_type* element_type = laye_convert_type(type.node->type_container.element_type);
             assert(element_type != NULL);
 
             int64_t length = 1;
-            assert(arr_count(type->type_container.length_values) > 0);
-            for (int64_t i = 0, count = arr_count(type->type_container.length_values); i < count; i++) {
-                laye_node* length_value = type->type_container.length_values[i];
+            assert(arr_count(type.node->type_container.length_values) > 0);
+            for (int64_t i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
+                laye_node* length_value = type.node->type_container.length_values[i];
                 assert(length_value != NULL);
                 assert(length_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
                 assert(length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT);
@@ -185,9 +185,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         }
 
         case LAYE_NODE_DECL_BINDING: {
-            laye_node* declared_type_node = node->declared_type;
-
-            layec_type* type_to_alloca = laye_convert_type(declared_type_node);
+            layec_type* type_to_alloca = laye_convert_type(node->declared_type);
             int64_t element_count = 1;
 
             layec_value* alloca = layec_build_alloca(builder, node->location, type_to_alloca, element_count);
@@ -460,7 +458,7 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 layec_value* early_condition_value = laye_generate_node(builder, node->_for.condition);
                 assert(early_condition_value != NULL);
 
-                if (laye_type_is_noreturn(node->_for.condition)) {
+                if (laye_type_is_noreturn(node->_for.condition->type)) {
                     assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                     return layec_void_constant(context);
                 }
@@ -674,8 +672,8 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         }
 
         case LAYE_NODE_CAST: {
-            laye_node* from = node->cast.operand->type;
-            laye_node* to = node->type;
+            laye_type from = node->cast.operand->type;
+            laye_type to = node->type;
 
             layec_type* cast_type = laye_convert_type(node->type);
             layec_value* operand = laye_generate_node(builder, node->cast.operand);
@@ -948,17 +946,17 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 layec_type* element_type = layec_type_element_type(underlying_type);
                 assert(element_type != NULL);
 
-                laye_node* laye_array_type = node->index.value->type;
-                assert(laye_array_type != NULL);
-                assert(laye_array_type->kind == LAYE_NODE_TYPE_ARRAY);
+                laye_type laye_array_type = node->index.value->type;
+                assert(laye_array_type.node != NULL);
+                assert(laye_type_is_array(laye_array_type));
 
-                assert(arr_count(indices) == arr_count(laye_array_type->type_container.length_values));
+                assert(arr_count(indices) == arr_count(laye_array_type.node->type_container.length_values));
 
                 layec_value* calc_index_value = indices[arr_count(indices) - 1];
                 int64_t current_stride = 1;
 
                 for (int64_t i = arr_count(indices) - 2; i >= 0; i--) {
-                    laye_node* length_value = laye_array_type->type_container.length_values[i + 1];
+                    laye_node* length_value = laye_array_type.node->type_container.length_values[i + 1];
                     assert(length_value != NULL);
                     assert(length_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
                     assert(length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT);

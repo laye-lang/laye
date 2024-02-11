@@ -75,65 +75,65 @@ layec_context* layec_context_create(lca_allocator allocator) {
     context->string_arena = lca_arena_create(allocator, context->max_interned_string_size);
     assert(context->string_arena != NULL);
 
-    context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, NULL);
+    context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, (laye_type){0});
     assert(context->laye_types.type != NULL);
-    context->laye_types.type->type = context->laye_types.type;
+    context->laye_types.type->type = LTY(context->laye_types.type);
     context->laye_types.type->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, context->laye_types.type);
+    context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, LTY(context->laye_types.type));
     assert(context->laye_types.poison != NULL);
     context->laye_types.poison->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, context->laye_types.type);
+    context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, LTY(context->laye_types.type));
     assert(context->laye_types.unknown != NULL);
     context->laye_types.unknown->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.var = laye_node_create_in_context(context, LAYE_NODE_TYPE_VAR, context->laye_types.type);
+    context->laye_types.var = laye_node_create_in_context(context, LAYE_NODE_TYPE_VAR, LTY(context->laye_types.type));
     assert(context->laye_types.var != NULL);
     context->laye_types.var->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, context->laye_types.type);
+    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, LTY(context->laye_types.type));
     assert(context->laye_types._void != NULL);
     context->laye_types._void->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, context->laye_types.type);
+    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, LTY(context->laye_types.type));
     assert(context->laye_types.noreturn != NULL);
     context->laye_types.noreturn->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, context->laye_types.type);
+    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, LTY(context->laye_types.type));
     assert(context->laye_types._bool != NULL);
     context->laye_types._bool->type_primitive.bit_width = context->target->laye.size_of_bool;
     context->laye_types._bool->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.i8 = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
+    context->laye_types.i8 = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types.i8 != NULL);
     context->laye_types.i8->sema_state = LAYEC_SEMA_OK;
     context->laye_types.i8->type_primitive.bit_width = 8;
     context->laye_types.i8->type_primitive.is_signed = true;
 
-    context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
+    context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types._int != NULL);
     context->laye_types._int->sema_state = LAYEC_SEMA_OK;
     context->laye_types._int->type_primitive.is_platform_specified = true;
     context->laye_types._int->type_primitive.bit_width = context->target->laye.size_of_int;
     context->laye_types._int->type_primitive.is_signed = true;
 
-    context->laye_types._uint = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, context->laye_types.type);
+    context->laye_types._uint = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types._uint != NULL);
     context->laye_types._uint->sema_state = LAYEC_SEMA_OK;
     context->laye_types._uint->type_primitive.is_platform_specified = true;
     context->laye_types._uint->type_primitive.bit_width = context->target->laye.size_of_int;
     context->laye_types._uint->type_primitive.is_signed = false;
 
-    context->laye_types._float = laye_node_create_in_context(context, LAYE_NODE_TYPE_FLOAT, context->laye_types.type);
+    context->laye_types._float = laye_node_create_in_context(context, LAYE_NODE_TYPE_FLOAT, LTY(context->laye_types.type));
     assert(context->laye_types._float != NULL);
     context->laye_types._float->type_primitive.is_platform_specified = true;
     context->laye_types._float->type_primitive.bit_width = context->target->laye.size_of_float;
     context->laye_types._float->sema_state = LAYEC_SEMA_OK;
 
-    context->laye_types.i8_buffer = laye_node_create_in_context(context, LAYE_NODE_TYPE_BUFFER, context->laye_types.type);
+    context->laye_types.i8_buffer = laye_node_create_in_context(context, LAYE_NODE_TYPE_BUFFER, LTY(context->laye_types.type));
     assert(context->laye_types.i8_buffer != NULL);
-    context->laye_types.i8_buffer->type_container.element_type = context->laye_types.i8;
+    context->laye_types.i8_buffer->type_container.element_type = LTY(context->laye_types.i8);
     context->laye_types.i8_buffer->sema_state = LAYEC_SEMA_OK;
 
     context->laye_dependencies = layec_dependency_graph_create_in_context(context);
