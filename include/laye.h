@@ -377,6 +377,12 @@ typedef struct laye_type {
     bool is_modifiable;
 } laye_type;
 
+typedef struct laye_template_arg {
+    bool is_type;
+    laye_type type;
+    laye_node* node;
+} laye_template_arg;
+
 typedef struct laye_nameref {
     laye_nameref_kind kind;
     // the scope this name is used from.
@@ -388,7 +394,7 @@ typedef struct laye_nameref {
     // every token in this list is assumed to be an identifier.
     dynarr(laye_token) pieces;
     // template arguments provided to this name for instantiation.
-    dynarr(laye_node*) template_arguments;
+    dynarr(laye_template_arg) template_arguments;
 
     // the declaration this name references, once it has been resolved.
     laye_node* referenced_declaration;
@@ -1127,34 +1133,34 @@ bool laye_expr_is_lvalue(laye_node* expr);
 bool laye_expr_is_modifiable_lvalue(laye_node* expr);
 void laye_expr_set_lvalue(laye_node* expr, bool is_lvalue);
 
-int laye_type_size_in_bits(laye_node* type);
-int laye_type_size_in_bytes(laye_node* type);
-int laye_type_align_in_bytes(laye_node* type);
+int laye_type_size_in_bits(laye_type type);
+int laye_type_size_in_bytes(laye_type type);
+int laye_type_align_in_bytes(laye_type type);
 
-bool laye_type_is_poison(laye_node* type);
-bool laye_type_is_void(laye_node* type);
-bool laye_type_is_noreturn(laye_node* type);
-bool laye_type_is_bool(laye_node* type);
-bool laye_type_is_int(laye_node* type);
-bool laye_type_is_signed_int(laye_node* type);
-bool laye_type_is_unsigned_int(laye_node* type);
-bool laye_type_is_float(laye_node* type);
-bool laye_type_is_template_parameter(laye_node* type);
-bool laye_type_is_error_pair(laye_node* type);
-bool laye_type_is_nameref(laye_node* type);
-bool laye_type_is_overload(laye_node* type);
-bool laye_type_is_nilable(laye_node* type);
-bool laye_type_is_array(laye_node* type);
-bool laye_type_is_slice(laye_node* type);
-bool laye_type_is_reference(laye_node* type);
-bool laye_type_is_pointer(laye_node* type);
-bool laye_type_is_buffer(laye_node* type);
-bool laye_type_is_function(laye_node* type);
-bool laye_type_is_struct(laye_node* type);
-bool laye_type_is_variant(laye_node* type);
-bool laye_type_is_enum(laye_node* type);
-bool laye_type_is_alias(laye_node* type);
-bool laye_type_is_strict_alias(laye_node* type);
+bool laye_type_is_poison(laye_type type);
+bool laye_type_is_void(laye_type type);
+bool laye_type_is_noreturn(laye_type type);
+bool laye_type_is_bool(laye_type type);
+bool laye_type_is_int(laye_type type);
+bool laye_type_is_signed_int(laye_type type);
+bool laye_type_is_unsigned_int(laye_type type);
+bool laye_type_is_float(laye_type type);
+bool laye_type_is_template_parameter(laye_type type);
+bool laye_type_is_error_pair(laye_type type);
+bool laye_type_is_nameref(laye_type type);
+bool laye_type_is_overload(laye_type type);
+bool laye_type_is_nilable(laye_type type);
+bool laye_type_is_array(laye_type type);
+bool laye_type_is_slice(laye_type type);
+bool laye_type_is_reference(laye_type type);
+bool laye_type_is_pointer(laye_type type);
+bool laye_type_is_buffer(laye_type type);
+bool laye_type_is_function(laye_type type);
+bool laye_type_is_struct(laye_type type);
+bool laye_type_is_variant(laye_type type);
+bool laye_type_is_enum(laye_type type);
+bool laye_type_is_alias(laye_type type);
+bool laye_type_is_strict_alias(laye_type type);
 
 laye_type laye_type_qualify(laye_node* type_node, bool is_modifiable);
 laye_type laye_type_add_qualifiers(laye_type type, bool is_modifiable);
@@ -1165,9 +1171,9 @@ laye_type laye_type_strip_references(laye_type type);
 
 bool laye_type_equals(laye_type a, laye_type b, laye_mut_compare mut_compare);
 
-void laye_type_print_to_string(laye_node* type, string* s, bool use_color);
+void laye_type_print_to_string(laye_type type, string* s, bool use_color);
 
-int laye_type_array_rank(laye_node* array_type);
+int laye_type_array_rank(laye_type array_type);
 
 #define LTY(T) (laye_type_qualify(T, false))
 
