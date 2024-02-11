@@ -39,7 +39,7 @@ struct layec_type {
             bool named;
 
             union {
-                string name;
+                string_view name;
                 int64_t index;
             };
         } _struct;
@@ -79,11 +79,6 @@ struct layec_value {
             layec_builtin_kind kind;
             dynarr(layec_value*) arguments;
         } builtin;
-
-        struct {
-            dynarr(layec_value*) indices;
-            layec_type* element_type;
-        } gep;
 
         struct {
             bool is_string_literal;
@@ -145,6 +140,17 @@ struct layec_builder {
     int64_t insert_index;
 };
 
+int64_t layec_context_get_struct_type_count(layec_context* context) {
+    assert(context != NULL);
+    return arr_count(context->_all_struct_types);
+}
+
+layec_type* layec_context_get_struct_type_at_index(layec_context* context, int64_t index) {
+    assert(context != NULL);
+    assert(index >= 0 && index < arr_count(context->_all_struct_types));
+    return context->_all_struct_types[index].type;
+}
+
 layec_module* layec_module_create(layec_context* context, string_view module_name) {
     assert(context != NULL);
     layec_module* module = lca_allocate(context->allocator, sizeof *module);
@@ -202,10 +208,6 @@ void layec_value_destroy(layec_value* value) {
 
         case LAYEC_IR_BUILTIN: {
             arr_free(value->builtin.arguments);
-        } break;
-
-        case LAYEC_IR_GET_ELEMENT_PTR: {
-            arr_free(value->gep.indices);
         } break;
     }
 }
@@ -636,24 +638,18 @@ layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index) 
     return block;
 }
 
-layec_type* layec_instruction_gep_element_type(layec_value* gep) {
-    assert(gep != NULL);
-    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
-    return gep->gep.element_type;
+layec_value* layec_instruction_ptradd_get_address(layec_value* ptradd) {
+    assert(ptradd != NULL);
+    assert(ptradd->kind == LAYEC_IR_PTRADD);
+    assert(layec_type_is_ptr(ptradd->address->type));
+    return ptradd->address;
 }
 
-int64_t layec_instruction_gep_index_count(layec_value* gep) {
-    assert(gep != NULL);
-    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
-    return arr_count(gep->gep.indices);
-}
-
-layec_value* layec_instruction_gep_index_at_index(layec_value* gep, int64_t index) {
-    assert(gep != NULL);
-    assert(gep->kind == LAYEC_IR_GET_ELEMENT_PTR);
-    assert(index >= 0);
-    assert(index < arr_count(gep->gep.indices));
-    return gep->gep.indices[index];
+layec_value* layec_instruction_ptradd_get_offset(layec_value* ptradd) {
+    assert(ptradd != NULL);
+    assert(ptradd->kind == LAYEC_IR_PTRADD);
+    assert(layec_type_is_integer(ptradd->operand->type));
+    return ptradd->operand;
 }
 
 
@@ -678,8 +674,7 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
         case LAYEC_IR_NOP: return "NOP";
         case LAYEC_IR_ALLOCA: return "ALLOCA";
         case LAYEC_IR_CALL: return "CALL";
-        case LAYEC_IR_GET_ELEMENT_PTR: return "GET_ELEMENT_PTR";
-        case LAYEC_IR_GET_MEMBER_PTR: return "GET_MEMBER_PTR";
+        case LAYEC_IR_PTRADD: return "PTRADD";
         case LAYEC_IR_BUILTIN: return "INTRINSIC";
         case LAYEC_IR_LOAD: return "LOAD";
         case LAYEC_IR_PHI: return "PHI";
@@ -810,6 +805,22 @@ layec_type* layec_function_type(
     return function_type;
 }
 
+layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_type*) field_types) {
+    assert(context != NULL);
+    assert(name.count != 0);
+    for (int64_t i = 0, count = arr_count(field_types); i < count; i++) {
+        assert(field_types[i] != NULL);
+    }
+
+    layec_type* struct_type = layec_type_create(context, LAYEC_TYPE_STRUCT);
+    assert(struct_type != NULL);
+    // TODO(local): unnamed struct types
+    struct_type->_struct.named = true;
+    struct_type->_struct.name = name;
+    struct_type->_struct.members = field_types;
+    return struct_type;
+}
+
 int layec_type_size_in_bits(layec_type* type) {
     assert(type->context != NULL);
     switch (type->kind) {
@@ -825,6 +836,15 @@ int layec_type_size_in_bits(layec_type* type) {
 
         case LAYEC_TYPE_ARRAY: {
             return type->array.length * layec_type_align_in_bytes(type->array.element_type) * 8;
+        }
+
+        case LAYEC_TYPE_STRUCT: {
+            int size = 0;
+            // NOTE(local): generation of this struct should include padding, so we don't consider it here
+            for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
+                size += layec_type_size_in_bits(type->_struct.members[i]);
+            }
+            return size;
         }
     }
 }
@@ -862,6 +882,30 @@ int64_t layec_type_array_length(layec_type* type) {
     assert(type != NULL);
     assert(type->kind == LAYEC_TYPE_ARRAY);
     return type->array.length;
+}
+
+bool layec_type_struct_is_named(layec_type* type) {
+    assert(type != NULL);
+    assert(type->kind == LAYEC_TYPE_STRUCT);
+    return type->_struct.named;
+}
+
+string_view layec_type_struct_name(layec_type* type) {
+    assert(type != NULL);
+    assert(type->kind == LAYEC_TYPE_STRUCT);
+    return type->_struct.name;
+}
+
+int64_t layec_type_struct_member_count(layec_type* type) {
+    assert(type != NULL);
+    assert(type->kind == LAYEC_TYPE_STRUCT);
+    return arr_count(type->_struct.members);
+}
+
+layec_type* layec_type_struct_get_member_at_index(layec_type* type, int64_t index) {
+    assert(type != NULL);
+    assert(type->kind == LAYEC_TYPE_STRUCT);
+    return type->_struct.members[index];
 }
 
 int64_t layec_function_type_parameter_count(layec_type* function_type) {
@@ -1607,7 +1651,7 @@ layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location l
     return builtin;
 }
 
-layec_value* layec_build_gep(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, layec_value* index_value) {
+layec_value* layec_build_ptradd(layec_builder* builder, layec_location location, layec_value* address, layec_value* offset_value) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1615,43 +1659,16 @@ layec_value* layec_build_gep(layec_builder* builder, layec_location location, la
     assert(builder->block != NULL);
     assert(address != NULL);
     assert(layec_type_is_ptr(layec_value_get_type(address)));
-    assert(element_type != NULL);
-    assert(index_value != NULL);
-    assert(layec_type_is_integer(layec_value_get_type(index_value)));
+    assert(offset_value != NULL);
+    assert(layec_type_is_integer(layec_value_get_type(offset_value)));
 
-    layec_value* gep = layec_value_create(builder->function->module, location, LAYEC_IR_GET_ELEMENT_PTR, layec_ptr_type(builder->context), SV_EMPTY);
-    assert(gep != NULL);
-    gep->address = address;
-    arr_push(gep->gep.indices, index_value);
-    gep->gep.element_type = element_type;
+    layec_value* ptradd = layec_value_create(builder->function->module, location, LAYEC_IR_PTRADD, layec_ptr_type(builder->context), SV_EMPTY);
+    assert(ptradd != NULL);
+    ptradd->address = address;
+    ptradd->operand = offset_value;
 
-    layec_builder_insert(builder, gep);
-    return gep;
-}
-
-layec_value* layec_build_gep_many(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, dynarr(layec_value*) index_values) {
-    assert(builder != NULL);
-    assert(builder->context != NULL);
-    assert(builder->function != NULL);
-    assert(builder->function->module != NULL);
-    assert(builder->block != NULL);
-    assert(address != NULL);
-    assert(layec_type_is_ptr(layec_value_get_type(address)));
-    assert(element_type != NULL);
-    for (int64_t i = 0, count = arr_count(index_values); i < count; i++) {
-        layec_value* index_value = index_values[i];
-        assert(index_value != NULL);
-        assert(layec_type_is_integer(layec_value_get_type(index_value)));
-    }
-
-    layec_value* gep = layec_value_create(builder->function->module, location, LAYEC_IR_GET_ELEMENT_PTR, layec_ptr_type(builder->context), SV_EMPTY);
-    assert(gep != NULL);
-    gep->address = address;
-    gep->gep.indices = index_values;
-    gep->gep.element_type = element_type;
-
-    layec_builder_insert(builder, gep);
-    return gep;
+    layec_builder_insert(builder, ptradd);
+    return ptradd;
 }
 
 // IR Printer
@@ -1670,6 +1687,7 @@ typedef struct layec_print_context {
 
 static void layec_global_print(layec_print_context* print_context, layec_value* global);
 static void layec_function_print(layec_print_context* print_context, layec_value* function);
+static void layec_type_print_struct_type_to_string_literally(layec_type* type, string* s, bool use_color);
 
 string layec_module_print(layec_module* module) {
     assert(module != NULL);
@@ -1692,6 +1710,15 @@ string layec_module_print(layec_module* module) {
         STR_EXPAND(module->name),
         COL(RESET)
     );
+
+    for (int64_t i = 0; i < layec_context_get_struct_type_count(module->context); i++) {
+        layec_type* struct_type = layec_context_get_struct_type_at_index(module->context, i);
+        if (layec_type_struct_is_named(struct_type)) {
+            lca_string_append_format(print_context.output, "%sdefine %s%.*s %s= ", COL(COL_KEYWORD), COL(COL_NAME), STR_EXPAND(layec_type_struct_name(struct_type)), COL(RESET));
+            layec_type_print_struct_type_to_string_literally(struct_type, print_context.output, use_color);
+            lca_string_append_format(print_context.output, "%s\n", COL(RESET));
+        }
+    }
 
     for (int64_t i = 0, count = arr_count(module->globals); i < count; i++) {
         if (i > 0) lca_string_append_format(print_context.output, "\n");
@@ -2109,15 +2136,11 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_GET_ELEMENT_PTR: {
-            lca_string_append_format(print_context->output, "%sgep ", COL(COL_KEYWORD));
-            layec_type_print_to_string(instruction->gep.element_type, print_context->output, use_color);
+        case LAYEC_IR_PTRADD: {
+            lca_string_append_format(print_context->output, "%sptradd ptr ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->address, print_context->output, false, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
-            layec_value_print_to_string(instruction->address, print_context->output, true, use_color);
-            for (int64_t i = 0, count = arr_count(instruction->gep.indices); i < count; i++) {
-                lca_string_append_format(print_context->output, "%s, ", COL(RESET));
-                layec_value_print_to_string(instruction->gep.indices[i], print_context->output, true, use_color);
-            }
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
         } break;
     }
 
@@ -2244,6 +2267,23 @@ static void layec_function_print(layec_print_context* print_context, layec_value
     }
 }
 
+static void layec_type_print_struct_type_to_string_literally(layec_type* type, string* s, bool use_color) {
+    lca_string_append_format(s, "%sstruct %s{", COL(COL_KEYWORD), COL(RESET));
+
+    for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
+        if (i > 0) {
+            lca_string_append_format(s, "%s, ", COL(RESET));
+        } else {
+            lca_string_append_format(s, " ");
+        }
+
+        layec_type* member_type = type->_struct.members[i];
+        layec_type_print_to_string(member_type, s, use_color);
+    }
+
+    lca_string_append_format(s, "%s }", COL(RESET));
+}
+
 void layec_type_print_to_string(layec_type* type, string* s, bool use_color) {
     assert(type != NULL);
     assert(s != NULL);
@@ -2262,17 +2302,25 @@ void layec_type_print_to_string(layec_type* type, string* s, bool use_color) {
             lca_string_append_format(s, "%svoid", COL(COL_KEYWORD));
         } break;
 
-        case LAYEC_TYPE_ARRAY: {
-            layec_type_print_to_string(type->array.element_type, s, use_color);
-            lca_string_append_format(s, "%s[%s%lld%s]", COL(COL_DELIM), COL(COL_CONSTANT), type->array.length, COL(COL_DELIM));
-        } break;
-
         case LAYEC_TYPE_INTEGER: {
             lca_string_append_format(s, "%sint%d", COL(COL_KEYWORD), type->primitive_bit_width);
         } break;
 
         case LAYEC_TYPE_FLOAT: {
             lca_string_append_format(s, "%sfloat%d", COL(COL_KEYWORD), type->primitive_bit_width);
+        } break;
+
+        case LAYEC_TYPE_ARRAY: {
+            layec_type_print_to_string(type->array.element_type, s, use_color);
+            lca_string_append_format(s, "%s[%s%lld%s]", COL(COL_DELIM), COL(COL_CONSTANT), type->array.length, COL(COL_DELIM));
+        } break;
+
+        case LAYEC_TYPE_STRUCT: {
+            if (type->_struct.named) {
+                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), STR_EXPAND(type->_struct.name));
+            } else {
+                layec_type_print_struct_type_to_string_literally(type, s, use_color);
+            }
         } break;
     }
 

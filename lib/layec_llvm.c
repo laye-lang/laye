@@ -39,6 +39,7 @@ static void llvm_print_struct_type(llvm_codegen* codegen, layec_type* struct_typ
 static void llvm_print_global(llvm_codegen* codegen, layec_value* global);
 static void llvm_print_function(llvm_codegen* codegen, layec_value* function);
 
+static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* type);
 static void llvm_print_type(llvm_codegen* codegen, layec_type* type);
 static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool include_type);
 
@@ -67,6 +68,15 @@ static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
     lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "\n");
+
+    for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
+        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        if (layec_type_struct_is_named(struct_type)) {
+            lca_string_append_format(codegen->output, "%%%.*s = ", STR_EXPAND(layec_type_struct_name(struct_type)));
+            llvm_print_type_struct_literally(codegen, struct_type);
+            lca_string_append_format(codegen->output, "\n");
+        }
+    }
 
     //lca_string_append_format(codegen->output, "declare void @%s(ptr, i8, i64, i1 immarg)\n", LLVM_MEMCPY_INTRINSIC);
     //lca_string_append_format(codegen->output, "\n");
@@ -162,6 +172,21 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
     lca_string_append_format(codegen->output, "}\n");
 }
 
+static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* type) {
+    lca_string_append_format(codegen->output, "type { ");
+
+    for (int64_t i = 0; i < layec_type_struct_member_count(type); i++) {
+        if (i > 0) {
+            lca_string_append_format(codegen->output, ", ");
+        }
+
+        layec_type* member_type = layec_type_struct_get_member_at_index(type, i);
+        llvm_print_type(codegen, member_type);
+    }
+
+    lca_string_append_format(codegen->output, "}");
+}
+
 static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
     switch (layec_type_get_kind(type)) {
         default: {
@@ -187,6 +212,14 @@ static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
             llvm_print_type(codegen, element_type);
             lca_string_append_format(codegen->output, "]");
         } break;
+
+        case LAYEC_TYPE_STRUCT: {
+            if (layec_type_struct_is_named(type)) {
+                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(layec_type_struct_name(type)));
+            } else {
+                llvm_print_type_struct_literally(codegen, type);
+            }
+        }
     }
 }
 
@@ -276,15 +309,11 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, ")");
         } break;
 
-        case LAYEC_IR_GET_ELEMENT_PTR: {
-            lca_string_append_format(codegen->output, "getelementptr ");
-            llvm_print_type(codegen, layec_instruction_gep_element_type(instruction));
-            lca_string_append_format(codegen->output, ", ");
+        case LAYEC_IR_PTRADD: {
+            lca_string_append_format(codegen->output, "getelementptr i8, ");
             llvm_print_value(codegen, layec_instruction_address(instruction), true);
-            for (int64_t i = 0, count = layec_instruction_gep_index_count(instruction); i < count; i++) {
-                lca_string_append_format(codegen->output, ", ");
-                llvm_print_value(codegen, layec_instruction_gep_index_at_index(instruction, i), true);
-            }
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
         } break;
 
         case LAYEC_IR_BUILTIN: {

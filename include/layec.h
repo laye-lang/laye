@@ -112,6 +112,7 @@ typedef struct layec_context {
 
     lca_arena* type_arena;
     dynarr(layec_type*) _all_types;
+    dynarr(struct cached_struct_type { laye_node* node; layec_type* type; }) _all_struct_types;
 
     struct {
         layec_type* poison;
@@ -283,8 +284,9 @@ typedef enum layec_value_kind {
     LAYEC_IR_NOP,
     LAYEC_IR_ALLOCA,
     LAYEC_IR_CALL,
-    LAYEC_IR_GET_ELEMENT_PTR,
-    LAYEC_IR_GET_MEMBER_PTR,
+    //LAYEC_IR_GET_ELEMENT_PTR,
+    //LAYEC_IR_GET_MEMBER_PTR,
+    LAYEC_IR_PTRADD,
     LAYEC_IR_BUILTIN,
     LAYEC_IR_LOAD,
     LAYEC_IR_PHI,
@@ -392,6 +394,11 @@ int layec_get_significant_bits(int64_t value);
 void layec_irpass_validate(layec_module* module);
 string layec_codegen_llvm(layec_module* module);
 
+// Context API
+
+int64_t layec_context_get_struct_type_count(layec_context* context);
+layec_type* layec_context_get_struct_type_at_index(layec_context* context, int64_t index);
+
 // Module API
 
 layec_module* layec_module_create(layec_context* context, string_view module_name);
@@ -425,6 +432,7 @@ layec_type* layec_function_type(
     layec_calling_convention calling_convention,
     bool is_variadic
 );
+layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_type*) field_types);
 
 bool layec_type_is_ptr(layec_type* type);
 bool layec_type_is_void(layec_type* type);
@@ -441,6 +449,11 @@ int layec_type_align_in_bytes(layec_type* type);
 
 layec_type* layec_type_element_type(layec_type* type);
 int64_t layec_type_array_length(layec_type* type);
+
+bool layec_type_struct_is_named(layec_type* type);
+string_view layec_type_struct_name(layec_type* type);
+int64_t layec_type_struct_member_count(layec_type* type);
+layec_type* layec_type_struct_get_member_at_index(layec_type* type, int64_t index);
 
 void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
 
@@ -531,9 +544,8 @@ int64_t layec_phi_incoming_value_count(layec_value* phi);
 layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index);
 layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index);
 
-layec_type* layec_instruction_gep_element_type(layec_value* gep);
-int64_t layec_instruction_gep_index_count(layec_value* gep);
-layec_value* layec_instruction_gep_index_at_index(layec_value* gep, int64_t index);
+layec_value* layec_instruction_ptradd_get_address(layec_value* ptradd);
+layec_value* layec_instruction_ptradd_get_offset(layec_value* ptradd);
 
 // Builder API
 
@@ -595,7 +607,6 @@ layec_value* layec_build_neg(layec_builder* builder, layec_location location, la
 layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand);
 layec_value* layec_build_builtin_memset(layec_builder* builder, layec_location location, layec_value* address, layec_value* value, layec_value* count);
 layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location location, layec_value* source_address, layec_value* dest_address, layec_value* count);
-layec_value* layec_build_gep(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, layec_value* index_value);
-layec_value* layec_build_gep_many(layec_builder* builder, layec_location location, layec_value* address, layec_type* element_type, dynarr(layec_value*) index_values);
+layec_value* layec_build_ptradd(layec_builder* builder, layec_location location, layec_value* address, layec_value* offset_value);
 
 #endif // LAYEC_H

@@ -37,6 +37,8 @@ static laye_type laye_sema_get_pointer_to_type(laye_sema* sema, laye_type elemen
 static laye_type laye_sema_get_buffer_of_type(laye_sema* sema, laye_type element_type, bool is_modifiable);
 static laye_type laye_sema_get_reference_to_type(laye_sema* sema, laye_type element_type, bool is_modifiable);
 
+static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, layec_evaluated_constant eval_result);
+
 static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     assert(sema != NULL);
     assert(from_module != NULL);
@@ -404,7 +406,7 @@ static bool laye_sema_analyse_type(laye_sema* sema, laye_type* type) {
 
     if (laye_type_is_nameref(*type)) {
         assert(type->node->nameref.referenced_type != NULL);
-        *type = (laye_type) {
+        *type = (laye_type){
             .node = type->node->nameref.referenced_type,
             .source_node = type->node,
             .is_modifiable = type->is_modifiable,
@@ -419,6 +421,7 @@ static bool laye_sema_analyse_type(laye_sema* sema, laye_type* type) {
 
     return true;
 }
+static laye_struct_type_field laye_sema_create_padding_field(laye_sema* sema, laye_module* module, layec_location location, int padding_bytes);
 
 static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_type expected_type) {
     laye_node* node = *node_ref;
@@ -943,25 +946,27 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 case LAYE_NODE_TYPE_STRUCT: {
                     laye_node* struct_type_node = value_type.node;
 
-                    int64_t member_index = -1;
+                    int64_t member_offset = 0;
                     laye_type member_type = {0};
 
-                    for (int64_t i = 0, count = arr_count(struct_type_node->type_struct.fields); member_index == -1 && i < count; i++) {
+                    for (int64_t i = 0, count = arr_count(struct_type_node->type_struct.fields); i < count; i++) {
                         laye_struct_type_field f = struct_type_node->type_struct.fields[i];
                         if (string_view_equals(member_name, f.name)) {
-                            member_index = i;
                             member_type = f.type;
+                            break;
+                        } else {
+                            member_offset += laye_type_size_in_bytes(f.type);
                         }
                     }
 
-                    if (member_index == -1) {
+                    if (member_offset >= laye_type_size_in_bytes(value_type)) {
                         node->sema_state = LAYEC_SEMA_ERRORED;
                         node->type = LTY(sema->context->laye_types.poison);
                         layec_write_error(sema->context, node->location, "No such member '%.*s'.", STR_EXPAND(member_name));
                         break;
                     }
 
-                    node->member.member_index = member_index;
+                    node->member.member_offset = member_offset;
                     node->type = member_type;
                 } break;
             }
@@ -1431,10 +1436,48 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         } break;
 
         case LAYE_NODE_TYPE_STRUCT: {
+            // TODO(local): This needs to handle padding and shit
             assert(node->type.node->kind == LAYE_NODE_TYPE_TYPE);
-            for (int64_t i = 0, count = arr_count(node->type_struct.fields); i < 0; i++) {
+
+            int current_size = 0;
+            int current_align = 1;
+
+            int padding_bytes = 0;
+
+            for (int64_t i = 0; i < arr_count(node->type_struct.fields); i++) {
                 laye_sema_analyse_type(sema, &node->type_struct.fields[i].type);
+                assert(node->type_struct.fields[i].type.node != NULL);
+
+                int f_size = laye_type_size_in_bytes(node->type_struct.fields[i].type);
+                assert(f_size > 0);
+                int f_align = laye_type_align_in_bytes(node->type_struct.fields[i].type);
+                assert(f_align > 0);
+
+                if (f_align > current_align) {
+                    current_align = f_align;
+                }
+
+                padding_bytes = (current_align - (current_size % current_align)) % current_align;
+                if (padding_bytes > 0) {
+                    laye_struct_type_field padding_field = laye_sema_create_padding_field(sema, node->module, node->location, padding_bytes);
+                    arr_insert(node->type_struct.fields, i, padding_field);
+                    i++;
+                }
+
+                current_size += padding_bytes;
+                current_size += f_size;
             }
+
+            padding_bytes = (current_align - (current_size % current_align)) % current_align;
+            if (padding_bytes > 0) {
+                laye_struct_type_field padding_field = laye_sema_create_padding_field(sema, node->module, node->location, padding_bytes);
+                arr_push(node->type_struct.fields, padding_field);
+            }
+
+            current_size += padding_bytes;
+
+            node->type_struct.cached_size = current_size;
+            node->type_struct.cached_align = current_align;
         } break;
     }
 
@@ -1457,6 +1500,31 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
     *node_ref = node;
     return node->sema_state == LAYEC_SEMA_OK;
+}
+
+static laye_struct_type_field laye_sema_create_padding_field(laye_sema* sema, laye_module* module, layec_location location, int padding_bytes) {
+    laye_type padding_type = LTY(laye_node_create(module, LAYE_NODE_TYPE_ARRAY, location, LTY(sema->context->laye_types.type)));
+    assert(padding_type.node != NULL);
+    padding_type.node->type_container.element_type = LTY(sema->context->laye_types.i8);
+
+    laye_node* constant_value = laye_node_create(module, LAYE_NODE_LITINT, location, LTY(sema->context->laye_types._int));
+    assert(constant_value != NULL);
+    constant_value->litint.value = padding_bytes;
+
+    laye_sema_analyse_node(sema, &constant_value, constant_value->type);
+
+    layec_evaluated_constant eval_result = {0};
+    laye_expr_evaluate(constant_value, &eval_result, true);
+    constant_value = laye_create_constant_node(sema, constant_value, eval_result);
+    assert(constant_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
+
+    arr_push(padding_type.node->type_container.length_values, constant_value);
+
+    laye_struct_type_field padding_field = {
+        .type = padding_type,
+    };
+
+    return padding_field;
 }
 
 static bool laye_sema_analyse_node_and_discard(laye_sema* sema, laye_node** node) {
@@ -1532,7 +1600,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
     assert(from.node != NULL);
     assert(laye_node_is_type(from.node));
 
-    if (laye_type_is_pointer(from) || laye_type_is_poison(to)) {
+    if (laye_type_is_poison(from) || laye_type_is_poison(to)) {
         return LAYE_CONVERT_NOOP;
     }
 

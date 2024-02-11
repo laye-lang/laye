@@ -194,6 +194,7 @@ void layec_context_destroy(layec_context* context) {
     
     arr_free(context->types.int_types);
     arr_free(context->_all_types);
+    arr_free(context->_all_struct_types);
     lca_arena_destroy(context->type_arena);
 
     for (int64_t i = 0, count = arr_count(context->_all_values); i < count; i++) {

@@ -5,11 +5,10 @@ struct vec2i {
     mut int x;
     mut int y;
 }
-//*
+
 int main() {
     mut vec2i v;
     v.x = 34;
     v.y = 35;
     return v.x + v.y;
 }
-// */

@@ -162,6 +162,33 @@ static layec_type* laye_convert_type(laye_type type) {
 
             return layec_array_type(context, length, element_type);
         }
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            for (int64_t i = 0, count = arr_count(context->_all_struct_types); i < count; i++) {
+                if (context->_all_struct_types[i].node == type.node) {
+                    return context->_all_struct_types[i].type;
+                }
+            }
+
+            int64_t field_count = arr_count(type.node->type_struct.fields);
+            dynarr(layec_type*) fields = NULL;
+            arr_set_count(fields, field_count);
+
+            for (int64_t i = 0; i < field_count; i++) {
+                fields[i] = laye_convert_type(type.node->type_struct.fields[i].type);
+            }
+
+            layec_type* struct_type = layec_struct_type(context, type.node->type_struct.name, fields);
+            assert(struct_type != NULL);
+
+            struct cached_struct_type t = {
+                .node = type.node,
+                .type = struct_type,
+            };
+            arr_push(context->_all_struct_types, t);
+
+            return struct_type;
+        }
     }
 }
 
@@ -971,12 +998,26 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
 
                 arr_free(indices);
-                return layec_build_gep(builder, node->location, value, element_type, calc_index_value);
+                return layec_build_ptradd(builder, node->location, value, calc_index_value);
             } else {
                 fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(underlying_type)));
                 assert(false && "unsupported indexable type");
                 return NULL;
             }
+        }
+
+        case LAYE_NODE_MEMBER: {
+            layec_value* address = laye_generate_node(builder, node->member.value);
+            assert(address != NULL);
+            assert(layec_type_is_ptr(layec_value_get_type(address)));
+
+            int64_t member_offset = node->member.member_offset;
+            assert(member_offset >= 0);
+
+            layec_value* offset = layec_int_constant(context, node->location, layec_int_type(context, 64), member_offset);
+            assert(offset != NULL);
+
+            return layec_build_ptradd(builder, node->location, address, offset);
         }
 
         case LAYE_NODE_LITBOOL: {

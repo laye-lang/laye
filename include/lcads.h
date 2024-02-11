@@ -46,6 +46,13 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
     do {                                                                \
         if (lca_da_get_header(V)->count) lca_da_get_header(V)->count--; \
     } while (0)
+#define lca_da_insert(V, I, E)                                                                 \
+    assert((I) > 0);                                                                           \
+    do {                                                                                       \
+        lca_da_set_count((V), lca_da_count((V)) + 1);                                          \
+        memmove(&(V)[(I) + 1], &(V)[(I)], sizeof(*(V)) * (size_t)(lca_da_count((V)) - (I)-1)); \
+        (V)[(I)] = (E);                                                                        \
+    } while (0)
 #define lca_da_back(V) (&(V)[lca_da_count(V) - 1])
 #define lca_da_free(V)                                             \
     do {                                                           \
@@ -75,6 +82,7 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
 #    define arr_set_count(V, N)      lca_da_set_count(V, N)
 #    define arr_push(V, E)           lca_da_push(V, E)
 #    define arr_pop(V)               lca_da_pop(V)
+#    define arr_insert(V, I, E)      lca_da_insert(V, I, E)
 #    define arr_back(V)              lca_da_back(V)
 #    define arr_free(V)              lca_da_free(V)
 #    define arr_free_all(V, F)       lca_da_free_all(V, F)

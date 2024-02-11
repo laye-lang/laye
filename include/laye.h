@@ -877,7 +877,7 @@ struct laye_node {
             // an identifier token representing the field to look up.
             laye_token field_name;
             // The index of the member in whatever type we look at in sema.
-            int64_t member_index;
+            int64_t member_offset;
         } member;
 
         struct {
@@ -1035,6 +1035,9 @@ struct laye_node {
             // NOTE(local): The parent struct type need not be as `laye_type`,
             // as it will never be qualified or come from any source other than its declaration.
             laye_node* parent_struct_type;
+
+            int cached_size;
+            int cached_align;
         } type_struct;
 
         struct {

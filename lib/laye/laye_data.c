@@ -1,7 +1,7 @@
-#include <assert.h>
-
-#include "layec.h"
 #include "laye.h"
+#include "layec.h"
+
+#include <assert.h>
 
 void laye_module_destroy(laye_module* module) {
     if (module == NULL) return;
@@ -384,13 +384,12 @@ int align_to(int bits, int align) {
 
 int laye_type_size_in_bytes(laye_type type) {
     int size_in_bits = laye_type_size_in_bits(type);
-    return align_to(size_in_bits, 8);
+    return align_to(size_in_bits, 8) / 8;
 }
 
 int laye_type_size_in_bits(laye_type type) {
     assert(type.node != NULL);
-    assert(type.node->module != NULL);
-    assert(type.node->module->context != NULL);
+    assert(type.node->context != NULL);
     assert(laye_node_is_type(type.node));
     layec_context* context = type.node->context;
 
@@ -400,7 +399,7 @@ int laye_type_size_in_bits(laye_type type) {
             assert(false && "unreachable");
             return 0;
         }
-        
+
         case LAYE_NODE_TYPE_VOID:
         case LAYE_NODE_TYPE_NORETURN: {
             return 0;
@@ -422,6 +421,39 @@ int laye_type_size_in_bits(laye_type type) {
         case LAYE_NODE_TYPE_ERROR_PAIR: {
             assert(false && "todo: error pair type");
         }
+
+        case LAYE_NODE_TYPE_ARRAY: {
+            int element_size = laye_type_size_in_bytes(type.node->type_container.element_type) * 8;
+            int64_t constant_value = 1;
+
+            for (int64_t i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
+                laye_node* length_value = type.node->type_container.length_values[i];
+                if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT && length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
+                    constant_value *= length_value->evaluated_constant.result.int_value;
+                }
+            }
+
+            return (int)(element_size * constant_value);
+        }
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            if (type.node->type_struct.cached_size != 0) {
+                return type.node->type_struct.cached_size * 8;
+            }
+
+            // NOTE(local): Sema is responsible for caching, any time before sema
+            // we don't usually care about the size that often. this is most likely
+            // for debug use. Fine to not cache it.
+            int size = 0;
+            // NOTE(local): generation of this struct should include padding, so we don't consider it here
+            for (int64_t i = 0, count = arr_count(type.node->type_struct.fields); i < count; i++) {
+                size += laye_type_size_in_bits(type.node->type_struct.fields[i].type);
+            }
+            // TODO(local): include largest variant
+            assert(arr_count(type.node->type_struct.variants) == 0);
+
+            return size;
+        }
     }
 }
 
@@ -433,7 +465,7 @@ int laye_type_align_in_bytes(laye_type type) {
 
     switch (type.node->kind) {
         default: return 1;
-        
+
         case LAYE_NODE_TYPE_VOID:
         case LAYE_NODE_TYPE_NORETURN: {
             return 1;
@@ -470,6 +502,27 @@ int laye_type_align_in_bytes(laye_type type) {
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
             return context->target->align_of_pointer;
+        }
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            if (type.node->type_struct.cached_align != 0) {
+                return type.node->type_struct.cached_align * 8;
+            }
+
+            // NOTE(local): Sema is responsible for caching, any time before sema
+            // we don't usually care about the size that often. this is most likely
+            // for debug use. Fine to not cache it.
+            int align = 1;
+            for (int64_t i = 0, count = arr_count(type.node->type_struct.fields); i < count; i++) {
+                int f_align = laye_type_align_in_bytes(type.node->type_struct.fields[i].type);
+                if (f_align > align) {
+                    align = f_align;
+                }
+            }
+            // TODO(local): include largest variant
+            assert(arr_count(type.node->type_struct.variants) == 0);
+
+            return align;
         }
     }
     return 0;
@@ -620,7 +673,7 @@ bool laye_type_is_strict_alias(laye_type type) {
 }
 
 laye_type laye_type_qualify(laye_node* type_node, bool is_modifiable) {
-    return (laye_type) {
+    return (laye_type){
         .node = type_node,
         .is_modifiable = is_modifiable,
     };
@@ -632,7 +685,7 @@ laye_type laye_type_add_qualifiers(laye_type type, bool is_modifiable) {
 }
 
 laye_type laye_type_with_source(laye_node* type_node, laye_node* source_node, bool is_modifiable) {
-    return (laye_type) {
+    return (laye_type){
         .node = type_node,
         .source_node = source_node,
         .is_modifiable = is_modifiable,
