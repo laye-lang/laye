@@ -84,7 +84,7 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
             assert(existing_declaration != NULL);
 
             if (
-                string_equals(existing_declaration->declared_name, declaration->declared_name) &&
+                string_view_equals(existing_declaration->declared_name, declaration->declared_name) &&
                 (declaration->kind != LAYE_NODE_DECL_FUNCTION || existing_declaration->kind != LAYE_NODE_DECL_FUNCTION)
             ) {
                 assert(module->context != NULL);
@@ -105,7 +105,7 @@ static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_node*) d
         laye_node* declaration = declarations[i];
         assert(declaration != NULL);
 
-        if (string_view_equals(string_as_view(declaration->declared_name), name))
+        if (string_view_equals(declaration->declared_name, name))
             return declaration;
     }
 
@@ -538,7 +538,7 @@ bool laye_type_is_error_pair(laye_type type) {
 bool laye_type_is_nameref(laye_type type) {
     assert(type.node != NULL);
     assert(laye_node_is_type(type.node));
-    return type.node->kind == LAYE_NODE_NAMEREF;
+    return type.node->kind == LAYE_NODE_TYPE_NAMEREF;
 }
 
 bool laye_type_is_overload(laye_type type) {

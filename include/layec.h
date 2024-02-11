@@ -211,7 +211,7 @@ typedef struct layec_evaluated_constant {
         bool bool_value;
         int64_t int_value;
         double float_value;
-        string string_value;
+        string_view string_value;
     };
 } layec_evaluated_constant;
 
@@ -367,7 +367,7 @@ void layec_write_warn(layec_context* context, layec_location location, const cha
 void layec_write_error(layec_context* context, layec_location location, const char* format, ...);
 void layec_write_ice(layec_context* context, layec_location location, const char* format, ...);
 
-string layec_context_intern_string_view(layec_context* context, string_view s);
+string_view layec_context_intern_string_view(layec_context* context, string_view s);
 
 #define LAYEC_ICE(C, L, F) do { layec_write_ice(C, L, F); exit(1); } while (0)
 #define LAYEC_ICEV(C, L, F, ...) do { layec_write_ice(C, L, F, __VA_ARGS__); exit(1); } while (0)
@@ -404,7 +404,7 @@ int64_t layec_module_global_count(layec_module* module);
 layec_value* layec_module_get_global_at_index(layec_module* module, int64_t global_index);
 int64_t layec_module_function_count(layec_module* module);
 layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
-layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string string_value);
+layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string_view string_value);
 
 string layec_module_print(layec_module* module);
 

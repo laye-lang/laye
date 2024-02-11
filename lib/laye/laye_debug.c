@@ -656,6 +656,10 @@ void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
             }
             string_append_format(s, "%s]", COL(COL_DELIM));
         } break;
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            string_append_format(s, "%s%.*s", COL(COL_NAME), STR_EXPAND(type.node->type_struct.name));
+        } break;
     }
 
     if (type.is_modifiable) {

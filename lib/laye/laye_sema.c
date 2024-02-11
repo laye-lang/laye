@@ -46,7 +46,7 @@ static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_modul
     assert(search_scope != NULL);
 
     assert(arr_count(nameref.pieces) >= 1);
-    string_view first_name = string_as_view(nameref.pieces[0].string_value);
+    string_view first_name = nameref.pieces[0].string_value;
 
     laye_node* found_declaration = NULL;
 
@@ -103,7 +103,7 @@ static laye_node* laye_sema_lookup_type_declaration(laye_sema* sema, laye_module
     assert(search_scope != NULL);
 
     assert(arr_count(nameref.pieces) >= 1);
-    string_view first_name = string_as_view(nameref.pieces[0].string_value);
+    string_view first_name = nameref.pieces[0].string_value;
 
     laye_node* found_declaration = NULL;
 
@@ -345,7 +345,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
                 node->type = LTY(sema->context->laye_types.poison);
             }
 
-            bool is_declared_main = string_view_equals(SV_CONSTANT("main"), string_as_view(node->declared_name));
+            bool is_declared_main = string_view_equals(SV_CONSTANT("main"), node->declared_name);
             bool has_foreign_name = node->attributes.foreign_name.count != 0;
             bool has_body = arr_count(node->decl_function.body) != 0;
 
@@ -364,6 +364,9 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
 
         case LAYE_NODE_DECL_STRUCT: {
             node->declared_type = LTY(laye_sema_build_struct_type(sema, node, NULL));
+            assert(node->declared_type.node != NULL);
+            assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
+            laye_sema_analyse_type(sema, &node->declared_type);
             assert(node->declared_type.node != NULL);
             assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
         } break;
@@ -406,10 +409,12 @@ static bool laye_sema_analyse_type(laye_sema* sema, laye_type* type) {
             .source_node = type->node,
             .is_modifiable = type->is_modifiable,
         };
+        laye_sema_analyse_type(sema, type);
     } else if (laye_type_is_alias(*type)) {
         laye_type underlying_type = type->node->type_alias.underlying_type;
         assert(underlying_type.node != NULL);
         *type = laye_type_with_source(underlying_type.node, type->node, type->is_modifiable | underlying_type.is_modifiable);
+        laye_sema_analyse_type(sema, type);
     }
 
     return true;
@@ -732,7 +737,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 laye_sema_convert_or_error(sema, &node->assignment.rhs, nonref_target_type);
             }
 
-            if (!node->assignment.lhs->type.is_modifiable && laye_type_is_poison(node->assignment.lhs->type)) {
+            if (!node->assignment.lhs->type.is_modifiable && !laye_type_is_poison(node->assignment.lhs->type)) {
                 layec_write_error(sema->context, node->assignment.lhs->location, "Left-hand side of assignment is not mutable.");
                 node->sema_state = LAYEC_SEMA_ERRORED;
             }
@@ -917,6 +922,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 break;
             }
 
+            layec_location member_location = node->member.field_name.location;
+            string_view member_name = node->member.field_name.string_value;
+
             switch (value_type.node->kind) {
                 default: {
                     node->sema_state = LAYEC_SEMA_ERRORED;
@@ -933,6 +941,28 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 } break;
 
                 case LAYE_NODE_TYPE_STRUCT: {
+                    laye_node* struct_type_node = value_type.node;
+
+                    int64_t member_index = -1;
+                    laye_type member_type = {0};
+
+                    for (int64_t i = 0, count = arr_count(struct_type_node->type_struct.fields); member_index == -1 && i < count; i++) {
+                        laye_struct_type_field f = struct_type_node->type_struct.fields[i];
+                        if (string_view_equals(member_name, f.name)) {
+                            member_index = i;
+                            member_type = f.type;
+                        }
+                    }
+
+                    if (member_index == -1) {
+                        node->sema_state = LAYEC_SEMA_ERRORED;
+                        node->type = LTY(sema->context->laye_types.poison);
+                        layec_write_error(sema->context, node->location, "No such member '%.*s'.", STR_EXPAND(member_name));
+                        break;
+                    }
+
+                    node->member.member_index = member_index;
+                    node->type = member_type;
                 } break;
             }
         } break;
@@ -1397,6 +1427,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 evaluated_constant->evaluated_constant.result = constant_value;
 
                 node->type_container.length_values[i] = evaluated_constant;
+            }
+        } break;
+
+        case LAYE_NODE_TYPE_STRUCT: {
+            assert(node->type.node->kind == LAYE_NODE_TYPE_TYPE);
+            for (int64_t i = 0, count = arr_count(node->type_struct.fields); i < 0; i++) {
+                laye_sema_analyse_type(sema, &node->type_struct.fields[i].type);
             }
         } break;
     }

@@ -427,11 +427,11 @@ void layec_write_ice(layec_context* context, layec_location location, const char
 
 #undef GET_MESSAGE
 
-string layec_context_intern_string_view(layec_context* context, string_view s) {
+string_view layec_context_intern_string_view(layec_context* context, string_view s) {
     if (s.count + 1 > context->max_interned_string_size) {
         string allocated_string = string_view_to_string(context->allocator, s);
         arr_push(context->allocated_strings, allocated_string);
-        return allocated_string;
+        return string_as_view(allocated_string);
     }
 
     // TODO(local): these aren't properly interned yet, do that eventually.
@@ -441,5 +441,5 @@ string layec_context_intern_string_view(layec_context* context, string_view s) {
     
     string arena_string = string_from_data(context->allocator, arena_string_data, s.count, s.count + 1);
 
-    return arena_string;
+    return string_as_view(arena_string);
 }

@@ -7,6 +7,7 @@ static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-pedantic");
     nob_cmd_append(cmd, "-pedantic-errors");
     nob_cmd_append(cmd, "-ggdb");
+    nob_cmd_append(cmd, "-Werror=return-type");
     nob_cmd_append(cmd, "-fsanitize=address");
     nob_cmd_append(cmd, "-D__USE_POSIX");
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
@@ -94,7 +95,17 @@ int main(int argc, char** argv) {
     if (argc > 0) {
         const char* command = nob_shift_args(&argc, &argv);
         if (0 == strcmp("build", command)) {
-            build_all();
+            if (argc > 0) {
+                const char* what_to_build = nob_shift_args(&argc, &argv);
+                if (0 == strcmp("layec", what_to_build)) {
+                    build_layec_driver();
+                } else {
+                    fprintf(stderr, "Invalid project specified to build.\n");
+                    return 1;
+                }
+            } else {
+                build_all();
+            }
         } else if (0 == strcmp("run", command)) {
             build_layec_driver();
 

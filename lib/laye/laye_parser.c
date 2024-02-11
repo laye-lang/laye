@@ -826,7 +826,7 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
 
                 if (laye_parser_consume(p, '(', NULL)) {
                     if (p->token.kind == LAYE_TOKEN_IDENT) {
-                        string_view mangling_kind_name = string_as_view(p->token.string_value);
+                        string_view mangling_kind_name = p->token.string_value;
                         if (string_view_equals(mangling_kind_name, SV_CONSTANT("none"))) {
                             foreign_node->meta_attribute.mangling = LAYEC_MANGLE_NONE;
                         } else if (string_view_equals(mangling_kind_name, SV_CONSTANT("laye"))) {
@@ -856,8 +856,7 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                     }
 
                     if (laye_parser_at(p, LAYE_TOKEN_LITSTRING)) {
-                        string foreign_name_value = p->token.string_value;
-                        foreign_node->meta_attribute.foreign_name = foreign_name_value;
+                        foreign_node->meta_attribute.foreign_name = p->token.string_value;
                         laye_next_token(p);
                     }
                 }
@@ -879,7 +878,7 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
 
                 if (laye_parser_consume(p, '(', NULL)) {
                     if (p->token.kind == LAYE_TOKEN_IDENT) {
-                        string_view callconv_kind_name = string_as_view(p->token.string_value);
+                        string_view callconv_kind_name = p->token.string_value;
                         if (string_view_equals(callconv_kind_name, SV_CONSTANT("cdecl"))) {
                             callconv_node->meta_attribute.calling_convention = LAYEC_CCC;
                         } else if (string_view_equals(callconv_kind_name, SV_CONSTANT("laye"))) {
@@ -1164,7 +1163,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
                 function_body = laye_node_create(p->module, LAYE_NODE_COMPOUND, function_body_expr->location, LTY(p->context->laye_types.noreturn));
                 assert(function_body != NULL);
                 function_body->compiler_generated = true;
-                function_body->compound.scope_name = name_token.string_value;
+                //function_body->compound.scope_name = name_token.string_value;
                 arr_push(function_body->compound.children, implicit_return_node);
                 assert(1 == arr_count(function_body->compound.children));
             } else {

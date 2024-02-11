@@ -11,7 +11,7 @@ typedef struct laye_token laye_token;
 typedef struct laye_attributes {
     // if a declaration is marked as `foreign` *and* a name was specified,
     // this field represents that name. `foreign` also controls name mangling.
-    string foreign_name;
+    string_view foreign_name;
     // the linkage for this declaration.
     layec_linkage linkage;
     // the name mangling strategy to use for this declaration, if any.
@@ -75,7 +75,7 @@ struct laye_scope {
     laye_scope* parent;
     // the name of this scope, if any.
     // used mostly for debugging.
-    string name;
+    string_view name;
     // true if this is a function scope (outermost scope containing a function body).
     bool is_function_scope;
     // "value"s declared in this scope.
@@ -203,7 +203,7 @@ LAYE_TRIVIA_KINDS(X)
 typedef struct laye_trivia {
     laye_trivia_kind kind;
     layec_location location;
-    string text;
+    string_view text;
 } laye_trivia;
 
 // clang-format off
@@ -249,7 +249,7 @@ struct laye_token {
     union {
         int64_t int_value;
         double float_value;
-        string string_value;
+        string_view string_value;
     };
 };
 
@@ -404,17 +404,17 @@ typedef struct laye_nameref {
 
 typedef struct laye_struct_type_field {
     laye_type type;
-    string name;
+    string_view name;
     layec_evaluated_constant initial_value;
 } laye_struct_type_field;
 
 typedef struct laye_struct_type_variant {
     laye_type type;
-    string name;
+    string_view name;
 } laye_struct_type_variant;
 
 typedef struct laye_enum_type_variant {
-    string name;
+    string_view name;
     int64_t value;
 } laye_enum_type_variant;
 
@@ -459,7 +459,7 @@ struct laye_node {
     // if either `import.is_wildcard` is set to true *or* `import.imported_names`
     // contains values, then this is assumed to be empty except for to report a syntax
     // error when used imporperly.
-    string declared_name;
+    string_view declared_name;
     // attributes for this declaration that aren't covered by other standard cases.
     laye_attributes attributes;
     // template parameters for this declaration, if there are any.
@@ -610,13 +610,13 @@ struct laye_node {
             // e.g.:
             //   init: { x = 10; }
             // or
-            //   for (x < 10) outer: {
+            //   outer: for (x < 10) {
             //     for (y < 10) { if (foo()) break outer; }
             //   }
             // the scope name of a block is also the name of a label declared by the
             // identifier + colon construct. This is an additional special-case of the
             // syntax and is not a distinct part of the compound statement.
-            string scope_name;
+            string_view scope_name;
             // the children of this compound node.
             dynarr(laye_node*) children;
         } compound;
@@ -778,7 +778,7 @@ struct laye_node {
             // optionally, the labeled statement to break out of.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string target;
+            string_view target;
             // the syntax node to break out of. currently populated during sema,
             // but could be handled at parse time pretty easily instead.
             laye_node* target_node;
@@ -788,7 +788,7 @@ struct laye_node {
             // optionally, the labeled statement to continue from.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string target;
+            string_view target;
             // the syntax node to continue to. currently populated during sema,
             // but could be handled at parse time pretty easily instead.
             laye_node* target_node;
@@ -800,7 +800,7 @@ struct laye_node {
             // optionally, the labeled statement to yield from.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string target;
+            string_view target;
             // the value to yield from this compound expression.
             laye_node* value;
         } yield;
@@ -816,7 +816,7 @@ struct laye_node {
 
         struct {
             // the label to go to.
-            string label;
+            string_view label;
             // the syntax node to go to. this will be the label itself, not the node it
             // could be labeling.
             laye_node* target_node;
@@ -876,6 +876,8 @@ struct laye_node {
             laye_node* value;
             // an identifier token representing the field to look up.
             laye_token field_name;
+            // The index of the member in whatever type we look at in sema.
+            int64_t member_index;
         } member;
 
         struct {
@@ -981,7 +983,7 @@ struct laye_node {
         } litfloat;
 
         struct {
-            string value;
+            string_view value;
         } litstring;
 
         struct {
@@ -1027,7 +1029,7 @@ struct laye_node {
         // note that while struct and variant *types* are distinct,
         // they still have identical type data and therefore will share this struct.
         struct {
-            string name;
+            string_view name;
             dynarr(laye_struct_type_field) fields;
             dynarr(laye_struct_type_variant) variants;
             // NOTE(local): The parent struct type need not be as `laye_type`,
@@ -1036,14 +1038,14 @@ struct laye_node {
         } type_struct;
 
         struct {
-            string name;
+            string_view name;
             // NOTE(local): the underlying type of an enum is heavily restricted, and cannot be qualified.
             laye_node* underlying_type;
             dynarr(laye_enum_type_variant) variants;
         } type_enum;
 
         struct {
-            string name;
+            string_view name;
             // NOTE(local): while I think you can obviously still apply type qualifiers to
             // aliased types, allowing them at the alias declaration site (at least for the
             // outermost type) might be semantically invalid in the future.
@@ -1060,7 +1062,7 @@ struct laye_node {
             // if the attribute can affect the name of this declaration in
             // generated code (the foreign name), it will be populated here
             // if specified. (usually just the `foreign` attribute with a name).
-            string foreign_name;
+            string_view foreign_name;
             // if the attribute can affect the name mangling scheme for this declaration,
             // it is specified here. (usually just the `foreign` attribute with a
             // mangling scheme argument).

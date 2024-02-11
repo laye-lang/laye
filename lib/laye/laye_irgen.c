@@ -24,7 +24,7 @@ layec_module* laye_irgen(laye_module* module) {
         assert(top_level_node != NULL);
 
         if (top_level_node->kind == LAYE_NODE_DECL_FUNCTION) {
-            string function_name = top_level_node->attributes.foreign_name.count != 0 ? top_level_node->attributes.foreign_name : top_level_node->declared_name;
+            string_view function_name = top_level_node->attributes.foreign_name.count != 0 ? top_level_node->attributes.foreign_name : top_level_node->declared_name;
 
             assert(laye_type_is_function(top_level_node->declared_type));
             layec_type* ir_function_type = laye_convert_type(top_level_node->declared_type);
@@ -49,7 +49,7 @@ layec_module* laye_irgen(laye_module* module) {
             layec_value* ir_function = layec_module_create_function(
                 ir_module,
                 top_level_node->location,
-                string_as_view(function_name),
+                function_name,
                 ir_function_type,
                 function_linkage
             );
