@@ -133,10 +133,10 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         }
     }
 
-    if (node->declared_type != NULL) {
+    if (node->declared_type.node != NULL) {
         lca_string_append_format(print_context->output, " ");
         laye_type_print_to_string(node->declared_type, print_context->output, use_color);
-    } else if (node->type != NULL) {
+    } else if (node->type.node != NULL) {
         lca_string_append_format(print_context->output, " ");
         laye_type_print_to_string(node->type, print_context->output, use_color);
     }
@@ -402,13 +402,11 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
                         string_append_format(print_context->output, "%s, ", COL(COL_DELIM));
                     }
 
-                    laye_node* template_argument = node->nameref.template_arguments[i];
-                    assert(template_argument != NULL);
-
-                    if (laye_node_is_type(template_argument)) {
-                        laye_type_print_to_string(template_argument, print_context->output, use_color);
-                    } else if (template_argument->kind == LAYE_NODE_EVALUATED_CONSTANT) {
-                        laye_constant_print_to_string(template_argument->evaluated_constant.result, print_context->output, use_color);
+                    laye_template_arg template_argument = node->nameref.template_arguments[i];
+                    if (template_argument.is_type) {
+                        laye_type_print_to_string(template_argument.type, print_context->output, use_color);
+                    } else if (template_argument.node->kind == LAYE_NODE_EVALUATED_CONSTANT) {
+                        laye_constant_print_to_string(template_argument.node->evaluated_constant.result, print_context->output, use_color);
                     } else {
                         string_append_format(print_context->output, "%s{?}", COL(COL_ERROR));
                     }
@@ -484,14 +482,14 @@ void laye_constant_print_to_string(layec_evaluated_constant constant, string* s,
     }
 }
 
-void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
+void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
     assert(s != NULL);
 
-    switch (type->kind) {
+    switch (type.node->kind) {
         default: {
-            fprintf(stderr, "unimplemented type kind %s\n", laye_node_kind_to_cstring(type->kind));
+            fprintf(stderr, "unimplemented type kind %s\n", laye_node_kind_to_cstring(type.node->kind));
             assert(false && "unreachable");
         } break;
 
@@ -524,63 +522,61 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         } break;
 
         case LAYE_NODE_TYPE_INT: {
-            if (type->type_primitive.is_platform_specified) {
-                string_append_format(s, "%s%sint", COL(COL_KEYWORD), (type->type_primitive.is_signed ? "" : "u"));
+            if (type.node->type_primitive.is_platform_specified) {
+                string_append_format(s, "%s%sint", COL(COL_KEYWORD), (type.node->type_primitive.is_signed ? "" : "u"));
             } else { 
-                string_append_format(s, "%s%s%d", COL(COL_KEYWORD), (type->type_primitive.is_signed ? "i" : "u"), type->type_primitive.bit_width);
+                string_append_format(s, "%s%s%d", COL(COL_KEYWORD), (type.node->type_primitive.is_signed ? "i" : "u"), type.node->type_primitive.bit_width);
             }
         } break;
 
         case LAYE_NODE_TYPE_FLOAT: {
-            if (type->type_primitive.is_platform_specified) {
+            if (type.node->type_primitive.is_platform_specified) {
                 string_append_format(s, "%sfloat", COL(COL_KEYWORD));
             } else {
-                string_append_format(s, "%sf%d", COL(COL_KEYWORD), type->type_primitive.bit_width);
+                string_append_format(s, "%sf%d", COL(COL_KEYWORD), type.node->type_primitive.bit_width);
             }
         } break;
 
         case LAYE_NODE_TYPE_TEMPLATE_PARAMETER: {
-            assert(type->type_template_parameter.declaration != NULL);
-            string_append_format(s, "%s%.*s", COL(COL_TEMPLATE_PARAM), STR_EXPAND(type->type_template_parameter.declaration->declared_name));
+            assert(type.node->type_template_parameter.declaration != NULL);
+            string_append_format(s, "%s%.*s", COL(COL_TEMPLATE_PARAM), STR_EXPAND(type.node->type_template_parameter.declaration->declared_name));
         } break;
 
         case LAYE_NODE_TYPE_ERROR_PAIR: {
-            assert(type->type_error_pair.error_type != NULL);
-            assert(type->type_error_pair.value_type != NULL);
-            laye_type_print_to_string(type->type_error_pair.error_type, s, use_color);
+            assert(type.node->type_error_pair.error_type.node != NULL);
+            assert(type.node->type_error_pair.value_type.node != NULL);
+            laye_type_print_to_string(type.node->type_error_pair.error_type, s, use_color);
             string_append_format(s, "%s!", COL(COL_DELIM));
-            laye_type_print_to_string(type->type_error_pair.value_type, s, use_color);
+            laye_type_print_to_string(type.node->type_error_pair.value_type, s, use_color);
         } break;
 
         case LAYE_NODE_TYPE_NAMEREF: {
-            if (type->nameref.kind == LAYE_NAMEREF_HEADLESS) {
+            if (type.node->nameref.kind == LAYE_NAMEREF_HEADLESS) {
                 string_append_format(s, "%s::", COL(COL_DELIM));
-            } else if (type->nameref.kind == LAYE_NAMEREF_GLOBAL) {
+            } else if (type.node->nameref.kind == LAYE_NAMEREF_GLOBAL) {
                 string_append_format(s, "%sglobal%s::", COL(COL_KEYWORD), COL(COL_DELIM));
             }
 
-            for (int64_t i = 0, count = arr_count(type->nameref.pieces); i < count; i++) {
+            for (int64_t i = 0, count = arr_count(type.node->nameref.pieces); i < count; i++) {
                 if (i > 0) {
                     string_append_format(s, "%s::", COL(COL_DELIM));
                 }
 
-                string_append_format(s, "%s%.*s", COL(COL_NAME), STR_EXPAND(type->nameref.pieces[i].string_value));
+                string_append_format(s, "%s%.*s", COL(COL_NAME), STR_EXPAND(type.node->nameref.pieces[i].string_value));
             }
 
-            if (0 != arr_count(type->nameref.template_arguments)) {
+            if (0 != arr_count(type.node->nameref.template_arguments)) {
                 string_append_format(s, "%s<", COL(COL_DELIM));
-                for (int64_t i = 0, count = arr_count(type->nameref.template_arguments); i < count; i++) {
+                for (int64_t i = 0, count = arr_count(type.node->nameref.template_arguments); i < count; i++) {
                     if (i > 0) {
                         string_append_format(s, "%s, ", COL(COL_DELIM));
                     }
 
-                    laye_node* template_argument = type->nameref.template_arguments[i];
-                    assert(template_argument != NULL);
-
-                    if (laye_node_is_type(template_argument)) {
-                        laye_type_print_to_string(template_argument, s, use_color);
-                    } else if (template_argument->kind == LAYE_NODE_EVALUATED_CONSTANT) {
-                        laye_constant_print_to_string(template_argument->evaluated_constant.result, s, use_color);
+                    laye_template_arg template_argument = type.node->nameref.template_arguments[i];
+                    if (template_argument.is_type) {
+                        laye_type_print_to_string(template_argument.type, s, use_color);
+                    } else if (template_argument.node->kind == LAYE_NODE_EVALUATED_CONSTANT) {
+                        laye_constant_print_to_string(template_argument.node->evaluated_constant.result, s, use_color);
                     } else {
                         string_append_format(s, "%s{?}", COL(COL_ERROR));
                     }
@@ -589,62 +585,58 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
                 string_append_format(s, "%s>", COL(COL_DELIM));
             }
 
-            if (type->nameref.referenced_type != NULL) {
-                string_append_format(s, " %s%016x", COL(COL_ADDR), (size_t)type->nameref.referenced_type);
+            if (type.node->nameref.referenced_type != NULL) {
+                string_append_format(s, " %s%016x", COL(COL_ADDR), (size_t)type.node->nameref.referenced_type);
             }
         } break;
 
         case LAYE_NODE_TYPE_FUNCTION: {
-            laye_type_print_to_string(type->type_function.return_type, s, use_color);
-
-            if (type->type_is_modifiable) {
-                string_append_format(s, " %smut", COL(COL_KEYWORD));
-            }
+            laye_type_print_to_string(type.node->type_function.return_type, s, use_color);
 
             string_append_format(s, "%s(", COL(COL_DELIM));
-            for (int64_t i = 0, count = arr_count(type->type_function.parameter_types); i < count; i++) {
+            for (int64_t i = 0, count = arr_count(type.node->type_function.parameter_types); i < count; i++) {
                 if (i > 0) {
                     string_append_format(s, "%s, ", COL(COL_DELIM));
                 }
 
-                laye_type_print_to_string(type->type_function.parameter_types[i], s, use_color);
+                laye_type_print_to_string(type.node->type_function.parameter_types[i], s, use_color);
             }
 
             string_append_format(s, "%s)", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_REFERENCE: {
-            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            laye_type_print_to_string(type.node->type_container.element_type, s, use_color);
             string_append_format(s, "%s&", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_POINTER: {
-            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            laye_type_print_to_string(type.node->type_container.element_type, s, use_color);
             string_append_format(s, "%s*", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_BUFFER: {
-            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            laye_type_print_to_string(type.node->type_container.element_type, s, use_color);
             string_append_format(s, "%s[*]", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_SLICE: {
-            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            laye_type_print_to_string(type.node->type_container.element_type, s, use_color);
             string_append_format(s, "%s[]", COL(COL_DELIM));
         } break;
 
         case LAYE_NODE_TYPE_ARRAY: {
-            laye_type_print_to_string(type->type_container.element_type, s, use_color);
+            laye_type_print_to_string(type.node->type_container.element_type, s, use_color);
             string_append_format(s, "%s[", COL(COL_DELIM));
-            for (int i = 0, count = arr_count(type->type_container.length_values); i < count; i++) {
-                laye_node* length_value = type->type_container.length_values[i];
+            for (int i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
+                laye_node* length_value = type.node->type_container.length_values[i];
                 assert(length_value != NULL);
 
                 if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT) {
                     layec_evaluated_constant constant = length_value->evaluated_constant.result;
                     switch (constant.kind) {
                         default: {
-                            //fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type->kind));
+                            //fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type.node->kind));
                             assert(false && "unreachable");
                         } break;
 
@@ -666,7 +658,7 @@ void laye_type_print_to_string(laye_node* type, string* s, bool use_color) {
         } break;
     }
 
-    if (type->type_is_modifiable) {
+    if (type.is_modifiable) {
         string_append_format(s, " %smut", COL(COL_KEYWORD));
     }
 

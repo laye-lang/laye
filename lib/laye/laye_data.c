@@ -276,7 +276,7 @@ bool laye_node_is_sema_ok_or_errored(laye_node* node) {
 bool laye_node_has_noreturn_semantics(laye_node* node) {
     assert(node != NULL);
     assert(node->type.node != NULL);
-    return laye_type_is_noreturn(node->type.node);
+    return laye_type_is_noreturn(node->type);
 }
 
 bool laye_decl_is_exported(laye_node* decl) {
@@ -310,10 +310,10 @@ bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant,
 
             laye_node* query = expr->_sizeof.query;
             if (laye_node_is_type(query)) {
-                size_in_bytes = laye_type_size_in_bytes(query);
+                size_in_bytes = laye_type_size_in_bytes(LTY(query));
             } else {
                 assert(query->type.node != NULL);
-                size_in_bytes = laye_type_size_in_bytes(query->type.node);
+                size_in_bytes = laye_type_size_in_bytes(query->type);
             }
 
             out_constant->kind = LAYEC_EVAL_INT;
@@ -382,24 +382,21 @@ int align_to(int bits, int align) {
     return bits + align_padding(bits, align);
 }
 
-int laye_type_size_in_bytes(laye_node* type) {
-    assert(type != NULL);
-    assert(type->module != NULL);
-    assert(type->module->context != NULL);
-    assert(laye_node_is_type(type));
+int laye_type_size_in_bytes(laye_type type) {
     int size_in_bits = laye_type_size_in_bits(type);
     return align_to(size_in_bits, 8);
 }
 
-int laye_type_size_in_bits(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    assert(type->context != NULL);
-    layec_context* context = type->context;
+int laye_type_size_in_bits(laye_type type) {
+    assert(type.node != NULL);
+    assert(type.node->module != NULL);
+    assert(type.node->module->context != NULL);
+    assert(laye_node_is_type(type.node));
+    layec_context* context = type.node->context;
 
-    switch (type->kind) {
+    switch (type.node->kind) {
         default: {
-            fprintf(stderr, "for type %s\n", laye_node_kind_to_cstring(type->kind));
+            fprintf(stderr, "for type %s\n", laye_node_kind_to_cstring(type.node->kind));
             assert(false && "unreachable");
             return 0;
         }
@@ -412,8 +409,8 @@ int laye_type_size_in_bits(laye_node* type) {
         case LAYE_NODE_TYPE_BOOL:
         case LAYE_NODE_TYPE_INT:
         case LAYE_NODE_TYPE_FLOAT: {
-            assert(type->type_primitive.bit_width > 0);
-            return type->type_primitive.bit_width;
+            assert(type.node->type_primitive.bit_width > 0);
+            return type.node->type_primitive.bit_width;
         }
 
         case LAYE_NODE_TYPE_REFERENCE:
@@ -428,13 +425,13 @@ int laye_type_size_in_bits(laye_node* type) {
     }
 }
 
-int laye_type_align_in_bytes(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    assert(type->context != NULL);
-    layec_context* context = type->context;
+int laye_type_align_in_bytes(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    assert(type.node->context != NULL);
+    layec_context* context = type.node->context;
 
-    switch (type->kind) {
+    switch (type.node->kind) {
         default: return 1;
         
         case LAYE_NODE_TYPE_VOID:
@@ -446,7 +443,7 @@ int laye_type_align_in_bytes(laye_node* type) {
 
         case LAYE_NODE_TYPE_INT:
         case LAYE_NODE_TYPE_FLOAT: {
-            return align_to(type->type_primitive.bit_width, 8) / 8;
+            return align_to(type.node->type_primitive.bit_width, 8) / 8;
         }
 
         case LAYE_NODE_TYPE_ERROR_PAIR: {
@@ -454,19 +451,19 @@ int laye_type_align_in_bytes(laye_node* type) {
         }
 
         case LAYE_NODE_NAMEREF: {
-            if (type->nameref.referenced_type == NULL) {
+            if (type.node->nameref.referenced_type == NULL) {
                 return 1;
             }
 
-            assert(type->nameref.referenced_type != NULL);
-            return laye_type_align_in_bytes(type->nameref.referenced_type);
+            assert(type.node->nameref.referenced_type != NULL);
+            return laye_type_align_in_bytes(LTY(type.node->nameref.referenced_type));
         }
 
         case LAYE_NODE_TYPE_OVERLOADS: return 1;
 
         case LAYE_NODE_TYPE_NILABLE: {
-            assert(type->type_container.element_type.node != NULL);
-            return laye_type_align_in_bytes(type->type_container.element_type.node);
+            assert(type.node->type_container.element_type.node != NULL);
+            return laye_type_align_in_bytes(LTY(type.node->type_container.element_type.node));
         }
 
         case LAYE_NODE_TYPE_REFERENCE:
@@ -478,148 +475,148 @@ int laye_type_align_in_bytes(laye_node* type) {
     return 0;
 }
 
-bool laye_type_is_poison(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_POISON;
+bool laye_type_is_poison(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_POISON;
 }
 
-bool laye_type_is_void(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_VOID;
+bool laye_type_is_void(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_VOID;
 }
 
-bool laye_type_is_noreturn(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_NORETURN;
+bool laye_type_is_noreturn(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_NORETURN;
 }
 
-bool laye_type_is_bool(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_BOOL;
+bool laye_type_is_bool(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_BOOL;
 }
 
-bool laye_type_is_int(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_INT;
+bool laye_type_is_int(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_INT;
 }
 
-bool laye_type_is_signed_int(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_INT && type->type_primitive.is_signed;
+bool laye_type_is_signed_int(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_INT && type.node->type_primitive.is_signed;
 }
 
-bool laye_type_is_unsigned_int(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_INT && !type->type_primitive.is_signed;
+bool laye_type_is_unsigned_int(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_INT && !type.node->type_primitive.is_signed;
 }
 
-bool laye_type_is_float(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_FLOAT;
+bool laye_type_is_float(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_FLOAT;
 }
 
-bool laye_type_is_template_parameter(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_TEMPLATE_PARAMETER;
+bool laye_type_is_template_parameter(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_TEMPLATE_PARAMETER;
 }
 
-bool laye_type_is_error_pair(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_ERROR_PAIR;
+bool laye_type_is_error_pair(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_ERROR_PAIR;
 }
 
-bool laye_type_is_nameref(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_NAMEREF;
+bool laye_type_is_nameref(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_NAMEREF;
 }
 
-bool laye_type_is_overload(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_OVERLOADS;
+bool laye_type_is_overload(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_OVERLOADS;
 }
 
-bool laye_type_is_nilable(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_NILABLE;
+bool laye_type_is_nilable(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_NILABLE;
 }
 
-bool laye_type_is_array(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_ARRAY;
+bool laye_type_is_array(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_ARRAY;
 }
 
-bool laye_type_is_slice(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_SLICE;
+bool laye_type_is_slice(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_SLICE;
 }
 
-bool laye_type_is_reference(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_REFERENCE;
+bool laye_type_is_reference(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_REFERENCE;
 }
 
-bool laye_type_is_pointer(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_POINTER;
+bool laye_type_is_pointer(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_POINTER;
 }
 
-bool laye_type_is_buffer(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_BUFFER;
+bool laye_type_is_buffer(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_BUFFER;
 }
 
-bool laye_type_is_function(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_FUNCTION;
+bool laye_type_is_function(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_FUNCTION;
 }
 
-bool laye_type_is_struct(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_STRUCT;
+bool laye_type_is_struct(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_STRUCT;
 }
 
-bool laye_type_is_variant(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_VARIANT;
+bool laye_type_is_variant(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_VARIANT;
 }
 
-bool laye_type_is_enum(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_ENUM;
+bool laye_type_is_enum(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_ENUM;
 }
 
-bool laye_type_is_alias(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_ALIAS;
+bool laye_type_is_alias(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_ALIAS;
 }
 
-bool laye_type_is_strict_alias(laye_node* type) {
-    assert(type != NULL);
-    assert(laye_node_is_type(type));
-    return type->kind == LAYE_NODE_TYPE_STRICT_ALIAS;
+bool laye_type_is_strict_alias(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_STRICT_ALIAS;
 }
 
 laye_type laye_type_qualify(laye_node* type_node, bool is_modifiable) {
@@ -734,31 +731,31 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
         } break;
     }
 
-    if (laye_type_is_nameref(a)) {
+    if (laye_type_is_nameref(a_type)) {
         assert(a->nameref.referenced_type != NULL);
         return laye_type_equals(laye_type_qualify(a->nameref.referenced_type, a_type.is_modifiable), b_type, mut_compare);
     }
 
-    if (laye_type_is_nameref(b)) {
+    if (laye_type_is_nameref(b_type)) {
         assert(b->nameref.referenced_type != NULL);
         return laye_type_equals(a_type, laye_type_qualify(b->nameref.referenced_type, b_type.is_modifiable), mut_compare);
     }
 
-    assert(!laye_type_is_nameref(a));
-    assert(!laye_type_is_nameref(b));
+    assert(!laye_type_is_nameref(a_type));
+    assert(!laye_type_is_nameref(b_type));
 
-    if (laye_type_is_alias(a)) {
+    if (laye_type_is_alias(a_type)) {
         assert(a->type_alias.underlying_type.node != NULL);
         return laye_type_equals(laye_type_add_qualifiers(a->type_alias.underlying_type, a_type.is_modifiable), b_type, mut_compare);
     }
 
-    if (laye_type_is_alias(b)) {
+    if (laye_type_is_alias(b_type)) {
         assert(b->type_alias.underlying_type.node != NULL);
         return laye_type_equals(a_type, laye_type_add_qualifiers(b->type_alias.underlying_type, b_type.is_modifiable), mut_compare);
     }
 
-    assert(!laye_type_is_alias(a));
-    assert(!laye_type_is_alias(b));
+    assert(!laye_type_is_alias(a_type));
+    assert(!laye_type_is_alias(b_type));
 
     if (a->kind != b->kind) return false;
 
@@ -898,8 +895,8 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
     }
 }
 
-int laye_type_array_rank(laye_node* array_type) {
-    assert(array_type != NULL);
+int laye_type_array_rank(laye_type array_type) {
+    assert(array_type.node != NULL);
     assert(laye_type_is_array(array_type));
-    return (int)arr_count(array_type->type_container.length_values);
+    return (int)arr_count(array_type.node->type_container.length_values);
 }
