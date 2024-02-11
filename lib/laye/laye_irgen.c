@@ -973,6 +973,9 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 layec_type* element_type = layec_type_element_type(underlying_type);
                 assert(element_type != NULL);
 
+                layec_value* element_size_value = layec_int_constant(context, node->index.value->type.node->location, layec_int_type(context, 64), layec_type_size_in_bytes(element_type));
+                assert(element_size_value != NULL);
+
                 laye_type laye_array_type = node->index.value->type;
                 assert(laye_array_type.node != NULL);
                 assert(laye_type_is_array(laye_array_type));
@@ -998,6 +1001,8 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 }
 
                 arr_free(indices);
+                
+                calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
                 return layec_build_ptradd(builder, node->location, value, calc_index_value);
             } else {
                 fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(underlying_type)));

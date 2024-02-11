@@ -3,13 +3,15 @@
 
 // * define exported ccc main() -> int64 {
 // + entry:
-// +  %0 = alloca int64\[10\]
-// +  builtin @memset(ptr %0, int8 0, int64 80)
-// +  %1 = gep int64, ptr %0, int64 2
-// +  store %1, int64 2
-// +  %2 = gep int64, ptr %0, int64 2
-// +  %3 = load int64, %2
-// +  return int64 %3
+// +   %0 = alloca int64\[10\]
+// +   builtin @memset(ptr %0, int8 0, int64 80)
+// +   %1 = mul int64 2, 8
+// +   %2 = ptradd ptr %0, int64 %1
+// +   store %2, int64 2
+// +   %3 = mul int64 2, 8
+// +   %4 = ptradd ptr %0, int64 %3
+// +   %5 = load int64, %4
+// +   return int64 %5
 // + }
 int main() {
     int mut[10] arr;
