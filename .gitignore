@@ -5,6 +5,7 @@ test/*
 test/laye/*
 !test/laye/
 !test/laye/*.laye
+!test/laye/deps/
 !test/laye/deps/*.laye
 
 out
