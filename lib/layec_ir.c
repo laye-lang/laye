@@ -2159,6 +2159,10 @@ static void layec_print_linkage(layec_print_context* print_context, layec_linkag
         case LAYEC_LINK_EXPORTED: {
             lca_string_append_format(print_context->output, "%sexported ", COL(COL_KEYWORD));
         } break;
+
+        case LAYEC_LINK_REEXPORTED: {
+            lca_string_append_format(print_context->output, "%resexported ", COL(COL_KEYWORD));
+        } break;
     }
 }
 

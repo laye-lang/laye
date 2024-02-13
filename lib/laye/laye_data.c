@@ -160,7 +160,7 @@ void laye_node_destroy(laye_node* node) {
         default: break;
 
         case LAYE_NODE_DECL_IMPORT: {
-            arr_free(node->decl_import.imported_names);
+            arr_free(node->decl_import.import_queries);
         } break;
 
         case LAYE_NODE_DECL_OVERLOADS: {

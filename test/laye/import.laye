@@ -1,0 +1,23 @@
+// 2
+//
+
+import "deps/stdio.laye";
+import "deps/stdio.laye" as stdio2;
+import * from "deps/stdio.laye";
+import printf as printf2 from "deps/stdio.laye";
+import "deps/libc.laye";
+import "deps/libc.laye" as libc2;
+import stdio as stdio3 "deps/libc.laye";
+import stdio::printf as printf3 "deps/libc.laye";
+
+int main() {
+    stdio::printf("For first import\n");
+    stdio2::printf("For second import\n");
+    printf("For third import\n");
+    printf2("For fourth import\n");
+    libc::stdio::printf("For fifth import\n");
+    libc2::stdio::printf("For sixth import\n");
+    stdio3::printf("For seventh import\n");
+    printf3("For eigth import\n");
+    return 2;
+}

@@ -418,6 +418,11 @@ typedef struct laye_enum_type_variant {
     int64_t value;
 } laye_enum_type_variant;
 
+typedef struct laye_import_query {
+    dynarr(laye_token) pieces;
+    laye_token alias;
+} laye_import_query;
+
 struct laye_node {
     laye_node_kind kind;
     layec_context* context;
@@ -488,16 +493,17 @@ struct laye_node {
             // the list of names this import declaration specifies, if any.
             // if there are no names specified or the `is_wildcard` field is set to
             // true, then this list is assumed empty except to report a syntax error.
-            dynarr(string) imported_names;
+            dynarr(laye_import_query) import_queries;
             // the name of the module to import. This can be either a string literal
             // or a Laye identifier. They are allowed to have different semantics, but
             // their representation in this string does not have to be unique. In cases
             // where the semantics are different, the `is_module_name_identifier` flag
             // is set to true for identifier names and false for string literal names.
-            string module_name;
-            // true if the module name was specified as a Laye identifer, false if it's
-            // a string literal.
-            bool is_module_name_identifier;
+            laye_token module_name;
+            // the alias to use as the name of the namespace generated from this import,
+            // if one is allowed (i.e. only if no import names/wildcard are specified).
+            laye_token import_alias;
+
             laye_module* referenced_module;
         } decl_import;
 
