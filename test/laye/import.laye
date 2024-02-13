@@ -1,15 +1,58 @@
 // 2
 //
 
+// * define global.0 = int8\[18\] "For first import\\0A\\00"
+// * define global.1 = int8\[19\] "For second import\\0A\\00"
+// * define global.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fourth import\\0A\\00"
+// * define global.4 = int8\[18\] "For fifth import\\0A\\00"
+// * define global.5 = int8\[18\] "For sixth import\\0A\\00"
+// * define global.6 = int8\[20\] "For seventh import\\0A\\00"
+// * define global.7 = int8\[18\] "For eigth import\\0A\\00"
+
+// each of these imports should all end up referencing
+// the exact same entities. Not just the same symbol names
+// from the same source text, but literally the same entity
+// declarations in memory. Parsing and analysis of modules
+// should be handled smartly, so the result of "deps/stdio.laye"
+// and "deps/libc.laye" should be cached.
+//
+// Regardless of implementation detail, this test just checks
+// for the existence of at least one declaration of `printf`:
+
+// * declare ccc printf(ptr %0) variadic -> int32
+
+// generates namespace `stdio`
 import "deps/stdio.laye";
+// generates namespace `stdio2`
 import "deps/stdio.laye" as stdio2;
+// generates no namespace, imports `printf`
 import * from "deps/stdio.laye";
+// generates no namespace, imports `printf2` (alias to `printf`)
 import printf as printf2 from "deps/stdio.laye";
+
+// generates namespace `libc`
 import "deps/libc.laye";
+// generates namespace `libc2`
 import "deps/libc.laye" as libc2;
+// generates no namespace, imports `stdio` as `stdio3`
 import stdio as stdio3 "deps/libc.laye";
+// generates no namespace, imports `stdio::printf` as `printf3`
 import stdio::printf as printf3 "deps/libc.laye";
 
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = call ccc int32 @printf(ptr @global.0)
+// +   %1 = call ccc int32 @printf(ptr @global.1)
+// +   %2 = call ccc int32 @printf(ptr @global.2)
+// +   %3 = call ccc int32 @printf(ptr @global.3)
+// +   %4 = call ccc int32 @printf(ptr @global.4)
+// +   %5 = call ccc int32 @printf(ptr @global.5)
+// +   %6 = call ccc int32 @printf(ptr @global.6)
+// +   %7 = call ccc int32 @printf(ptr @global.7)
+// +   return int64 0
+// + }
+/*
 int main() {
     stdio::printf("For first import\n");
     stdio2::printf("For second import\n");
@@ -21,3 +64,4 @@ int main() {
     printf3("For eigth import\n");
     return 2;
 }
+// */

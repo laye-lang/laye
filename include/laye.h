@@ -267,6 +267,7 @@ struct laye_token {
     X(DECL_TEMPLATE_TYPE)      \
     X(DECL_TEMPLATE_VALUE)     \
     X(DECL_TEST)               \
+    X(IMPORT_QUERY)            \
     X(LABEL)                   \
     X(EMPTY)                   \
     X(COMPOUND)                \
@@ -493,7 +494,7 @@ struct laye_node {
             // the list of names this import declaration specifies, if any.
             // if there are no names specified or the `is_wildcard` field is set to
             // true, then this list is assumed empty except to report a syntax error.
-            dynarr(laye_import_query) import_queries;
+            dynarr(laye_node*) import_queries;
             // the name of the module to import. This can be either a string literal
             // or a Laye identifier. They are allowed to have different semantics, but
             // their representation in this string does not have to be unique. In cases
@@ -506,6 +507,12 @@ struct laye_node {
 
             laye_module* referenced_module;
         } decl_import;
+
+        struct {
+            bool is_wildcard;
+            dynarr(laye_token) pieces;
+            laye_token alias;
+        } import_query;
 
         // not likely to ever be representable in Laye syntax, the `overloads`
         // node wraps the concept of overloading into a declaration node for

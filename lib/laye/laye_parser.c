@@ -969,6 +969,115 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     return result;
 }
 
+static laye_parse_result laye_parse_import_declaration(laye_parser* p, dynarr(laye_node*) attributes) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == LAYE_TOKEN_IMPORT);
+
+    laye_node* import_decl = laye_node_create(p->module, LAYE_NODE_DECL_IMPORT, p->token.location, LTY(p->context->laye_types._void));
+    assert(import_decl != NULL);
+    laye_apply_attributes(import_decl, attributes);
+
+    laye_parse_result result = laye_parse_result_success(import_decl);
+    laye_next_token(p);
+
+    if (laye_parser_at2(p, LAYE_TOKEN_LITSTRING, LAYE_TOKEN_IDENT) && (laye_parser_peek_at(p, ';')/* || laye_parser_peek_at(p, LAYE_TOKEN_AS)*/)) {
+        import_decl->decl_import.module_name = p->token;
+        laye_next_token(p);
+        goto parse_end;
+    }
+
+    laye_token temp_token = {0};
+    do {
+        if (laye_parser_consume(p, '*', &temp_token)) {
+            if (import_decl->decl_import.is_wildcard) {
+                arr_push(result.diags, layec_error(p->context, temp_token.location, "Duplicate wildcard specifier in import declaration."));
+            }
+
+            import_decl->decl_import.is_wildcard = true;
+
+            laye_node* query_wildcard = laye_node_create(p->module, LAYE_NODE_IMPORT_QUERY, temp_token.location, LTY(p->context->laye_types._void));
+            query_wildcard->import_query.is_wildcard = true;
+
+            arr_push(import_decl->decl_import.import_queries, query_wildcard);
+            continue;
+        }
+
+        dynarr(laye_token) pieces = NULL;
+        laye_token alias = {0};
+
+        laye_token identifier_token = {0};
+        if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
+            arr_push(result.diags, layec_error(p->context, p->token.location, "Expected identifier as import query."));
+            continue;
+        } else {
+            arr_push(pieces, identifier_token);
+        }
+
+        while (laye_parser_consume(p, LAYE_TOKEN_COLONCOLON, NULL)) {
+            if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
+                arr_push(result.diags, layec_error(p->context, p->token.location, "Expected identifier to continue import query."));
+                break;
+            } else {
+                arr_push(pieces, identifier_token);
+            }
+        }
+
+        if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
+            if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &alias)) {
+                arr_push(result.diags, layec_error(p->context, p->token.location, "Expected identifier as import query alias."));
+            }
+        }
+
+        if (laye_parser_at(p, ';') && !import_decl->decl_import.is_wildcard && arr_count(import_decl->decl_import.import_queries) == 0 && arr_count(pieces) == 1) {
+            import_decl->decl_import.module_name = pieces[0];
+            import_decl->decl_import.import_alias = alias;
+            arr_free(pieces);
+            goto parse_end;
+        }
+
+        assert(arr_count(pieces) > 0);
+
+        layec_location query_location = pieces[0].location;
+        if (alias.kind != 0) {
+            query_location = alias.location;
+        } else if (arr_count(pieces) > 1) {
+            query_location = pieces[arr_count(pieces) - 1].location;
+        }
+
+        laye_node* query = laye_node_create(p->module, LAYE_NODE_IMPORT_QUERY, query_location, LTY(p->context->laye_types._void));
+        query->import_query.pieces = pieces;
+        query->import_query.alias = alias;
+
+        arr_push(import_decl->decl_import.import_queries, query);
+    } while (laye_parser_consume(p, ',', NULL));
+
+    if (!laye_parser_consume(p, LAYE_TOKEN_FROM, NULL)) {
+        arr_push(result.diags, layec_error(p->context, p->token.location, "Expected 'from'."));
+    }
+
+    if (laye_parser_at2(p, LAYE_TOKEN_LITSTRING, LAYE_TOKEN_IDENT) && (laye_parser_peek_at(p, ';') || laye_parser_peek_at(p, LAYE_TOKEN_AS))) {
+        import_decl->decl_import.module_name = p->token;
+        laye_next_token(p);
+    } else {
+        arr_push(result.diags, layec_error(p->context, p->token.location, "Expected identifier or string as module name."));
+    }
+
+parse_alias_or_end:;
+
+    if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
+        if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &import_decl->decl_import.import_alias)) {
+            arr_push(result.diags, layec_error(p->context, p->token.location, "Expected an identifier as import declaration alias."));
+        }
+    }
+
+parse_end:;
+    laye_expect_semi(p, &result);
+
+    return result;
+}
+
 static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(laye_node*) attributes) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1244,6 +1353,10 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             return laye_parse_result_combine(result, laye_parse_statement(p, consume_semi));
         }
 
+        case LAYE_TOKEN_IMPORT: {
+            return laye_parse_result_combine(result, laye_parse_import_declaration(p, attributes));
+        }
+
         case LAYE_TOKEN_STRUCT: {
             return laye_parse_result_combine(result, laye_parse_struct_declaration(p, attributes));
         }
@@ -1254,9 +1367,10 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             assert(declared_type_result.node != NULL);
 
             if (!declared_type_result.success) {
+                laye_parse_result_destroy(declared_type_result);
+                arr_free(attributes);
+
                 if (can_be_expression) {
-                    laye_parse_result_destroy(declared_type_result);
-                    arr_free(attributes);
                     laye_parser_reset_to_mark(p, start_mark);
                     return laye_parse_statement(p, consume_semi);
                 }
@@ -1264,10 +1378,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_child(p, declared_type_result.node);
                 invalid_node->attribute_nodes = attributes;
                 laye_parser_try_synchronize_to_end_of_node(p);
-                return laye_parse_result_combine(
-                    declared_type_result, 
-                    laye_parse_result_failure(invalid_node, layec_error(p->context, invalid_node->location, "Expected 'import', 'struct', 'enum', or a function declaration."))
-                );
+                return laye_parse_result_failure(invalid_node, layec_error(p->context, invalid_node->location, "Expected 'import', 'struct', 'enum', or a function declaration."));
             }
 
             laye_token name_token = {0};

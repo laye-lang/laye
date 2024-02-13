@@ -163,6 +163,10 @@ void laye_node_destroy(laye_node* node) {
             arr_free(node->decl_import.import_queries);
         } break;
 
+        case LAYE_NODE_IMPORT_QUERY: {
+            arr_free(node->import_query.pieces);
+        } break;
+
         case LAYE_NODE_DECL_OVERLOADS: {
             arr_free(node->decl_overloads.declarations);
         } break;

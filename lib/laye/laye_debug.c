@@ -1,14 +1,14 @@
+#include "laye.h"
+#include "layec.h"
+
 #include <assert.h>
 
-#include "layec.h"
-#include "laye.h"
-
 #define COL_DELIM WHITE
-#define COL_TREE RED
-#define COL_NODE RED
-#define COL_ADDR BLUE
-#define COL_OFFS MAGENTA
-#define COL_NAME GREEN
+#define COL_TREE  RED
+#define COL_NODE  RED
+#define COL_ADDR  BLUE
+#define COL_OFFS  MAGENTA
+#define COL_NAME  GREEN
 #define COL_ERROR RED
 #define COL_CONST BLUE
 
@@ -146,6 +146,46 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
     switch (node->kind) {
         default: break;
 
+        case LAYE_NODE_DECL_IMPORT: {
+            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            string_append_format(
+                print_context->output,
+                " %s%.*s",
+                COL(COL_NAME),
+                (int)node->decl_import.module_name.location.length,
+                source.text.data + node->decl_import.module_name.location.offset
+            );
+
+            if (node->decl_import.import_alias.kind != 0) {
+                string_append_format(print_context->output, " %sas %s%.*s", COL(COL_TREE), COL(COL_NAME), STR_EXPAND(node->decl_import.import_alias.string_value));
+            }
+
+            for (int64_t i = 0, count = arr_count(node->decl_import.import_queries); i < count; i++) {
+                arr_push(children, node->decl_import.import_queries[i]);
+            }
+        } break;
+
+        case LAYE_NODE_IMPORT_QUERY: {
+            lca_string_append_format(print_context->output, " ");
+
+            if (node->import_query.is_wildcard) {
+                string_append_format(print_context->output, "%s*", COL(COL_NAME));
+            } else {
+                for (int64_t i = 0, count = arr_count(node->import_query.pieces); i < count; i++) {
+                    laye_token piece = node->import_query.pieces[i];
+                    if (i > 0) {
+                        string_append_format(print_context->output, "%s::", COL(RESET));
+                    }
+
+                    string_append_format(print_context->output, "%s%.*s", COL(COL_NAME), STR_EXPAND(piece.string_value));
+                }
+
+                if (node->import_query.alias.kind != 0) {
+                    string_append_format(print_context->output, " %sas %s%.*s", COL(COL_TREE), COL(COL_NAME), STR_EXPAND(node->import_query.alias.string_value));
+                }
+            }
+        } break;
+
         case LAYE_NODE_DECL_FUNCTION: {
             string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
 
@@ -162,7 +202,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_DECL_STRUCT: {
             string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
-            
+
             for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++)
                 arr_push(children, node->decl_struct.field_declarations[i]);
 
@@ -265,7 +305,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             if (node->_break.target_node != NULL) {
                 string_append_format(
                     print_context->output,
-                    " %s%s %s%016llX", 
+                    " %s%s %s%016llX",
                     COL(COL_NODE),
                     laye_node_kind_to_cstring(node->_break.target_node->kind),
                     COL(COL_ADDR),
@@ -282,7 +322,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             if (node->_break.target_node != NULL) {
                 string_append_format(
                     print_context->output,
-                    " %s%s %s%016llX", 
+                    " %s%s %s%016llX",
                     COL(COL_NODE),
                     laye_node_kind_to_cstring(node->_continue.target_node->kind),
                     COL(COL_ADDR),
@@ -442,9 +482,9 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
     }
 }
 
-#define COL_KEYWORD MAGENTA
+#define COL_KEYWORD        MAGENTA
 #define COL_TEMPLATE_PARAM YELLOW
-#define COL_UNREAL RED
+#define COL_UNREAL         RED
 
 void laye_constant_print_to_string(layec_evaluated_constant constant, string* s, bool use_color) {
     assert(s != NULL);
@@ -524,7 +564,7 @@ void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
         case LAYE_NODE_TYPE_INT: {
             if (type.node->type_primitive.is_platform_specified) {
                 string_append_format(s, "%s%sint", COL(COL_KEYWORD), (type.node->type_primitive.is_signed ? "" : "u"));
-            } else { 
+            } else {
                 string_append_format(s, "%s%s%d", COL(COL_KEYWORD), (type.node->type_primitive.is_signed ? "i" : "u"), type.node->type_primitive.bit_width);
             }
         } break;
@@ -636,7 +676,7 @@ void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
                     layec_evaluated_constant constant = length_value->evaluated_constant.result;
                     switch (constant.kind) {
                         default: {
-                            //fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type.node->kind));
+                            // fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type.node->kind));
                             assert(false && "unreachable");
                         } break;
 
