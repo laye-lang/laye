@@ -189,6 +189,7 @@ const char* laye_node_kind_to_cstring(laye_node_kind kind) {
 
 static void laye_next_token(laye_parser* p);
 static laye_node* laye_parse_top_level_node(laye_parser* p);
+static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, bool allocate);
 
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     assert(context != NULL);
@@ -1601,6 +1602,40 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
     return result;
 }
 
+static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, bool allocate) {
+    assert(p != NULL);
+    assert(p->scope != NULL);
+    assert(p->scope->module != NULL);
+
+    laye_nameref nameref = {
+        .scope = p->scope
+    };
+
+    layec_location last_name_location = p->token.location;
+
+    if (allocate) {
+        arr_push(nameref.pieces, p->token);
+    }
+    laye_next_token(p);
+
+    while (laye_parser_at(p, LAYE_TOKEN_COLONCOLON)) {
+        laye_next_token(p);
+
+        laye_token next_piece = {0};
+        if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &next_piece)) {
+            arr_push(result->diags, layec_error(p->context, p->token.location, "Expected identifier."));
+            break;
+        }
+
+        last_name_location = next_piece.location;
+        if (allocate) {
+            arr_push(nameref.pieces, next_piece);
+        }
+    }
+
+    return nameref;
+}
+
 static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1719,12 +1754,11 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
         case LAYE_TOKEN_IDENT: {
             laye_node* nameref_expr = laye_node_create(p->module, LAYE_NODE_NAMEREF, p->token.location, LTY(p->context->laye_types.unknown));
             assert(nameref_expr != NULL);
-            arr_push(nameref_expr->nameref.pieces, p->token);
-            nameref_expr->nameref.scope = p->scope;
-            assert(nameref_expr->nameref.scope != NULL);
-            assert(nameref_expr->nameref.scope->module != NULL);
-            laye_next_token(p);
-            return laye_parse_primary_expression_continue(p, nameref_expr);
+
+            laye_parse_result nameref_result = laye_parse_result_success(nameref_expr);
+            nameref_expr->nameref = laye_parse_nameref(p, &nameref_result, true);
+
+            return laye_parse_result_combine(nameref_result, laye_parse_primary_expression_continue(p, nameref_expr));
         }
 
         case LAYE_TOKEN_TRUE:
