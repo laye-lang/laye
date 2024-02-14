@@ -36,6 +36,10 @@ typedef struct args {
 
     string_view output_file;
     dynarr(string_view) input_files;
+
+    dynarr(string_view) include_directories;
+    dynarr(string_view) library_directories;
+    dynarr(string_view) link_libraries;
 } args;
 
 static bool parse_args(args* args, int* argc, char*** argv);
@@ -92,6 +96,10 @@ int main(int argc, char** argv) {
     } else {
         context->use_color = lca_plat_stdout_isatty();
     }
+
+    context->include_directories = args.include_directories;
+    context->library_directories = args.library_directories;
+    context->link_libraries = args.link_libraries;
 
     context->use_byte_positions_in_diagnostics = args.use_byte_positions_in_diagnostics;
 
@@ -233,6 +241,11 @@ int main(int argc, char** argv) {
         lca_string_as_cstring(output_file_path)
     );
 
+    for (int64_t i = 0; i < arr_count(args.link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(args.link_libraries[i]));
+        nob_cmd_append(&clang_ll_cmd, s);
+    }
+
     for (int64_t i = 0; i < arr_count(args.input_files); i++) {
         const char* s = string_as_cstring(output_file_paths_intermediate[i]);
         nob_cmd_append(&clang_ll_cmd, s);
@@ -318,6 +331,15 @@ static bool parse_args(args* args, int* argc, char*** argv) {
             } else {
                 args->output_file = string_view_from_cstring(nob_shift_args(argc, argv));
             }
+        } else if (string_view_equals(arg, SV_CONSTANT("-l"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'-l' requires a file path as the output file, but no additional arguments were provided\n");
+                return false;
+            } else {
+                arr_push(args->link_libraries, string_view_from_cstring(nob_shift_args(argc, argv)));
+            }
+        } else if (string_view_starts_with(arg, SV_CONSTANT("-l"))) {
+            arr_push(args->link_libraries, string_view_slice(arg, 2, -1));
         } else {
             arr_push(args->input_files, arg);
         }
