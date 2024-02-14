@@ -158,6 +158,8 @@ void layec_context_destroy(layec_context* context) {
 
     arr_free(context->sources);
     arr_free(context->include_directories);
+    arr_free(context->library_directories);
+    arr_free(context->link_libraries);
 
     lca_arena_destroy(context->string_arena);
     arr_free(context->_interned_strings);

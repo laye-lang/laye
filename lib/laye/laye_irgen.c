@@ -923,6 +923,12 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                 case '*': {
                     return operand_value;
                 }
+
+                case LAYE_TOKEN_NOT: {
+                    layec_type* operand_type = layec_value_get_type(operand_value);
+                    assert(layec_type_is_integer(operand_type));
+                    return layec_build_eq(builder, node->location, layec_int_constant(context, node->location, operand_type, 0), operand_value);
+                }
             }
         }
 

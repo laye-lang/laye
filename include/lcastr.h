@@ -37,8 +37,10 @@ void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 
 lca_string_view lca_string_view_from_cstring(const char* s);
 lca_string_view lca_string_as_view(lca_string s);
+lca_string_view lca_string_view_slice(lca_string_view sv, int64_t offset, int64_t length);
 bool lca_string_view_equals(lca_string_view a, lca_string_view b);
 bool lca_string_view_equals_cstring(lca_string_view a, const char* b);
+bool lca_string_view_starts_with(lca_string_view a, lca_string_view b);
 lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s);
 char* lca_string_view_to_cstring(lca_allocator allocator, lca_string_view s);
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext);
@@ -61,8 +63,10 @@ typedef struct lca_string_view string_view;
 #    define string_append_vformat(S, F, V)        lca_string_append_vformat(S, F, V)
 #    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
 #    define string_as_view(S)                     lca_string_as_view(S)
+#    define string_view_slice(S, O, L)            lca_string_view_slice(S, O, L)
 #    define string_view_equals(A, B)              lca_string_view_equals(A, B)
 #    define string_view_equals_cstring(A, B)      lca_string_view_equals_cstring(A, B)
+#    define string_view_starts_with(A, B)         lca_string_view_starts_with(A, B)
 #    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
 #    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
@@ -195,6 +199,19 @@ lca_string_view lca_string_as_view(lca_string s) {
     };
 }
 
+lca_string_view lca_string_view_slice(lca_string_view sv, int64_t offset, int64_t length) {
+    assert(offset >= 0 && offset < sv.count);
+    if (length == -1) {
+        length = sv.count - offset;
+    }
+    assert(length >= 0 && length <= sv.count - offset);
+
+    return (lca_string_view) {
+        .data = sv.data + offset,
+        .count = length,
+    };
+}
+
 bool lca_string_view_equals(lca_string_view a, lca_string_view b) {
     if (a.count != b.count) return false;
     for (int64_t i = 0; i < a.count; i++) {
@@ -212,6 +229,15 @@ bool lca_string_view_equals_cstring(lca_string_view a, const char* b) {
             return false;
     }
     return b[a.count] == 0;
+}
+
+bool lca_string_view_starts_with(lca_string_view a, lca_string_view b) {
+    if (a.count < b.count) return false;
+    for (int64_t i = 0; i < b.count; i++) {
+        if (a.data[i] != b.data[i])
+            return false;
+    }
+    return true;
 }
 
 lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s) {

@@ -78,7 +78,9 @@ typedef struct layec_context {
     bool use_byte_positions_in_diagnostics;
 
     dynarr(layec_source) sources;
-    dynarr(string) include_directories;
+    dynarr(string_view) include_directories;
+    dynarr(string_view) library_directories;
+    dynarr(string_view) link_libraries;
 
     int64_t max_interned_string_size;
     lca_arena* string_arena;

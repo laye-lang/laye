@@ -1745,6 +1745,22 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
         } break;
 
+        case LAYE_TOKEN_NOT: {
+            laye_token operator_token = p->token;
+            laye_next_token(p);
+
+            laye_parse_result operand_result = laye_parse_primary_expression(p);
+            assert(operand_result.node != NULL);
+            assert(operand_result.node->type.node != NULL);
+
+            laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand_result.node->location, LTY(p->context->laye_types._bool));
+            assert(expr != NULL);
+            expr->unary.operand = operand_result.node;
+            expr->unary.operator= operator_token;
+
+            return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
+        } break;
+
         case LAYE_TOKEN_IF: {
             laye_parse_result if_result = laye_parse_if(p, true);
             assert(if_result.node != NULL);

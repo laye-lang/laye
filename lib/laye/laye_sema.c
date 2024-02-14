@@ -1174,6 +1174,14 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->sema_state = LAYEC_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
                 } break;
+
+                case LAYE_TOKEN_NOT: {
+                    laye_sema_implicit_dereference(sema, &node->unary.operand);
+                    laye_sema_lvalue_to_rvalue(sema, &node->unary.operand, true);
+
+                    node->type = LTY(sema->context->laye_types._bool);
+                    laye_sema_convert_or_error(sema, &node->unary.operand, node->type);
+                } break;
             }
         } break;
 
