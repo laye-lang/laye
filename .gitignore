@@ -8,6 +8,10 @@ test/laye/*
 !test/laye/deps/
 !test/laye/deps/*.laye
 
+examples/*
+!examples/raylib/
+!examples/raylib/*.laye
+
 out
 test-out
 nob
