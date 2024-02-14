@@ -9,6 +9,7 @@ test/laye/*
 !test/laye/deps/*.laye
 
 examples/*
+examples/raylib/*
 !examples/raylib/
 !examples/raylib/*.laye
 
