@@ -380,12 +380,12 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
         case LAYE_NODE_FOR: {
             assert(node->_for.pass != NULL);
 
-            bool has_initializer = node->_for.initializer != NULL && node->_for.initializer->kind != LAYE_NODE_XYZZY;
-            bool has_increment = node->_for.increment != NULL && node->_for.increment->kind != LAYE_NODE_XYZZY;
-            bool has_always_true_condition = node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
-
             bool has_breaks = node->_for.has_breaks;
             bool has_continues = node->_for.has_continues;
+
+            bool has_initializer = node->_for.initializer != NULL && node->_for.initializer->kind != LAYE_NODE_XYZZY;
+            bool has_increment = node->_for.increment != NULL && node->_for.increment->kind != LAYE_NODE_XYZZY;
+            bool has_always_true_condition = !has_breaks && node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
 
             bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
             
@@ -579,6 +579,142 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
             return layec_void_constant(context);
         }
 
+        case LAYE_NODE_WHILE: {
+            assert(node->_while.pass != NULL);
+
+            bool has_breaks = node->_while.has_breaks;
+            bool has_continues = node->_while.has_continues;
+
+            bool has_always_true_condition = !has_breaks && node->_while.condition == NULL || (node->_while.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_while.condition->evaluated_constant.result.bool_value);
+
+            bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
+
+            layec_value* while_early_condition_block = NULL;
+            if (!has_always_true_condition && node->_while.fail != NULL) {
+                while_early_condition_block = layec_function_append_block(function, SV_EMPTY);
+                assert(while_early_condition_block != NULL);
+            }
+
+            layec_value* while_condition_block = NULL;
+            if (!has_always_true_condition) {
+                while_condition_block = layec_function_append_block(function, SV_EMPTY);
+                assert(while_condition_block != NULL);
+            }
+
+            layec_value* while_pass_block = layec_function_append_block(function, SV_EMPTY);
+            assert(while_pass_block != NULL);
+
+            layec_value* while_fail_block = NULL;
+            if (!has_always_true_condition && node->_while.fail != NULL) {
+                while_fail_block = layec_function_append_block(function, SV_EMPTY);
+                assert(while_fail_block != NULL);
+            }
+
+            layec_value* while_join_block = NULL;
+            if (requires_join_block) {
+                while_join_block = layec_function_append_block(function, SV_EMPTY);
+                assert(while_join_block != NULL);
+            }
+
+            // 1.5. assign the correct blocks to the syntax nodes for later lookup by break/continue
+            if (node->_while.has_continues) {
+                if (while_condition_block != NULL) {
+                    node->_while.continue_target_block = while_condition_block;
+                } else {
+                    node->_while.continue_target_block = while_pass_block;
+                }
+                
+                assert(node->_while.continue_target_block != NULL);
+            }
+
+            if (node->_while.has_breaks) {
+                node->_while.break_target_block = while_join_block;
+                assert(node->_while.break_target_block != NULL);
+            }
+
+            // 2. early condition for branching to `else`
+            if (!has_always_true_condition && node->_while.fail != NULL) {
+                assert(while_early_condition_block != NULL);
+                assert(while_fail_block != NULL);
+
+                layec_build_branch(builder, node->_while.condition->location, while_early_condition_block);
+                layec_builder_position_at_end(builder, while_early_condition_block);
+
+                layec_value* early_condition_value = laye_generate_node(builder, node->_while.condition);
+                assert(early_condition_value != NULL);
+
+                if (laye_type_is_noreturn(node->_while.condition->type)) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    return layec_void_constant(context);
+                }
+
+                layec_build_branch_conditional(builder, node->_while.condition->location, early_condition_value, while_pass_block, while_fail_block);
+            }
+
+            // 3. regular condition for looping
+            if (has_always_true_condition) {
+                //assert(node->_while.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
+                layec_location condition_location = node->_while.condition != NULL ? node->_while.condition->location : node->location;
+                layec_build_branch(builder, condition_location, while_pass_block);
+            } else {
+                assert(while_condition_block != NULL);
+
+                layec_build_branch(builder, node->_while.condition->location, while_condition_block);
+                layec_builder_position_at_end(builder, while_condition_block);
+
+                layec_value* condition_value = laye_generate_node(builder, node->_while.condition);
+                assert(condition_value != NULL);
+
+                if (!requires_join_block) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                    return layec_void_constant(context);
+                }
+
+                layec_build_branch_conditional(builder, node->_while.condition->location, condition_value, while_pass_block, while_join_block);
+            }
+
+            // 4. generate the "pass" loop body
+            layec_builder_position_at_end(builder, while_pass_block);
+            laye_generate_node(builder, node->_while.pass);
+
+            if (laye_type_is_noreturn(node->_while.pass->type)) {
+                assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+            } else {
+                if (!layec_block_is_terminated(layec_builder_get_insert_block(builder))) {
+                    if (has_always_true_condition) {
+                        layec_build_branch(builder, node->_while.pass->location, while_pass_block);
+                    } else {
+                        layec_build_branch(builder, node->_while.pass->location, while_condition_block);
+                    }
+                }
+            }
+
+            // 5. generate the "fail" `else` body
+            if (!has_always_true_condition && node->_while.fail != NULL) {
+                assert(while_fail_block != NULL);
+
+                layec_builder_position_at_end(builder, while_fail_block);
+                laye_generate_node(builder, node->_while.fail);
+
+                if (!requires_join_block) {
+                    assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                } else {
+                    layec_build_branch(builder, node->_while.fail->location, while_join_block);
+                }
+            }
+
+            // 6. the loop is done, continue with the remaining code : )
+            if (laye_type_is_noreturn(node->type)) {
+                assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
+                return layec_void_constant(context);
+            } else {
+                assert(while_join_block != NULL);
+                layec_builder_position_at_end(builder, while_join_block);
+            }
+
+            return layec_void_constant(context);
+        }
+
         case LAYE_NODE_RETURN: {
             if (node->_return.value == NULL) {
                 return layec_build_return_void(builder, node->location);
@@ -610,9 +746,14 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                     return layec_build_branch(builder, node->location, node->_break.target_node->foreach.break_target_block);
                 }
 
-                case LAYE_NODE_DOFOR: {
-                    assert(node->_break.target_node->dofor.break_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_break.target_node->dofor.break_target_block);
+                case LAYE_NODE_WHILE: {
+                    assert(node->_break.target_node->_while.break_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_break.target_node->_while.break_target_block);
+                }
+
+                case LAYE_NODE_DOWHILE: {
+                    assert(node->_break.target_node->dowhile.break_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_break.target_node->dowhile.break_target_block);
                 }
             }
 
@@ -635,9 +776,14 @@ static layec_value* laye_generate_node(layec_builder* builder, laye_node* node) 
                     return layec_build_branch(builder, node->location, node->_continue.target_node->foreach.continue_target_block);
                 }
 
-                case LAYE_NODE_DOFOR: {
-                    assert(node->_continue.target_node->dofor.continue_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_continue.target_node->dofor.continue_target_block);
+                case LAYE_NODE_WHILE: {
+                    assert(node->_continue.target_node->_while.continue_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_continue.target_node->_while.continue_target_block);
+                }
+
+                case LAYE_NODE_DOWHILE: {
+                    assert(node->_continue.target_node->dowhile.continue_target_block != NULL);
+                    return layec_build_branch(builder, node->location, node->_continue.target_node->dowhile.continue_target_block);
                 }
             }
 

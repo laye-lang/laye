@@ -139,6 +139,7 @@ typedef enum laye_mut_compare {
     X(IF)                   \
     X(ELSE)                 \
     X(FOR)                  \
+    X(WHILE)                \
     X(DO)                   \
     X(SWITCH)               \
     X(CASE)                 \
@@ -276,7 +277,8 @@ struct laye_token {
     X(IF)                      \
     X(FOR)                     \
     X(FOREACH)                 \
-    X(DOFOR)                   \
+    X(WHILE)                   \
+    X(DOWHILE)                 \
     X(SWITCH)                  \
     X(CASE)                    \
     X(RETURN)                  \
@@ -734,6 +736,34 @@ struct laye_node {
         } foreach;
 
         struct {
+            // the condition of this while loop.
+            laye_node* condition;
+            // if a label was specified on the pass body, it is stored here and
+            // should be handled accordingly. since the pass or fail statements
+            // must only be a single node, the case of labeling the node is handled
+            // like this, explicitly.
+            laye_node* pass_label;
+            // statement to be executed as long as the condition evaluates to true.
+            laye_node* pass;
+            // if a label was specified on the fail body, it is stored here and
+            // should be handled accordingly. since the pass or fail statements
+            // must only be a single node, the case of labeling the node is handled
+            // like this, explicitly.
+            laye_node* fail_label;
+            // statement to be executed if the condition evaluated to false on the first check.
+            // this statement is not hit if the first evaluation resulted in true, but subsequent
+            // evaluations resulted in false; this is *only* executed if the very first
+            // condition evaluation resulted in `false`.
+            laye_node* fail;
+            layec_value* break_target_block;
+            layec_value* continue_target_block;
+            // flags for easily determining if a loop contains specific control
+            // flow constructs, to influence sema and IRgen.
+            bool has_breaks    : 1;
+            bool has_continues : 1;
+        } _while;
+
+        struct {
             // if a label was specified on the pass body, it is stored here and
             // should be handled accordingly. since the pass or fail statements
             // must only be a single node, the case of labeling the node is handled
@@ -752,7 +782,7 @@ struct laye_node {
             // flow constructs, to influence sema and IRgen.
             bool has_breaks    : 1;
             bool has_continues : 1;
-        } dofor;
+        } dowhile;
 
         struct {
             // if a label was specified before the "body" of the switch, it is

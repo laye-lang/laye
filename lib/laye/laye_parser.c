@@ -1341,6 +1341,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
 
         case LAYE_TOKEN_IF:
         case LAYE_TOKEN_FOR:
+        case LAYE_TOKEN_WHILE:
         case LAYE_TOKEN_RETURN:
         case LAYE_TOKEN_BREAK:
         case LAYE_TOKEN_CONTINUE:
@@ -1877,23 +1878,6 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
 
     laye_parse_result for_result = laye_parse_result_success(for_node);
 
-    if (laye_parser_at(p, '{')) {
-        for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
-        assert(for_result.node != NULL);
-        for_node->_for.pass = for_result.node;
-
-        for_result.node = for_node;
-        return for_result;
-    } else if (!laye_parser_at(p, '(')) {
-        arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
-        for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
-        assert(for_result.node != NULL);
-        for_node->_for.pass = for_result.node;
-
-        for_result.node = for_node;
-        return for_result;
-    }
-
     if (!laye_parser_consume(p, '(', NULL)) {
         arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected '('."));
     }
@@ -1909,52 +1893,39 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
         first_node = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, LTY(p->context->laye_types._void));
         assert(first_node != NULL);
         first_node->compiler_generated = true;
-        goto continue_parse_cfor;
-    }
-
-    for_result = laye_parse_declaration(p, true, false);
-    first_node = for_result.node;
-
-    if (laye_parser_at(p, ')')) {
-        assert(first_node != NULL);
-        
-        for_node->_for.condition = first_node;
-
-        // TODO(local): also check for "statements".
-        if (laye_node_is_decl(first_node)) {
-            arr_push(for_result.diags, layec_error(p->context, first_node->location, "For loop condition must be an expression."));
-        }
     } else {
-    continue_parse_cfor:;
-        assert(first_node != NULL);
-
-        for_node->_for.initializer = first_node;
-        laye_expect_semi(p, &for_result);
-
-        if (!laye_parser_at(p, ';')) {
-            for_result = laye_parse_result_combine(for_result, laye_parse_expression(p));
-            for_node->_for.condition = for_result.node;
-        } else {
-            for_node->_for.condition = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, LTY(p->context->laye_types._bool));
-            assert(for_node->_for.condition != NULL);
-            for_node->_for.condition->compiler_generated = true;
-            for_node->_for.condition->litbool.value = true;
-        }
-
-        assert(for_node->_for.condition != NULL);
-        laye_expect_semi(p, &for_result);
-
-        if (!laye_parser_at(p, ')')) {
-            for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, false));
-            for_node->_for.increment = for_result.node;
-        } else {
-            for_node->_for.increment = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, LTY(p->context->laye_types._void));
-            assert(for_node->_for.increment != NULL);
-            for_node->_for.increment->compiler_generated = true;
-        }
-
-        assert(for_node->_for.increment != NULL);
+        for_result = laye_parse_declaration(p, true, false);
+        first_node = for_result.node;
     }
+
+    assert(first_node != NULL);
+
+    for_node->_for.initializer = first_node;
+    laye_expect_semi(p, &for_result);
+
+    if (!laye_parser_at(p, ';')) {
+        for_result = laye_parse_result_combine(for_result, laye_parse_expression(p));
+        for_node->_for.condition = for_result.node;
+    } else {
+        for_node->_for.condition = laye_node_create(p->module, LAYE_NODE_LITBOOL, p->token.location, LTY(p->context->laye_types._bool));
+        assert(for_node->_for.condition != NULL);
+        for_node->_for.condition->compiler_generated = true;
+        for_node->_for.condition->litbool.value = true;
+    }
+
+    assert(for_node->_for.condition != NULL);
+    laye_expect_semi(p, &for_result);
+
+    if (!laye_parser_at(p, ')')) {
+        for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, false));
+        for_node->_for.increment = for_result.node;
+    } else {
+        for_node->_for.increment = laye_node_create(p->module, LAYE_NODE_XYZZY, p->token.location, LTY(p->context->laye_types._void));
+        assert(for_node->_for.increment != NULL);
+        for_node->_for.increment->compiler_generated = true;
+    }
+
+    assert(for_node->_for.increment != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
         arr_push(for_result.diags, layec_error(p->context, p->token.location, "Expected ')'."));
@@ -1982,6 +1953,66 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
     
     for_result.node = for_node;
     return for_result;
+}
+
+static laye_parse_result laye_parse_while(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == LAYE_TOKEN_WHILE);
+
+    layec_location while_location = p->token.location;
+    laye_next_token(p);
+
+    laye_node* while_node = laye_node_create(p->module, LAYE_NODE_WHILE, while_location, LTY(p->context->laye_types._void));
+    assert(while_node != NULL);
+    laye_parser_push_break_continue_target(p, SV_EMPTY, while_node);
+
+    laye_parse_result while_result = laye_parse_result_success(while_node);
+
+    if (laye_parser_at(p, '{')) {
+        while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
+        assert(while_result.node != NULL);
+        while_node->_while.pass = while_result.node;
+
+        while_result.node = while_node;
+        return while_result;
+    }
+
+    if (!laye_parser_consume(p, '(', NULL)) {
+        arr_push(while_result.diags, layec_error(p->context, p->token.location, "Expected '('."));
+    }
+
+    while_result = laye_parse_result_combine(while_result, laye_parse_expression(p));
+    while_node->_while.condition = while_result.node;
+    assert(while_node->_while.condition != NULL);
+
+    if (!laye_parser_consume(p, ')', NULL)) {
+        arr_push(while_result.diags, layec_error(p->context, p->token.location, "Expected ')'."));
+    }
+
+    if (laye_parser_at(p, '{')) {
+        while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
+        while_node->_while.pass = while_result.node;
+    } else {
+        arr_push(while_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `while` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
+        while_node->_while.pass = while_result.node;
+    }
+
+    if (laye_parser_consume(p, LAYE_TOKEN_ELSE, NULL)) {
+        if (laye_parser_at(p, '{')) {
+            while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
+            while_node->_while.fail = while_result.node;
+        } else {
+            arr_push(while_result.diags, layec_error(p->context, p->token.location, "Expected '{' to open `while` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
+            while_node->_while.fail = while_result.node;
+        }
+    }
+    
+    while_result.node = while_node;
+    return while_result;
 }
 
 static laye_parse_result laye_maybe_parse_assignment(laye_parser* p, laye_node* lhs, bool consume_semi) {
@@ -2054,6 +2085,16 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             assert(result.node != NULL);
         } break;
 
+        case LAYE_TOKEN_WHILE: {
+            laye_parser_push_scope(p);
+            int64_t initial_break_continue_count = arr_count(p->break_continue_stack);
+            result = laye_parse_while(p);
+            assert(initial_break_continue_count + 1 == arr_count(p->break_continue_stack));
+            laye_parser_pop_break_continue_target(p);
+            laye_parser_pop_scope(p);
+            assert(result.node != NULL);
+        } break;
+
         case LAYE_TOKEN_DEFER: {
             result = laye_parse_result_success(laye_node_create(p->module, LAYE_NODE_DEFER, p->token.location, LTY(p->context->laye_types._void)));
             assert(result.node != NULL);
@@ -2111,8 +2152,11 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                         case LAYE_NODE_FOREACH: {
                             bc_targ.target->foreach.has_breaks = true;
                         } break;
-                        case LAYE_NODE_DOFOR: {
-                            bc_targ.target->dofor.has_breaks = true;
+                        case LAYE_NODE_WHILE: {
+                            bc_targ.target->_while.has_breaks = true;
+                        } break;
+                        case LAYE_NODE_DOWHILE: {
+                            bc_targ.target->dowhile.has_breaks = true;
                         } break;
                     }
                 }
@@ -2146,8 +2190,11 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
                         case LAYE_NODE_FOREACH: {
                             bc_targ.target->foreach.has_continues = true;
                         } break;
-                        case LAYE_NODE_DOFOR: {
-                            bc_targ.target->dofor.has_continues = true;
+                        case LAYE_NODE_WHILE: {
+                            bc_targ.target->_while.has_continues = true;
+                        } break;
+                        case LAYE_NODE_DOWHILE: {
+                            bc_targ.target->dowhile.has_continues = true;
                         } break;
                     }
                 }
@@ -2441,6 +2488,7 @@ static struct keyword_info laye_keywords[] = {
     {"if", LAYE_TOKEN_IF},
     {"else", LAYE_TOKEN_ELSE},
     {"for", LAYE_TOKEN_FOR},
+    {"while", LAYE_TOKEN_WHILE},
     {"do", LAYE_TOKEN_DO},
     {"switch", LAYE_TOKEN_SWITCH},
     {"case", LAYE_TOKEN_CASE},

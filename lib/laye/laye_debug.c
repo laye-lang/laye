@@ -283,6 +283,45 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
         } break;
 
+        case LAYE_NODE_WHILE: {
+            if (node->_while.has_breaks) {
+                string_append_format(print_context->output, " %sHAS_BREAKS", COL(COL_TREE));
+            }
+
+            if (node->_while.has_continues) {
+                string_append_format(print_context->output, " %sHAS_CONTINUES", COL(COL_TREE));
+            }
+
+            if (node->_while.condition != NULL) {
+                arr_push(children, node->_while.condition);
+            }
+
+            if (node->_while.pass != NULL) {
+                arr_push(children, node->_while.pass);
+            }
+
+            if (node->_while.fail != NULL) {
+                arr_push(children, node->_while.fail);
+            }
+        } break;
+
+        case LAYE_NODE_DOWHILE: {
+            if (node->dowhile.has_breaks) {
+                string_append_format(print_context->output, " %sHAS_BREAKS", COL(COL_TREE));
+            }
+
+            if (node->dowhile.has_continues) {
+                string_append_format(print_context->output, " %sHAS_CONTINUES", COL(COL_TREE));
+            }
+
+            assert(node->dowhile.condition != NULL);
+            arr_push(children, node->dowhile.condition);
+
+            if (node->dowhile.pass != NULL) {
+                arr_push(children, node->dowhile.pass);
+            }
+        } break;
+
         case LAYE_NODE_LABEL: {
             string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), STR_EXPAND(node->declared_name));
         } break;

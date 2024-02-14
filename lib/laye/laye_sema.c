@@ -607,6 +607,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 }
             }
 
+            if (node->_for.has_breaks) {
+                is_condition_always_true = false;
+            }
+
             if (!laye_sema_analyse_node(sema, &node->_for.pass, NOTY)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
             }
@@ -664,6 +668,50 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             if (!laye_sema_analyse_node(sema, &node->foreach.pass, NOTY)) {
                 node->sema_state = LAYEC_SEMA_ERRORED;
+            }
+        } break;
+
+        case LAYE_NODE_WHILE: {
+            bool is_condition_always_true = false;
+            if (node->_while.condition == NULL) {
+                is_condition_always_true = true;
+            } else {
+                if (!laye_sema_analyse_node(sema, &node->_while.condition, LTY(sema->context->laye_types._bool))) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                } else {
+                    // laye_sema_lvalue_to_rvalue(sema, &node->_while.condition, true);
+                    laye_sema_convert_or_error(sema, &node->_while.condition, LTY(sema->context->laye_types._bool));
+
+                    layec_evaluated_constant condition_constant;
+                    if (laye_expr_evaluate(node->_while.condition, &condition_constant, false) && condition_constant.kind == LAYEC_EVAL_BOOL && condition_constant.bool_value) {
+                        laye_node* eval_condition = laye_node_create(node->module, LAYE_NODE_EVALUATED_CONSTANT, node->_while.condition->location, LTY(sema->context->laye_types._bool));
+                        assert(eval_condition != NULL);
+                        eval_condition->compiler_generated = true;
+                        eval_condition->evaluated_constant.expr = node->_while.condition;
+                        eval_condition->evaluated_constant.result = condition_constant;
+                        node->_while.condition = eval_condition;
+                        is_condition_always_true = true;
+                    }
+                }
+            }
+
+            if (node->_while.has_breaks) {
+                is_condition_always_true = false;
+            }
+
+            if (!laye_sema_analyse_node(sema, &node->_while.pass, NOTY)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+            }
+
+            if (node->_while.fail != NULL) {
+                if (!laye_sema_analyse_node(sema, &node->_while.fail, NOTY)) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                }
+            }
+
+            // TODO(local): if there is a `break` within the body anywhere, then this is not true
+            if (is_condition_always_true) {
+                node->type = LTY(sema->context->laye_types.noreturn);
             }
         } break;
 
