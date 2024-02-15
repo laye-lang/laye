@@ -168,6 +168,9 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
         switch (top_level_node->kind) {
             default: assert(false && "unreachable"); break;
 
+            case LAYE_NODE_DECL_IMPORT: {
+            } break;
+
             case LAYE_NODE_DECL_FUNCTION: {
                 // TODO(local): generate dependencies
                 layec_depgraph_ensure_tracked(graph, top_level_node);

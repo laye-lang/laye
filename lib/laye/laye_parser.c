@@ -855,11 +855,6 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                     if (!laye_parser_consume(p, ')', NULL)) {
                         layec_write_error(p->context, p->token.location, "Expected ')' to close foreign name mangling kind parameter.");
                     }
-
-                    if (laye_parser_at(p, LAYE_TOKEN_LITSTRING)) {
-                        foreign_node->meta_attribute.foreign_name = p->token.string_value;
-                        laye_next_token(p);
-                    }
                 }
 
                 laye_token foreign_name_token = {0};
@@ -1332,9 +1327,6 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
     };
 
     dynarr(laye_node*) attributes = laye_parse_attributes(p, &result);
-    if (arr_count(attributes) != 0) {
-        goto try_decl;
-    }
 
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return (laye_parse_result){0};
@@ -1364,7 +1356,6 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         }
 
         default: {
-        try_decl:;
             laye_parse_result declared_type_result = laye_parse_type(p);
             assert(declared_type_result.node != NULL);
 

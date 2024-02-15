@@ -1,3 +1,4 @@
+// R %layec --ir %s
 
 foreign void a();
 foreign void b();

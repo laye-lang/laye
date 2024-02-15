@@ -1,1 +1,3 @@
+// R %layec --ir %s
+
 export import "stdio.laye";
