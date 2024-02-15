@@ -1,16 +1,12 @@
-foreign "InitWindow" callconv(cdecl) void init_window(int width, int height, i8[*] title);
-foreign "WindowShouldClose" callconv(cdecl) bool window_should_close();
-foreign "BeginDrawing" callconv(cdecl) bool begin_drawing();
-foreign "EndDrawing" callconv(cdecl) bool end_drawing();
-foreign "CloseWindow" callconv(cdecl) void close_window();
+import "raylib.laye";
 
 int main() {
-    init_window(1280, 720, "Raylib from Laye");
-    while (not window_should_close()) {
-        begin_drawing();
-        end_drawing();
+    raylib::init_window(800, 600, "Raylib from Laye");
+    while (not raylib::window_should_close()) {
+        raylib::begin_drawing();
+        raylib::end_drawing();
     }
     
-    close_window();
+    raylib::close_window();
     return 0;
 }

@@ -1,0 +1,5 @@
+export foreign "InitWindow" void init_window(int width, int height, i8[*] title);
+export foreign "WindowShouldClose" bool window_should_close();
+export foreign "BeginDrawing" bool begin_drawing();
+export foreign "EndDrawing" bool end_drawing();
+export foreign "CloseWindow" void close_window();
