@@ -1,1 +1,1 @@
-Welcome to the laye wiki!
+Welcome to the Laye wiki!
