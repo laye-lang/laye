@@ -580,6 +580,12 @@ bool laye_type_is_float(laye_type type) {
     return type.node->kind == LAYE_NODE_TYPE_FLOAT;
 }
 
+bool laye_type_is_numeric(laye_type type) {
+    assert(type.node != NULL);
+    assert(laye_node_is_type(type.node));
+    return type.node->kind == LAYE_NODE_TYPE_INT || type.node->kind == LAYE_NODE_TYPE_FLOAT;
+}
+
 bool laye_type_is_template_parameter(laye_type type) {
     assert(type.node != NULL);
     assert(laye_node_is_type(type.node));

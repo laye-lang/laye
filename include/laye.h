@@ -1197,6 +1197,7 @@ bool laye_type_is_int(laye_type type);
 bool laye_type_is_signed_int(laye_type type);
 bool laye_type_is_unsigned_int(laye_type type);
 bool laye_type_is_float(laye_type type);
+bool laye_type_is_numeric(laye_type type);
 bool laye_type_is_template_parameter(laye_type type);
 bool laye_type_is_error_pair(laye_type type);
 bool laye_type_is_nameref(laye_type type);

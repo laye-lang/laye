@@ -1091,7 +1091,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             if (node->cast.kind == LAYE_CAST_HARD) {
-                if (laye_type_is_int(node->cast.operand->type) && laye_type_is_int(node->type)) {
+                if (laye_type_is_numeric(node->cast.operand->type) && laye_type_is_numeric(node->type)) {
                     break;
                 }
             }
