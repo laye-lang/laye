@@ -104,6 +104,8 @@ static void laye_parse_result_destroy(laye_parse_result result) {
 
 static laye_parse_result laye_parse_result_combine(laye_parse_result a, laye_parse_result b) {
     laye_parse_result_copy_diags(&a, b);
+
+    a.type = (laye_type){0};
     a.node = b.node;
 
     laye_parse_result_destroy(b);
@@ -112,6 +114,8 @@ static laye_parse_result laye_parse_result_combine(laye_parse_result a, laye_par
 
 static laye_parse_result laye_parse_result_combine_type(laye_parse_result a, laye_parse_result b) {
     laye_parse_result_copy_diags(&a, b);
+
+    a.node = NULL;
     a.type = b.type;
 
     laye_parse_result_destroy(b);
@@ -359,6 +363,16 @@ static bool laye_parser_consume(laye_parser* p, laye_token_kind kind, laye_token
     }
 
     return false;
+}
+
+static void laye_parser_expect(laye_parser* p, laye_token_kind kind, laye_parse_result* result) {
+    assert(p != NULL);
+    assert(result != NULL);
+
+    if (!laye_parser_consume(p, kind, NULL)) {
+        assert((kind > __LAYE_PRINTABLE_TOKEN_START__ && kind <= __LAYE_PRINTABLE_TOKEN_END__) && "support certain non-printable kinds");
+        arr_push(result->diags, layec_error(p->context, p->token.location, "Expected '%c'.", (int)kind));
+    }
 }
 
 static bool laye_parser_consume_assignment(laye_parser* p, laye_token* out_token) {
@@ -1643,6 +1657,27 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             assert(invalid_expr != NULL);
 
             return laye_parse_result_failure(invalid_expr, layec_error(p->context, token_location, "Unexpected token. Expected an expression."));
+        }
+
+        case LAYE_TOKEN_CAST: {
+            laye_node* cast_node = laye_node_create(p->module, LAYE_NODE_CAST, p->token.location, LTY(p->context->laye_types.unknown));
+            assert(cast_node != NULL);
+            cast_node->cast.kind = LAYE_CAST_HARD;
+
+            laye_next_token(p);
+
+            laye_parse_result result = laye_parse_result_success(cast_node);
+
+            laye_parser_expect(p, '(', &result);
+            result = laye_parse_result_combine_type(result, laye_parse_type(p));
+            cast_node->type = result.type;
+            laye_parser_expect(p, ')', &result);
+
+            result = laye_parse_result_combine(result, laye_parse_primary_expression(p));
+            cast_node->cast.operand = result.node;
+
+            result.node = cast_node;
+            return result;
         }
 
         case '(': {

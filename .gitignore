@@ -17,6 +17,7 @@ out
 test-out
 nob
 nob.old
+build
 *.ll
 
 leak-*

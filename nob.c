@@ -1,6 +1,25 @@
 #define NOB_IMPLEMENTATION
 #include "include/nob.h"
 
+#ifndef CC
+#  if defined(__clang__)
+#    define CC "clang"
+#  elif defined(__GNUC__)
+#    define CC "gcc"
+#  elif defined(_MSC_VER)
+#    define CC "cl.exe"
+#  else
+#    define CC "cc"
+#  endif
+#endif
+
+typedef struct args {
+    const char* build_project;
+    bool no_asan;
+} args_t;
+
+static args_t args;
+
 static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-I", "include");
     nob_cmd_append(cmd, "-std=c17");
@@ -8,7 +27,9 @@ static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-pedantic-errors");
     nob_cmd_append(cmd, "-ggdb");
     nob_cmd_append(cmd, "-Werror=return-type");
-    nob_cmd_append(cmd, "-fsanitize=address");
+    if (!args.no_asan) {
+        nob_cmd_append(cmd, "-fsanitize=address");
+    }
     nob_cmd_append(cmd, "-D__USE_POSIX");
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
 }
@@ -29,7 +50,7 @@ static void layec_sources(Nob_Cmd* cmd) {
 
 static void build_layec_driver() {
     Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, CC);
     nob_cmd_append(&cmd, "-o", "./out/layec");
     cflags(&cmd);
     layec_sources(&cmd);
@@ -39,7 +60,7 @@ static void build_layec_driver() {
 
 static void build_exec_test_runner() {
     Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, CC);
     nob_cmd_append(&cmd, "-o", "./out/exec_test_runner");
     cflags(&cmd);
     nob_cmd_append(&cmd, "./src/exec_test_runner.c");
@@ -48,7 +69,7 @@ static void build_exec_test_runner() {
 
 static void build_parse_fuzzer() {
     Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, "clang");
+    nob_cmd_append(&cmd, CC);
     nob_cmd_append(&cmd, "-o", "./out/parse_fuzzer");
     nob_cmd_append(&cmd, "-fsanitize=fuzzer");
     cflags(&cmd);
@@ -84,6 +105,9 @@ static void run_fchk(bool rebuild) {
     cmd.count = 0;
     nob_cmd_append(&cmd, "ctest", "--test-dir", "test-out", "-j`nproc`", "--progress");
     nob_cmd_run_sync(cmd);
+}
+
+static void parse_args(int* argc, char*** argv) {
 }
 
 int main(int argc, char** argv) {

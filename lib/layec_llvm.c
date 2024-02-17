@@ -380,6 +380,27 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             }
         } break;
 
+        case LAYEC_IR_SEXT: {
+            lca_string_append_format(codegen->output, "sext ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
+            lca_string_append_format(codegen->output, " to ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+        } break;
+
+        case LAYEC_IR_ZEXT: {
+            lca_string_append_format(codegen->output, "zext ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
+            lca_string_append_format(codegen->output, " to ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+        } break;
+
+        case LAYEC_IR_TRUNC: {
+            lca_string_append_format(codegen->output, "trunc ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
+            lca_string_append_format(codegen->output, " to ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+        } break;
+
         case LAYEC_IR_NEG: {
             layec_value* operand = layec_instruction_operand(instruction);
             lca_string_append_format(codegen->output, "sub ");

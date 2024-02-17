@@ -211,6 +211,8 @@ typedef struct laye_trivia {
 typedef enum laye_token_kind {
     LAYE_TOKEN_INVALID = 0,
 
+    __LAYE_PRINTABLE_TOKEN_START__ = 32,
+
     LAYE_TOKEN_TILDE = '~',
     LAYE_TOKEN_BANG = '!',
     LAYE_TOKEN_PERCENT = '%',
@@ -234,6 +236,8 @@ typedef enum laye_token_kind {
     LAYE_TOKEN_DOT = '.',
     LAYE_TOKEN_SLASH = '/',
     LAYE_TOKEN_QUESTION = '?',
+
+    __LAYE_PRINTABLE_TOKEN_END__ = 128,
 
     __LAYE_TOKEN_MULTIBYTE_START__ = 256,
 #define X(N) LAYE_TOKEN_##N,

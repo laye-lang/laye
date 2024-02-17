@@ -202,6 +202,12 @@ void laye_analyse(laye_module* module) {
     arr_push(referenced_modules, module);
 
     // TODO(local): traverse all imported modules
+    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+        laye_node* top_level_node = module->top_level_nodes[i];
+        if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
+            //laye_module* imported_module = layec_sema_import_module();
+        }
+    }
 
     for (int64_t i = 0, count = arr_count(referenced_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, referenced_modules[i]);
@@ -1084,7 +1090,29 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 break;
             }
 
-            assert(false && "todo cast sema");
+            if (node->cast.kind == LAYE_CAST_HARD) {
+                if (laye_type_is_int(node->cast.operand->type) && laye_type_is_int(node->type)) {
+                    break;
+                }
+            }
+            
+            string from_type_string = string_create(sema->context->allocator);
+            laye_type_print_to_string(node->cast.operand->type, &from_type_string, sema->context->use_color);
+
+            string to_type_string = string_create(sema->context->allocator);
+            laye_type_print_to_string(node->type, &to_type_string, sema->context->use_color);
+
+            node->sema_state = LAYEC_SEMA_ERRORED;
+            layec_write_error(
+                sema->context,
+                node->location,
+                "Expression of type %.*s is not convertible to %.*s",
+                STR_EXPAND(from_type_string),
+                STR_EXPAND(to_type_string)
+            );
+
+            string_destroy(&to_type_string);
+            string_destroy(&from_type_string);
         } break;
 
         case LAYE_NODE_UNARY: {
