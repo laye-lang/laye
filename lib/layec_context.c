@@ -169,7 +169,17 @@ void layec_context_destroy(layec_context* context) {
         string_destroy(string);
     }
 
+    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+        layec_module_destroy(context->ir_modules[i]);
+    }
+
+    for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+        laye_module_destroy(context->laye_modules[i]);
+    }
+
     arr_free(context->allocated_strings);
+    arr_free(context->laye_modules);
+    arr_free(context->ir_modules);
 
     lca_deallocate(allocator, context->laye_types.poison);
     lca_deallocate(allocator, context->laye_types.unknown);

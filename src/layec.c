@@ -53,10 +53,6 @@ static laye_module* parse_module(args* args, layec_context* context, string_view
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
-    if (!args->syntax_only && !context->has_reported_errors) {
-        laye_analyse(module);
-    }
-
     return module;
 }
 
@@ -103,8 +99,6 @@ int main(int argc, char** argv) {
 
     context->use_byte_positions_in_diagnostics = args.use_byte_positions_in_diagnostics;
 
-    dynarr(laye_module*) source_modules = NULL;
-    dynarr(layec_module*) ir_modules = NULL;
     dynarr(string) llvm_modules = NULL;
 
     dynarr(string) output_file_paths_intermediate = NULL;
@@ -120,7 +114,6 @@ int main(int argc, char** argv) {
         }
 
         assert(module != NULL);
-        arr_push(source_modules, module);
     }
 
     if (context->has_reported_errors) {
@@ -128,9 +121,9 @@ int main(int argc, char** argv) {
         goto program_exit;
     }
 
-    if (args.print_ast) {
-        for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-            laye_module* module = source_modules[i];
+    if (args.print_ast && args.syntax_only) {
+        for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+            laye_module* module = context->laye_modules[i];
             assert(module != NULL);
             string module_string = laye_module_debug_print(module);
             fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
@@ -144,41 +137,51 @@ int main(int argc, char** argv) {
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-        laye_module* module = source_modules[i];
+    laye_analyse(context);
+
+    if (context->has_reported_errors) {
+        if (!args.print_ast) exit_code = 1;
+        goto program_exit;
+    }
+
+    if (args.print_ast) {
+        for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+            laye_module* module = context->laye_modules[i];
+            assert(module != NULL);
+            string module_string = laye_module_debug_print(module);
+            fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
+            string_destroy(&module_string);
+        }
+
+        goto program_exit;
+    }
+
+    for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+        laye_module* module = context->laye_modules[i];
         assert(module != NULL);
 
         layec_module* ir_module = laye_irgen(module);
         assert(ir_module != NULL);
-        arr_push(ir_modules, ir_module);
     }
 
     if (context->has_reported_errors) {
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-        layec_module* ir_module = ir_modules[i];
+    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+        layec_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
         layec_irpass_validate(ir_module);
     }
 
     if (context->has_reported_errors) {
-        for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-            layec_module* ir_module = ir_modules[i];
-            assert(ir_module != NULL);
-            string ir_module_string = layec_module_print(ir_module);
-            fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
-            string_destroy(&ir_module_string);
-        }
-        
         goto program_exit;
     }
 
     if (args.print_ir) {
-        for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-            layec_module* ir_module = ir_modules[i];
+        for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+            layec_module* ir_module = context->ir_modules[i];
             assert(ir_module != NULL);
             string ir_module_string = layec_module_print(ir_module);
             fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
@@ -188,8 +191,8 @@ int main(int argc, char** argv) {
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
-        layec_module* ir_module = ir_modules[i];
+    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+        layec_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
         
         string llvm_module_string = layec_codegen_llvm(ir_module);
@@ -278,18 +281,8 @@ program_exit:;
         string_destroy(&llvm_modules[i]);
     }
 
-    for (int64_t i = 0; i < arr_count(ir_modules); i++) {
-        layec_module_destroy(ir_modules[i]);
-    }
-
-    for (int64_t i = 0; i < arr_count(source_modules); i++) {
-        laye_module_destroy(source_modules[i]);
-    }
-
     arr_free(output_file_paths_intermediate);
     arr_free(llvm_modules);
-    arr_free(ir_modules);
-    arr_free(source_modules);
     arr_free(args.input_files);
 
     layec_context_destroy(context);

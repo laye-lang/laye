@@ -3,6 +3,10 @@
 
 #include <assert.h>
 
+// TODO(local): Need to use hashmaps to store IR values for nodes
+// since we're using the exact same node for imports as exists in their own module.
+// TL;DR:  laye_node->ir_value must go, laye_irgen->ir_values hashmap must come.
+
 static layec_type* laye_convert_type(laye_type type);
 static layec_value* laye_generate_node(layec_builder* builder, laye_node* node);
 
@@ -14,6 +18,7 @@ layec_module* laye_irgen(laye_module* module) {
 
     layec_module* ir_module = layec_module_create(module->context, string_as_view(source.name));
     assert(ir_module != NULL);
+    arr_push(module->context->ir_modules, ir_module);
 
     // 1. Top-level type generation
 

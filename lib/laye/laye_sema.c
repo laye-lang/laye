@@ -39,6 +39,7 @@ static laye_type laye_sema_get_reference_to_type(laye_sema* sema, laye_type elem
 
 static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, layec_evaluated_constant eval_result);
 
+// TODO(local): combine lookup_value and lookup_type, mostly to help with import query resolution
 static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     assert(sema != NULL);
     assert(from_module != NULL);
@@ -188,35 +189,141 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
 
 static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node);
 
-void laye_analyse(laye_module* module) {
+static int64_t maxi(int64_t a, int64_t b) {
+    return a > b ? a : b;
+}
+
+static void laye_handle_module_imports(layec_context* context, laye_module* module) {
+    assert(context != NULL);
     assert(module != NULL);
-    assert(module->context != NULL);
-    assert(module->context->laye_dependencies != NULL);
 
-    laye_sema sema = {
-        .context = module->context,
-        .dependencies = module->context->laye_dependencies,
-    };
+    if (module->has_handled_imports) {
+        return;
+    }
 
-    dynarr(laye_module*) referenced_modules = NULL;
-    arr_push(referenced_modules, module);
+    module->has_handled_imports = true;
 
-    // TODO(local): traverse all imported modules
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
         if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
-            //laye_module* imported_module = layec_sema_import_module();
+            laye_token module_name_token = top_level_node->decl_import.module_name;
+            if (module_name_token.kind == LAYE_TOKEN_IDENT) {
+                layec_write_error(context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
+            }
+
+            string_view module_name = module_name_token.string_value;
+
+            layec_source source = layec_context_get_source(context, module->sourceid);
+
+            string_view this_file_dir = string_as_view(source.name);
+            int64_t last_slash_index = maxi(string_view_last_index_of(this_file_dir, '/'), string_view_last_index_of(this_file_dir, '\\'));
+
+            string lookup_path = string_create(default_allocator);
+            if (last_slash_index < 0) {
+                lca_string_append_format(&lookup_path, "./");
+            } else {
+                this_file_dir.count = last_slash_index;
+                string_append_format(&lookup_path, "%.*s", STR_EXPAND(this_file_dir));
+            }
+
+            string_path_append_view(&lookup_path, module_name);
+            //fprintf(stderr, "%.*s\n", STR_EXPAND(lookup_path));
+            if (!lca_plat_file_exists(string_as_cstring(lookup_path))) {
+                layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name));
+                continue;
+            }
+
+            layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, string_as_view(lookup_path));
+            string_destroy(&lookup_path);
+
+            laye_module* found = NULL;
+            for (int64_t i = 0, count = arr_count(context->laye_modules); i < count && found == NULL; i++) {
+                laye_module* module = context->laye_modules[i];
+                if (module->sourceid == sourceid) {
+                    found = module;
+                }
+            }
+
+            if (module != NULL) {
+                top_level_node->decl_import.referenced_module = module;
+                // already loaded, should be doing things
+                continue;
+            }
+
+            module = laye_parse(context, sourceid);
+            assert(module != NULL);
+
+            top_level_node->decl_import.referenced_module = module;
+            laye_handle_module_imports(context, module);
         }
     }
+}
 
-    for (int64_t i = 0, count = arr_count(referenced_modules); i < count; i++) {
-        laye_generate_dependencies_for_module(sema.dependencies, referenced_modules[i]);
+static dynarr(laye_node*) laye_sema_resolve_import_queries(layec_context* context, laye_module* module, dynarr(laye_node*) queries) {
+    assert(context != NULL);
+    assert(module != NULL);
+    // `module` is not the current module, but the module we are querying into.
+
+    dynarr(laye_node*) entities = NULL;
+
+    // NOTE(local): if we get an overload set, unpack it manually into the result array.
+    // future lookup calls will re-package the overload with any newly available overloads.
+
+    return entities;
+}
+
+static void laye_populate_module_import_scopes(layec_context* context, laye_module* module) {
+    assert(context != NULL);
+    assert(module != NULL);
+
+    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+        laye_node* top_level_node = module->top_level_nodes[i];
+        if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
+            assert(top_level_node->decl_import.referenced_module != NULL);
+
+            if (arr_count(top_level_node->decl_import.import_queries) == 0) {
+                // generate an import namespace.
+            } else {
+                // populate the module's scope with the imported entities.
+                dynarr(laye_node*) entities = laye_sema_resolve_import_queries(context, top_level_node->decl_import.referenced_module, top_level_node->decl_import.import_queries);
+
+                for (int64_t i = 0, count = arr_count(entities); i < count; i++) {
+                    laye_node* entity = entities[i];
+                    assert(laye_node_is_decl(entity));
+                    assert(entity->declared_name.count > 0);
+                    assert(entity->declared_name.data != NULL);
+                    laye_scope_declare(module->scope, entity);
+                }
+            }
+        }
+    }
+}
+
+void laye_analyse(layec_context* context) {
+    assert(context != NULL);
+    assert(context->laye_dependencies != NULL);
+
+    laye_sema sema = {
+        .context = context,
+        .dependencies = context->laye_dependencies,
+    };
+
+    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+        laye_handle_module_imports(context, context->laye_modules[i]);
+    }
+
+    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+        laye_populate_module_import_scopes(context, context->laye_modules[i]);
+    }
+
+    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+        laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);
     }
 
     layec_dependency_order_result order_result = layec_dependency_graph_get_ordered_entities(sema.dependencies);
     if (order_result.status == LAYEC_DEP_CYCLE) {
         layec_write_error(
-            module->context,
+            context,
             ((laye_node*)order_result.from)->location,
             "Cyclic dependency detected. %.*s depends on %.*s, and vice versa.",
             STR_EXPAND(((laye_node*)order_result.from)->declared_name),
@@ -224,7 +331,7 @@ void laye_analyse(laye_module* module) {
         );
 
         layec_write_note(
-            module->context,
+            context,
             ((laye_node*)order_result.to)->location,
             "%.*s declared here.",
             STR_EXPAND(((laye_node*)order_result.to)->declared_name)
@@ -252,7 +359,6 @@ void laye_analyse(laye_module* module) {
     }
 
     arr_free(ordered_nodes);
-    arr_free(referenced_modules);
 }
 
 static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, laye_node* parent_struct) {

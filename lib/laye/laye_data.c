@@ -32,6 +32,7 @@ void laye_module_destroy(laye_module* module) {
     arr_free(module->_all_scopes);
 
     arr_free(module->top_level_nodes);
+    arr_free(module->imports);
 
     lca_arena_destroy(module->arena);
 

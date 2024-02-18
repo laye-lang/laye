@@ -35,6 +35,10 @@ lca_string lca_string_vformat(const char* format, va_list v);
 void lca_string_append_format(lca_string* s, const char* format, ...);
 void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 
+void lca_string_path_append(lca_string* path, lca_string s);
+void lca_string_path_append_cstring(lca_string* path, const char* s);
+void lca_string_path_append_view(lca_string* path, lca_string_view s);
+
 lca_string_view lca_string_view_from_cstring(const char* s);
 lca_string_view lca_string_as_view(lca_string s);
 lca_string_view lca_string_view_slice(lca_string_view sv, int64_t offset, int64_t length);
@@ -43,24 +47,31 @@ bool lca_string_view_equals_cstring(lca_string_view a, const char* b);
 bool lca_string_view_starts_with(lca_string_view a, lca_string_view b);
 lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s);
 char* lca_string_view_to_cstring(lca_allocator allocator, lca_string_view s);
+int64_t lca_string_view_index_of(lca_string_view s, char c);
+int64_t lca_string_view_last_index_of(lca_string_view s, char c);
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext);
 
 #ifndef LCA_STR_NO_SHORT_NAMES
 #    define SV_EMPTY       LCA_SV_EMPTY
 #    define SV_CONSTANT(C) LCA_SV_CONSTANT(C)
 #    define STR_EXPAND(S)  LCA_STR_EXPAND(S)
+
 typedef struct lca_string string;
 typedef struct lca_string_view string_view;
-#    define string_create(A)                      lca_string_create(A)
-#    define string_from_data(A, D, L, C)          lca_string_from_data(A, D, L, C)
-#    define string_destroy(S)                     lca_string_destroy(S)
-#    define string_as_cstring(S)                  lca_string_as_cstring(S)
-#    define string_equals(A, B)                   lca_string_equals(A, B)
-#    define string_slice(S, O, L)                 lca_string_slice(S, O, L)
-#    define string_format(F, ...)                 lca_string_format(F, __VA_ARGS__)
-#    define string_vformat(F, V)                  lca_string_vformat(F, V)
-#    define string_append_format(S, F, ...)       lca_string_append_format(S, F, __VA_ARGS__)
-#    define string_append_vformat(S, F, V)        lca_string_append_vformat(S, F, V)
+
+#    define string_create(A)                lca_string_create(A)
+#    define string_from_data(A, D, L, C)    lca_string_from_data(A, D, L, C)
+#    define string_destroy(S)               lca_string_destroy(S)
+#    define string_as_cstring(S)            lca_string_as_cstring(S)
+#    define string_equals(A, B)             lca_string_equals(A, B)
+#    define string_slice(S, O, L)           lca_string_slice(S, O, L)
+#    define string_format(F, ...)           lca_string_format(F, __VA_ARGS__)
+#    define string_vformat(F, V)            lca_string_vformat(F, V)
+#    define string_append_format(S, F, ...) lca_string_append_format(S, F, __VA_ARGS__)
+#    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
+
+#    define string_path_append_view(P, S) lca_string_path_append_view(P, S)
+
 #    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
 #    define string_as_view(S)                     lca_string_as_view(S)
 #    define string_view_slice(S, O, L)            lca_string_view_slice(S, O, L)
@@ -69,6 +80,8 @@ typedef struct lca_string_view string_view;
 #    define string_view_starts_with(A, B)         lca_string_view_starts_with(A, B)
 #    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
 #    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
+#    define string_view_index_of(S, C)            lca_string_view_last_of(S, C)
+#    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
 #endif // !LCA_STR_NO_SHORT_NAMES
 
@@ -185,6 +198,25 @@ void lca_string_append_vformat(lca_string* s, const char* format, va_list v) {
     s->count += n;
 }
 
+void lca_string_path_append_view(lca_string* path, lca_string_view s) {
+    assert(path != NULL);
+
+    bool path_ends_with_slash = path->count > 0 && (path->data[path->count - 1] == '/' || path->data[path->count - 1] == '\\');
+    bool view_starts_with_slash = s.count > 0 && (s.data[0] == '/' || s.data[0] == '\\');
+
+    if (path_ends_with_slash && view_starts_with_slash) {
+        s.data++;
+        s.count--;
+        view_starts_with_slash = false;
+    }
+
+    if (path_ends_with_slash) {
+        lca_string_append_format(path, "%.*s", STR_EXPAND(s));
+    } else {
+        lca_string_append_format(path, "/%.*s", STR_EXPAND(s));
+    }
+}
+
 lca_string_view lca_string_view_from_cstring(const char* s) {
     return (lca_string_view){
         .data = s,
@@ -206,7 +238,7 @@ lca_string_view lca_string_view_slice(lca_string_view sv, int64_t offset, int64_
     }
     assert(length >= 0 && length <= sv.count - offset);
 
-    return (lca_string_view) {
+    return (lca_string_view){
         .data = sv.data + offset,
         .count = length,
     };
@@ -252,6 +284,26 @@ char* lca_string_view_to_cstring(lca_allocator allocator, lca_string_view s) {
     memcpy(result, s.data, s.count);
     result[s.count] = 0;
     return result;
+}
+
+int64_t lca_string_view_index_of(lca_string_view s, char c) {
+    for (int64_t i = 0; i < s.count; i++) {
+        if (s.data[i] == c) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int64_t lca_string_view_last_index_of(lca_string_view s, char c) {
+    for (int64_t i = s.count - 1; i >= 0; i--) {
+        if (s.data[i] == c) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext) {

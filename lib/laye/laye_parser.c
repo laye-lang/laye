@@ -205,9 +205,11 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     module->sourceid = sourceid;
     module->arena = lca_arena_create(context->allocator, 1024 * 1024);
     assert(module->arena);
+    arr_push(context->laye_modules, module);
 
     laye_scope* module_scope = laye_scope_create(module, NULL);
     assert(module_scope != NULL);
+    module->scope = module_scope;
 
     layec_source source = layec_context_get_source(context, sourceid);
 

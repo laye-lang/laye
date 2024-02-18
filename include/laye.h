@@ -53,15 +53,24 @@ typedef enum laye_cast_kind {
     LAYE_CAST_REFERENCE_TO_LVALUE,
 } laye_cast_kind;
 
+typedef struct laye_module_import {
+    string_view name;
+    struct laye_module* referenced_module;
+    dynarr(laye_node*) entities;
+} laye_module_import;
+
 typedef struct laye_module {
     layec_context* context;
     layec_sourceid sourceid;
 
+    bool has_handled_imports;
     bool dependencies_generated;
 
+    laye_scope* scope;
     lca_arena* arena;
 
     dynarr(laye_node*) top_level_nodes;
+    dynarr(laye_module_import) imports;
 
     dynarr(laye_token) _all_tokens;
     dynarr(laye_node*) _all_nodes;
@@ -425,11 +434,6 @@ typedef struct laye_enum_type_variant {
     int64_t value;
 } laye_enum_type_variant;
 
-typedef struct laye_import_query {
-    dynarr(laye_token) pieces;
-    laye_token alias;
-} laye_import_query;
-
 struct laye_node {
     laye_node_kind kind;
     layec_context* context;
@@ -459,7 +463,7 @@ struct laye_node {
     // the value category of this expression. i.e., is this an lvalue or rvalue expression?
     layec_value_category value_category;
     // the type of this expression.
-    // will be void if this type has no expression.
+    // will be void if this expression has no type.
     laye_type type;
 
     // the declared name of this declaration.
@@ -1133,7 +1137,7 @@ struct laye_node {
 
 string laye_module_debug_print(laye_module* module);
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
-void laye_analyse(laye_module* module);
+void laye_analyse(layec_context* context);
 layec_module* laye_irgen(laye_module* module);
 void laye_module_destroy(laye_module* module);
 

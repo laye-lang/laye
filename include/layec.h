@@ -87,6 +87,9 @@ typedef struct layec_context {
     dynarr(string) _interned_strings;
     dynarr(string) allocated_strings;
 
+    dynarr(struct laye_module*) laye_modules;
+    dynarr(layec_module*) ir_modules;
+
     // types for use in Laye semantic analysis.
     // should not be stored within syntax nodes that have explicit
     // type syntax in the source code, since source location information
