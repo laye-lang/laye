@@ -39,6 +39,45 @@ static laye_type laye_sema_get_reference_to_type(laye_sema* sema, laye_type elem
 
 static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, layec_evaluated_constant eval_result);
 
+// TODO(local): redeclaration of a name as an import namespace should be a semantic error. They can't participate in overload resolution,
+// so should just be disallowed for simplicity.
+
+static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_module, laye_nameref nameref, bool is_type_entity) {
+    assert(sema != NULL);
+    assert(from_module != NULL);
+    assert(from_module->context != NULL);
+
+    laye_scope* search_scope = nameref.scope;
+    assert(search_scope != NULL);
+
+    assert(arr_count(nameref.pieces) >= 1);
+    string_view first_name = nameref.pieces[0].string_value;
+
+    laye_node* found_declaration = NULL;
+
+    while (search_scope != NULL) {
+        laye_node* lookup = is_type_entity ? laye_scope_lookup_type(search_scope, first_name) : laye_scope_lookup_value(search_scope, first_name);
+        if (lookup != NULL) {
+            found_declaration = lookup;
+            break;
+        }
+
+        search_scope = search_scope->parent;
+    }
+
+    if (found_declaration == NULL) {
+        laye_module* search_module = from_module;
+
+        for (int64_t name_index = 0, name_count = arr_count(nameref.pieces); name_index < name_count; name_index++) {
+            //bool is_last_name = name_index == name_count - 1;
+
+
+        }
+    }
+
+    return NULL;
+}
+
 // TODO(local): combine lookup_value and lookup_type, mostly to help with import query resolution
 static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     assert(sema != NULL);
@@ -244,32 +283,48 @@ static void laye_handle_module_imports(layec_context* context, laye_module* modu
                 }
             }
 
-            if (module != NULL) {
-                top_level_node->decl_import.referenced_module = module;
+            if (found != NULL) {
+                top_level_node->decl_import.referenced_module = found;
                 // already loaded, should be doing things
                 continue;
             }
 
-            module = laye_parse(context, sourceid);
-            assert(module != NULL);
+            found = laye_parse(context, sourceid);
+            assert(found != NULL);
 
-            top_level_node->decl_import.referenced_module = module;
-            laye_handle_module_imports(context, module);
+            top_level_node->decl_import.referenced_module = found;
+            laye_handle_module_imports(context, found);
         }
     }
 }
 
-static dynarr(laye_node*) laye_sema_resolve_import_queries(layec_context* context, laye_module* module, dynarr(laye_node*) queries) {
+typedef struct laye_sema_aliased_node {
+    string_view alias;
+    laye_node* node;
+} laye_sema_aliased_node;
+
+static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_node* query) {
     assert(context != NULL);
     assert(module != NULL);
     // `module` is not the current module, but the module we are querying into.
 
-    dynarr(laye_node*) entities = NULL;
+    /*
+    string_view alias = entities[i].alias;
+    if (alias.count > 0) {
+        laye_node* proxy = laye_node_create(module, LAYE_NODE_DECL_PROXY, entity->location, entity->type);
+        assert(proxy != NULL);
+        proxy->proxl_declaration = entity;
+        proxy->declared_name = alias;
+        proxy->declared_type = entity->declared_type;
+        entity = proxy;
+    }
+    */
+    
+    assert(false && "unimplemented");
+}
 
-    // NOTE(local): if we get an overload set, unpack it manually into the result array.
-    // future lookup calls will re-package the overload with any newly available overloads.
-
-    return entities;
+static bool is_identifier_char(int c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
 }
 
 static void laye_populate_module_import_scopes(layec_context* context, laye_module* module) {
@@ -282,17 +337,62 @@ static void laye_populate_module_import_scopes(layec_context* context, laye_modu
             assert(top_level_node->decl_import.referenced_module != NULL);
 
             if (arr_count(top_level_node->decl_import.import_queries) == 0) {
-                // generate an import namespace.
-            } else {
-                // populate the module's scope with the imported entities.
-                dynarr(laye_node*) entities = laye_sema_resolve_import_queries(context, top_level_node->decl_import.referenced_module, top_level_node->decl_import.import_queries);
+                string_view module_name = top_level_node->decl_import.import_alias.string_value;
+                if (module_name.count == 0) {
+                    module_name = string_as_view(layec_context_get_source(context, top_level_node->decl_import.referenced_module->sourceid).name);
 
-                for (int64_t i = 0, count = arr_count(entities); i < count; i++) {
-                    laye_node* entity = entities[i];
-                    assert(laye_node_is_decl(entity));
-                    assert(entity->declared_name.count > 0);
-                    assert(entity->declared_name.data != NULL);
-                    laye_scope_declare(module->scope, entity);
+                    int64_t last_slash_index = maxi(string_view_last_index_of(module_name, '/'), string_view_last_index_of(module_name, '\\'));
+                    if (last_slash_index >= 0) {
+                        module_name.data += (last_slash_index + 1);
+                        module_name.count -= (last_slash_index + 1);
+                    }
+
+                    int64_t first_dot_index = string_view_index_of(module_name, '.');
+                    if (first_dot_index >= 0) {
+                        module_name.count = first_dot_index;
+                    }
+
+                    if (module_name.count == 0) {
+                        layec_write_error(context, top_level_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
+                    } else {
+                        for (int64_t j = 0; j < module_name.count; j++) {
+                            if (!is_identifier_char(module_name.data[j])) {
+                                layec_write_error(context, top_level_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
+                                break;
+                            }
+                        }
+                    }
+
+                    //layec_write_note(context, top_level_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", STR_EXPAND(module_name));
+                }
+
+                laye_module_import module_import_info = {
+                    .referenced_module = top_level_node->decl_import.referenced_module,
+                    .name = module_name,
+                };
+
+                arr_push(module->imports, module_import_info);
+            } else {
+                // no import namespaces, populate this scope directly
+                dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
+                for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
+                    laye_node* query = queries[j];
+                    laye_sema_resolve_import_query(context, top_level_node->decl_import.referenced_module, query);
+
+                    // populate the module's scope with the imported entities.
+                    for (int64_t k = 0, k_count = arr_count(query->import_query.imported_entities); k < k_count; k++) {
+                        laye_node* entity = query->import_query.imported_entities[k];
+                        assert(laye_node_is_decl(entity));
+                        assert(entity->declared_name.count > 0);
+                        assert(entity->declared_name.data != NULL);
+
+                        laye_scope_declare(module->scope, entity);
+                    }
+
+                    // add imported modules to the same import module array as import declarations with namespaces.
+                    for (int64_t k = 0, k_count = arr_count(query->import_query.imported_modules); k < k_count; k++) {
+                        arr_push(module->imports, query->import_query.imported_modules[k]);
+                    }
                 }
             }
         }
@@ -315,6 +415,8 @@ void laye_analyse(layec_context* context) {
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_populate_module_import_scopes(context, context->laye_modules[i]);
     }
+
+    return;
 
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);

@@ -80,7 +80,7 @@ typedef struct lca_string_view string_view;
 #    define string_view_starts_with(A, B)         lca_string_view_starts_with(A, B)
 #    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
 #    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
-#    define string_view_index_of(S, C)            lca_string_view_last_of(S, C)
+#    define string_view_index_of(S, C)            lca_string_view_index_of(S, C)
 #    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
 #endif // !LCA_STR_NO_SHORT_NAMES

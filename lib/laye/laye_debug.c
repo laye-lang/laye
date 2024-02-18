@@ -3,14 +3,15 @@
 
 #include <assert.h>
 
-#define COL_DELIM WHITE
-#define COL_TREE  RED
-#define COL_NODE  RED
-#define COL_ADDR  BLUE
-#define COL_OFFS  MAGENTA
-#define COL_NAME  GREEN
-#define COL_ERROR RED
-#define COL_CONST BLUE
+#define COL_COMMENT BRIGHT_BLACK
+#define COL_DELIM   WHITE
+#define COL_TREE    RED
+#define COL_NODE    RED
+#define COL_ADDR    BLUE
+#define COL_OFFS    MAGENTA
+#define COL_NAME    GREEN
+#define COL_ERROR   RED
+#define COL_CONST   BLUE
 
 typedef struct laye_print_context {
     layec_context* context;
@@ -40,6 +41,10 @@ string laye_module_debug_print(laye_module* module) {
         .indents = &indents_string,
         .output = &output_string,
     };
+
+    bool use_color = print_context.use_color;
+    string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(layec_context_get_source(module->context, module->sourceid).name), COL(RESET));
+    string_append_format(print_context.output, "%s; %016llX%s\n", COL(COL_COMMENT), (size_t)module, COL(RESET));
 
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
@@ -158,6 +163,10 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
             if (node->decl_import.import_alias.kind != 0) {
                 string_append_format(print_context->output, " %sas %s%.*s", COL(COL_TREE), COL(COL_NAME), STR_EXPAND(node->decl_import.import_alias.string_value));
+            }
+
+            if (node->decl_import.referenced_module != NULL) {
+                string_append_format(print_context->output, " %s%016llX", COL(COL_ADDR), (size_t)node->decl_import.referenced_module);
             }
 
             for (int64_t i = 0, count = arr_count(node->decl_import.import_queries); i < count; i++) {
@@ -495,7 +504,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             }
 
             if (node->nameref.referenced_declaration != NULL) {
-                string_append_format(print_context->output, " %s%016x", COL(COL_ADDR), (size_t)node->nameref.referenced_declaration);
+                string_append_format(print_context->output, " %s%016llX", COL(COL_ADDR), (size_t)node->nameref.referenced_declaration);
             }
         } break;
 
@@ -665,7 +674,7 @@ void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
             }
 
             if (type.node->nameref.referenced_type != NULL) {
-                string_append_format(s, " %s%016x", COL(COL_ADDR), (size_t)type.node->nameref.referenced_type);
+                string_append_format(s, " %s%016llX", COL(COL_ADDR), (size_t)type.node->nameref.referenced_type);
             }
         } break;
 

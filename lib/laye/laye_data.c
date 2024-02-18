@@ -704,7 +704,7 @@ laye_type laye_type_with_source(laye_node* type_node, laye_node* source_node, bo
 }
 
 bool laye_node_kind_is_decl(laye_node_kind kind) {
-    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_TEMPLATE_VALUE;
+    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_PROXY;
 }
 
 bool laye_node_kind_is_type(laye_node_kind kind) {

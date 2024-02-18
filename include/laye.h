@@ -56,7 +56,6 @@ typedef enum laye_cast_kind {
 typedef struct laye_module_import {
     string_view name;
     struct laye_module* referenced_module;
-    dynarr(laye_node*) entities;
 } laye_module_import;
 
 typedef struct laye_module {
@@ -70,6 +69,8 @@ typedef struct laye_module {
     lca_arena* arena;
 
     dynarr(laye_node*) top_level_nodes;
+    // namespaces to reference when traversing imports.
+    // *only* for imports which generate namespaces.
     dynarr(laye_module_import) imports;
 
     dynarr(laye_token) _all_tokens;
@@ -281,6 +282,7 @@ struct laye_token {
     X(DECL_TEMPLATE_TYPE)      \
     X(DECL_TEMPLATE_VALUE)     \
     X(DECL_TEST)               \
+    X(DECL_PROXY)              \
     X(IMPORT_QUERY)            \
     X(LABEL)                   \
     X(EMPTY)                   \
@@ -486,6 +488,7 @@ struct laye_node {
     // and the types declared by struct, enum or alias declarations.
     // this is not needed for import declarations, for example.
     laye_type declared_type;
+    laye_node* proxl_declaration;
 
     // should not contain any unique information when compared to the shared fields above,
     // but for syntactic preservation these nodes are stored with every declaration anyway.
@@ -522,6 +525,9 @@ struct laye_node {
             bool is_wildcard;
             dynarr(laye_token) pieces;
             laye_token alias;
+
+            dynarr(laye_node*) imported_entities;
+            dynarr(laye_module_import) imported_modules;
         } import_query;
 
         // not likely to ever be representable in Laye syntax, the `overloads`
