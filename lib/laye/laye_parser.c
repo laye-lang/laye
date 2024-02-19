@@ -1266,6 +1266,10 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
         p->scope->name = name_token.string_value;
         p->scope->is_function_scope = true;
 
+        for (int64_t i = 0, count = arr_count(parameters); i < count; i++) {
+            laye_scope_declare(p->scope, parameters[i]);
+        }
+
         laye_node* function_body = NULL;
         if (!laye_parser_consume(p, ';', NULL)) {
             if (laye_parser_consume(p, LAYE_TOKEN_EQUALGREATER, NULL)) {

@@ -408,7 +408,7 @@ layec_type* layec_context_get_struct_type_at_index(layec_context* context, int64
 
 layec_module* layec_module_create(layec_context* context, string_view module_name);
 void layec_module_destroy(layec_module* module);
-layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage);
+layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, dynarr(layec_value*) parameters, layec_linkage linkage);
 
 layec_context* layec_module_context(layec_module* module);
 string_view layec_module_name(layec_module* module);
@@ -479,7 +479,6 @@ layec_context* layec_value_context(layec_value* value);
 layec_location layec_value_location(layec_value* value);
 layec_linkage layec_value_linkage(layec_value* value);
 layec_type* layec_value_get_type(layec_value* value);
-layec_type* layec_value_type(layec_value* value);
 string_view layec_value_name(layec_value* value);
 int64_t layec_value_index(layec_value* value);
 bool layec_value_is_terminating_instruction(layec_value* instruction);
@@ -569,6 +568,8 @@ void layec_builder_position_at_end(layec_builder* builder, layec_value* block);
 layec_value* layec_builder_get_insert_block(layec_builder* builder);
 void layec_builder_insert(layec_builder* builder, layec_value* instruction);
 void layec_builder_insert_with_name(layec_builder* builder, layec_value* instruction, string_view name);
+
+layec_value* layec_create_parameter(layec_module* module, layec_location location, layec_type* type, string_view name, int64_t index);
 
 layec_value* layec_build_nop(layec_builder* builder, layec_location location);
 layec_value* layec_build_return(layec_builder* builder, layec_location location, layec_value* value);

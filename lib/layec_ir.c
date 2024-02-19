@@ -445,11 +445,6 @@ layec_linkage layec_value_linkage(layec_value* value) {
     return value->linkage;
 }
 
-layec_type* layec_value_type(layec_value* value) {
-    assert(value != NULL);
-    return value->type;
-}
-
 string_view layec_value_name(layec_value* value) {
     assert(value != NULL);
     return value->name;
@@ -1016,7 +1011,7 @@ layec_type* layec_value_get_type(layec_value* value) {
     return value->type;
 }
 
-layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, layec_linkage linkage) {
+layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, dynarr(layec_value*) parameters, layec_linkage linkage) {
     assert(module != NULL);
     assert(module->context != NULL);
     assert(function_type != NULL);
@@ -1026,6 +1021,7 @@ layec_value* layec_module_create_function(layec_module* module, layec_location l
     assert(function != NULL);
     function->function.name = layec_context_intern_string_view(module->context, function_name);
     function->linkage = linkage;
+    function->function.parameters = parameters;
 
     arr_push(module->functions, function);
     return function;
@@ -1281,6 +1277,18 @@ layec_value* layec_build_nop(layec_builder* builder, layec_location location) {
 
     layec_builder_insert(builder, nop);
     return nop;
+}
+
+layec_value* layec_create_parameter(layec_module* module, layec_location location, layec_type* type, string_view name, int64_t index) {
+    assert(module != NULL);
+    assert(type != NULL);
+
+    layec_value* parameter = layec_value_create(module, location, LAYEC_IR_PARAMETER, type, name);
+    assert(parameter != NULL);
+
+    parameter->index = index;
+
+    return parameter;
 }
 
 layec_value* layec_build_call(layec_builder* builder, layec_location location, layec_value* callee, layec_type* callee_type, dynarr(layec_value*) arguments, string_view name) {
