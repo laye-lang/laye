@@ -66,48 +66,58 @@ void laye_scope_destroy(laye_scope* scope) {
 }
 
 void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
+    laye_scope_declare_aliased(scope, declaration, declaration->declared_name);
+}
+
+void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, string_view alias) {
     assert(scope != NULL);
     assert(declaration != NULL);
     assert(laye_node_is_decl(declaration));
     assert(declaration->kind != LAYE_NODE_DECL_OVERLOADS);
-    assert(declaration->declared_name.count != 0);
+    assert(alias.count != 0);
 
     laye_module* module = scope->module;
     assert(module != NULL);
 
     bool is_type_declaration = declaration->kind == LAYE_NODE_DECL_STRUCT || declaration->kind == LAYE_NODE_DECL_ENUM || declaration->kind == LAYE_NODE_DECL_ALIAS || declaration->kind == LAYE_NODE_DECL_TEMPLATE_TYPE;
-    dynarr(laye_node*)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
+    dynarr(laye_scope_entry)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
     assert(entity_namespace != NULL);
 
     if (!is_type_declaration) {
         for (int64_t i = 0, count = arr_count(*entity_namespace); i < count; i++) {
-            laye_node* existing_declaration = (*entity_namespace)[i];
+            laye_scope_entry entry = (*entity_namespace)[i];
+            
+            string_view existing_name = entry.name;
+            laye_node* existing_declaration = entry.node;
             assert(existing_declaration != NULL);
 
             if (
-                string_view_equals(existing_declaration->declared_name, declaration->declared_name) &&
+                string_view_equals(existing_name, alias) &&
                 (declaration->kind != LAYE_NODE_DECL_FUNCTION || existing_declaration->kind != LAYE_NODE_DECL_FUNCTION)
             ) {
                 assert(module->context != NULL);
-                layec_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", STR_EXPAND(declaration->declared_name));
+                layec_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", STR_EXPAND(alias));
                 return;
             }
         }
     }
 
-    arr_push(*entity_namespace, declaration);
+    arr_push(*entity_namespace, ((laye_scope_entry){
+        .name = alias,
+        .node = declaration,
+    }));
 }
 
-static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_node*) declarations, string_view name) {
+static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_scope_entry) declarations, string_view name) {
     assert(scope != NULL);
     assert(scope->module != NULL);
 
     for (int64_t i = 0, count = arr_count(declarations); i < count; i++) {
-        laye_node* declaration = declarations[i];
-        assert(declaration != NULL);
+        laye_scope_entry entry = declarations[i];
+        assert(entry.node != NULL);
 
-        if (string_view_equals(declaration->declared_name, name))
-            return declaration;
+        if (string_view_equals(entry.name, name))
+            return entry.node;
     }
 
     return NULL;

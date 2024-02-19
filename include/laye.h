@@ -78,6 +78,11 @@ typedef struct laye_module {
     dynarr(laye_scope*) _all_scopes;
 } laye_module;
 
+typedef struct laye_scope_entry {
+    string_view name;
+    laye_node* node;
+} laye_scope_entry;
+
 struct laye_scope {
     // the module this scope is defined in.
     laye_module* module;
@@ -90,9 +95,9 @@ struct laye_scope {
     bool is_function_scope;
     // "value"s declared in this scope.
     // here, "value" refers to non-type declarations like variables or functions.
-    dynarr(laye_node*) value_declarations;
+    dynarr(laye_scope_entry) value_declarations;
     // types declared in this scope.
-    dynarr(laye_node*) type_declarations;
+    dynarr(laye_scope_entry) type_declarations;
 };
 
 typedef enum laye_mut_compare {
@@ -1170,6 +1175,7 @@ layec_source laye_module_get_source(laye_module* module);
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_destroy(laye_scope* scope);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
+void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, string_view alias);
 laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name);
 laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name);
 

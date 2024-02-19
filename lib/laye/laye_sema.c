@@ -320,7 +320,7 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
     }
     */
     
-    assert(false && "unimplemented");
+    //assert(false && "unimplemented");
 }
 
 static bool is_identifier_char(int c) {
@@ -416,7 +416,10 @@ void laye_analyse(layec_context* context) {
         laye_populate_module_import_scopes(context, context->laye_modules[i]);
     }
 
-    return;
+    // TODO(local): somewhere in here, before sema is done, we have to check for redeclared symbols.
+    // probably after top level types.
+
+    //return;
 
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);
