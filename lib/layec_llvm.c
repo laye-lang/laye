@@ -292,7 +292,7 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
 
         case LAYEC_IR_CALL: {
             lca_string_append_format(codegen->output, "call ");
-            llvm_print_type(codegen, layec_value_type(instruction));
+            llvm_print_type(codegen, layec_value_get_type(instruction));
             lca_string_append_format(codegen->output, " ");
             llvm_print_value(codegen, layec_instruction_callee(instruction), false);
             lca_string_append_format(codegen->output, "(");
@@ -619,7 +619,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
     layec_value_kind kind = layec_value_get_kind(value);
 
     if (include_type) {
-        llvm_print_type(codegen, layec_value_type(value));
+        llvm_print_type(codegen, layec_value_get_type(value));
         lca_string_append_format(codegen->output, " ");
     }
 

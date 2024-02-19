@@ -833,6 +833,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             laye_node* prev_function = sema->current_function;
             sema->current_function = node;
 
+            for (int64_t i = 0, count = arr_count(node->decl_function.parameter_declarations); i < count; i++) {
+                laye_sema_analyse_node(sema, &node->decl_function.parameter_declarations[i], NOTY);
+            }
+
             if (node->decl_function.body != NULL) {
                 assert(node->decl_function.body->kind == LAYE_NODE_COMPOUND);
                 laye_sema_analyse_node(sema, &node->decl_function.body, NOTY);
@@ -867,6 +871,14 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_DECL_STRUCT: {
             assert(node->declared_type.node != NULL);
             assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
+        } break;
+
+        case LAYE_NODE_DECL_FUNCTION_PARAMETER: {
+            laye_sema_analyse_type(sema, &node->declared_type);
+            if (node->decl_function_parameter.default_value != NULL) {
+                //TODO: Analyse default value
+                //node->decl_function_parameter.default_value
+            }
         } break;
 
         case LAYE_NODE_IF: {
@@ -1416,6 +1428,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 } break;
 
                 case LAYE_NODE_DECL_FUNCTION: {
+                } break;
+
+                case LAYE_NODE_DECL_FUNCTION_PARAMETER: {
+                    laye_expr_set_lvalue(node, true);
                 } break;
 
                 case LAYE_NODE_DECL_BINDING: {

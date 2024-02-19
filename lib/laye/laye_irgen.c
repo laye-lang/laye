@@ -51,13 +51,27 @@ layec_module* laye_irgen(laye_module* module) {
                 }
             }
 
+            dynarr(layec_value*) parameters = NULL;
+            for (int64_t i = 0, count = arr_count(top_level_node->decl_function.parameter_declarations); i < count; i++) {
+                laye_node *parameter_node = top_level_node->decl_function.parameter_declarations[i];
+
+                // TODO: add index
+                layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(ir_function_type, i);
+                layec_value* ir_parameter = layec_create_parameter(ir_module, parameter_node->location, parameter_type, parameter_node->declared_name, i);
+
+                parameter_node->ir_value = ir_parameter;
+                arr_push(parameters, ir_parameter);
+            }
+
             layec_value* ir_function = layec_module_create_function(
                 ir_module,
                 top_level_node->location,
                 function_name,
                 ir_function_type,
+                parameters,
                 function_linkage
             );
+
             assert(ir_function != NULL);
             top_level_node->ir_value = ir_function;
         }
@@ -82,6 +96,24 @@ layec_module* laye_irgen(laye_module* module) {
             layec_value* entry_block = layec_function_append_block(function, SV_CONSTANT("entry"));
             assert(entry_block != NULL);
             layec_builder_position_at_end(builder, entry_block);
+
+            // insert declarations for the parameters for the function
+            layec_type* function_type = layec_value_get_type(function);
+
+            for (int64_t i = 0, count = layec_function_type_parameter_count(function_type); i < count; i++) {
+                laye_node *parameter_node = top_level_node->decl_function.parameter_declarations[i];
+                layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(function_type, i);
+
+                layec_value* alloca = layec_build_alloca(builder, parameter_node->location, parameter_type, 1);
+                assert(alloca != NULL);
+                assert(layec_type_is_ptr(layec_value_get_type(alloca)));
+
+                assert(parameter_node->ir_value != NULL);
+                layec_value* store = layec_build_store(builder, parameter_node->location, alloca, parameter_node->ir_value);
+                assert(store != NULL);
+
+                parameter_node->ir_value = alloca;
+            }
 
             // generate the function body
             laye_generate_node(builder, top_level_node->decl_function.body);
