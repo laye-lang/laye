@@ -307,7 +307,7 @@ int64_t lca_string_view_last_index_of(lca_string_view s, char c) {
 }
 
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext) {
-    int64_t last_slash_index = s.count;
+    int64_t last_slash_index = 0;
     for (int64_t i = last_slash_index - 1; i >= 0; i--) {
         if (s.data[i] == '/' || s.data[i] == '\\') {
             last_slash_index = i;
