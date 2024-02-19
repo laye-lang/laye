@@ -4,6 +4,10 @@
 #include <assert.h>
 
 laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, string_view name) {
+    if (kind == LAYE_SYMBOL_ENTITY) {
+        assert(name.count > 0);
+    }
+    
     laye_symbol* symbol = lca_arena_push(module->arena, sizeof *symbol);
     assert(symbol != NULL);
     symbol->kind = kind;

@@ -273,17 +273,61 @@ static string_view import_string_to_laye_identifier_string(laye_node* import_nod
     return module_name;
 }
 
-#if 0
-
 static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_module* queried_module, laye_node* query) {
     assert(context != NULL);
     assert(module != NULL);
     assert(queried_module != NULL);
 
     laye_module* search_module = queried_module;
+    laye_symbol* search_namespace = search_module->exports;
+
     if (query->import_query.is_wildcard) {
-        laye_symbol* search_namespace = module->exports;
+        for (int64_t i = 0, count = arr_count(search_namespace->symbols); i < count; i++) {
+            laye_symbol* exported_symbol = search_namespace->symbols[i];
+            assert(exported_symbol != NULL);
+            assert(exported_symbol->name.count > 0);
+
+            laye_symbol* imported_symbol = laye_symbol_lookup(module->imports, exported_symbol->name);
+            if (imported_symbol == NULL) {
+                imported_symbol = laye_symbol_create(module, exported_symbol->kind, exported_symbol->name);
+                assert(imported_symbol != NULL);
+                arr_push(module->imports->symbols, imported_symbol);
+            } else {
+                if (exported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                    layec_write_error(context, query->location, "Wildcard imports symbol '%.*s', which is a namespace. This symbol has already been declared, and namespace names cannot be overloaded.");
+                    continue;
+                }
+
+                if (imported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                    layec_write_error(context, query->location, "Wildcard imports symbol '%.*s', which was previously imported as a namespace. Namespace names cannot be overloaded.");
+                    continue;
+                }
+            }
+
+            assert(imported_symbol != NULL);
+            
+            if (exported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                assert(imported_symbol->kind == LAYE_SYMBOL_NAMESPACE);
+                // this node should also be freshly created
+                assert(arr_count(imported_symbol->symbols) == 0);
+
+                for (int64_t j = 0, j_count = arr_count(exported_symbol->symbols); j < j_count; j++) {
+                    arr_push(imported_symbol->symbols, exported_symbol->symbols[j]);
+                }
+            } else {
+                assert(imported_symbol->kind == LAYE_SYMBOL_ENTITY);
+
+                for (int64_t j = 0, j_count = arr_count(exported_symbol->nodes); j < j_count; j++) {
+                    arr_push(imported_symbol->nodes, exported_symbol->nodes[j]);
+                }
+            }
+        }
     } else {
+        assert(arr_count(query->import_query.pieces) > 0);
+
+        int64_t name_index = 0;
+        string_view search_name = query->import_query.pieces[name_index].string_value;
+
         /*
 
         // populate the module's scope with the imported entities.
@@ -307,88 +351,7 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
     }
 }
 
-static void laye_populate_module_import_scopes(layec_context* context, laye_module* module) {
-    assert(context != NULL);
-    assert(module != NULL);
-
-    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
-        laye_node* top_level_node = module->top_level_nodes[i];
-        switch (top_level_node->kind) {
-            default: break;
-
-            case LAYE_NODE_DECL_IMPORT: {
-                assert(top_level_node->decl_import.referenced_module != NULL);
-
-                if (arr_count(top_level_node->decl_import.import_queries) == 0) {
-                    string_view module_name = import_string_to_laye_identifier_string(context, top_level_node);
-                    assert(module_name.count > 0);
-
-                    if (laye_symbol_lookup(module->imports, module_name) != NULL) {
-                        layec_write_error(module->context, top_level_node->location, "Redeclaration of name '%.*s'.", STR_EXPAND(module_name));
-                    } else {
-                        laye_symbol* import_scope = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, module_name);
-                        assert(import_scope != NULL);
-
-                        arr_push(module->imports->symbols, import_scope);
-
-                        if (top_level_node->attributes.linkage == LAYEC_LINK_EXPORTED) {
-                            assert(laye_symbol_lookup(module->exports, module_name) == NULL && "somehow, this module already exports something with the same name");
-                            arr_push(module->exports->symbols, import_scope);
-                        }
-
-                        // shallow-copy all of the referenced module's exports into this new scope for our own imports (and potentially exports)
-                        laye_module* referenced_module = top_level_node->decl_import.referenced_module;
-                        for (int64_t export_index = 0, export_count = arr_count(referenced_module->exports->symbols); export_index < export_count; export_index++) {
-                            laye_symbol* imported_symbol = referenced_module->exports->symbols[export_index];
-                            assert(imported_symbol != NULL);
-                            assert(laye_symbol_lookup(import_scope, imported_symbol->name) == NULL);
-                            arr_push(import_scope->symbols, imported_symbol);
-                        }
-                    }
-                } else {
-                    // no import namespaces, populate this scope directly
-                    dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
-                    for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
-                        laye_node* query = queries[j];
-                        assert(query != NULL);
-
-                        laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
-                    }
-                }
-            }
-
-            case LAYE_NODE_DECL_ALIAS:
-            case LAYE_NODE_DECL_BINDING:
-            case LAYE_NODE_DECL_ENUM:
-            case LAYE_NODE_DECL_FUNCTION:
-            case LAYE_NODE_DECL_STRUCT: {
-                if (top_level_node->attributes.linkage != LAYEC_LINK_EXPORTED) {
-                    break;
-                }
-
-                laye_symbol* export_symbol = laye_symbol_lookup(module->exports, top_level_node->declared_name);
-                if (export_symbol != NULL) {
-                    if (export_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
-                        layec_write_error(module->context, top_level_node->location, "Redeclaration of symbol '%.*s', previously declared as a namespace.", STR_EXPAND(top_level_node->declared_name));
-                        break;
-                    }
-                } else {
-                    export_symbol = laye_symbol_create(module, LAYE_SYMBOL_ENTITY, top_level_node->declared_name);
-                    arr_push(module->exports->symbols, export_symbol);
-                }
-
-                assert(export_symbol != NULL);
-                assert(export_symbol->kind == LAYE_SYMBOL_ENTITY);
-
-                arr_push(export_symbol->nodes, top_level_node);
-            } break;
-        }
-    }
-}
-
-#endif
-
-static void laye_sema_resolve_module_import_declarations(layec_context* context, laye_module* module) {
+static void laye_sema_resolve_module_import_declarations(layec_context* context, layec_dependency_graph* import_graph, laye_module* module) {
     assert(context != NULL);
     assert(module != NULL);
 
@@ -397,6 +360,8 @@ static void laye_sema_resolve_module_import_declarations(layec_context* context,
     }
 
     module->has_handled_imports = true;
+
+    layec_depgraph_ensure_tracked(import_graph, module);
 
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
@@ -444,17 +409,16 @@ static void laye_sema_resolve_module_import_declarations(layec_context* context,
                     }
                 }
 
-                if (found != NULL) {
-                    top_level_node->decl_import.referenced_module = found;
-                    // already loaded, should be doing things
-                    continue;
+                if (found == NULL) {
+                    found = laye_parse(context, sourceid);
                 }
 
-                found = laye_parse(context, sourceid);
                 assert(found != NULL);
 
+                layec_depgraph_add_dependency(import_graph, module, found);
                 top_level_node->decl_import.referenced_module = found;
-                laye_sema_resolve_module_import_declarations(context, found);
+
+                laye_sema_resolve_module_import_declarations(context, import_graph, found);
             } break;
         }
     }
@@ -471,6 +435,84 @@ static void laye_sema_build_module_symbol_tables(layec_context* context, laye_mo
     assert(module->imports == NULL);
     module->imports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
     assert(module->imports != NULL);
+
+    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+        laye_node* top_level_node = module->top_level_nodes[i];
+        switch (top_level_node->kind) {
+            default: break;
+
+            case LAYE_NODE_DECL_IMPORT: {
+                assert(top_level_node->decl_import.referenced_module != NULL);
+                bool is_export_import = top_level_node->attributes.linkage == LAYEC_LINK_EXPORTED;
+
+                if (arr_count(top_level_node->decl_import.import_queries) == 0) {
+                    string_view module_name = import_string_to_laye_identifier_string(top_level_node);
+                    assert(module_name.count > 0);
+
+                    if (laye_symbol_lookup(module->imports, module_name) != NULL) {
+                        layec_write_error(module->context, top_level_node->location, "Redeclaration of name '%.*s'.", STR_EXPAND(module_name));
+                    } else {
+                        laye_symbol* import_scope = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, module_name);
+                        assert(import_scope != NULL);
+
+                        arr_push(module->imports->symbols, import_scope);
+
+                        if (top_level_node->attributes.linkage == LAYEC_LINK_EXPORTED) {
+                            assert(laye_symbol_lookup(module->exports, module_name) == NULL && "somehow, this module already exports something with the same name");
+                            arr_push(module->exports->symbols, import_scope);
+                        }
+
+                        // shallow-copy all of the referenced module's exports into this new scope for our own imports (and potentially exports)
+                        laye_module* referenced_module = top_level_node->decl_import.referenced_module;
+                        assert(referenced_module != NULL);
+                        assert(referenced_module->exports != NULL);
+
+                        for (int64_t export_index = 0, export_count = arr_count(referenced_module->exports->symbols); export_index < export_count; export_index++) {
+                            laye_symbol* imported_symbol = referenced_module->exports->symbols[export_index];
+                            assert(imported_symbol != NULL);
+                            assert(laye_symbol_lookup(import_scope, imported_symbol->name) == NULL);
+                            arr_push(import_scope->symbols, imported_symbol);
+                        }
+                    }
+                } else {
+                    // no import namespaces, populate this scope directly
+                    dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
+                    for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
+                        laye_node* query = queries[j];
+                        assert(query != NULL);
+
+                        laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
+                    }
+                }
+            } break;
+
+            case LAYE_NODE_DECL_ALIAS:
+            case LAYE_NODE_DECL_BINDING:
+            case LAYE_NODE_DECL_ENUM:
+            case LAYE_NODE_DECL_FUNCTION:
+            case LAYE_NODE_DECL_STRUCT: {
+                if (top_level_node->attributes.linkage != LAYEC_LINK_EXPORTED) {
+                    break;
+                }
+
+                laye_symbol* export_symbol = laye_symbol_lookup(module->exports, top_level_node->declared_name);
+                if (export_symbol != NULL) {
+                    if (export_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                        layec_write_error(module->context, top_level_node->location, "Redeclaration of symbol '%.*s', previously declared as a namespace.", STR_EXPAND(top_level_node->declared_name));
+                        break;
+                    }
+                } else {
+                    export_symbol = laye_symbol_create(module, LAYE_SYMBOL_ENTITY, top_level_node->declared_name);
+                    arr_push(module->exports->symbols, export_symbol);
+                }
+
+                assert(export_symbol != NULL);
+                assert(export_symbol->kind == LAYE_SYMBOL_ENTITY);
+
+                arr_push(export_symbol->nodes, top_level_node);
+            } break;
+        }
+    }
 }
 
 void laye_analyse(layec_context* context) {
@@ -482,39 +524,48 @@ void laye_analyse(layec_context* context) {
         .dependencies = context->laye_dependencies,
     };
 
-    #if 0
-
-    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
-        laye_handle_module_imports(context, context->laye_modules[i]);
-    }
-
-    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
-        laye_populate_module_import_scopes(context, context->laye_modules[i]);
-    }
-
-    #endif
+    layec_dependency_graph* import_graph = layec_dependency_graph_create_in_context(context);
 
     // Step 1 of generating semantic symbols is making sure we have access to all of the modules we want to use.
     // We walk through all import declarations recursively for all modules and resolve them to a valid module pointer.
     // This may involve parsing all new source files if they haven't been parsed yet.
     // NOTHING ELSE HAPPENS IN THIS STAGE
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
-        laye_sema_resolve_module_import_declarations(context, context->laye_modules[i]);
+        laye_sema_resolve_module_import_declarations(context, import_graph, context->laye_modules[i]);
     }
+
+    layec_dependency_order_result import_order_result = layec_dependency_graph_get_ordered_entities(import_graph);
+    if (import_order_result.status == LAYEC_DEP_CYCLE) {
+        laye_module* from = (laye_module*)import_order_result.from;
+        laye_module* to = (laye_module*)import_order_result.to;
+
+        layec_write_error(
+            context,
+            (layec_location){.sourceid = from->sourceid},
+            "Cyclic dependency detected. module '%.*s' depends on %.*s, and vice versa. Eventually this will be supported, but the import resolution is currently not graunular enough.",
+            STR_EXPAND(layec_context_get_source(context, from->sourceid).name),
+            STR_EXPAND(layec_context_get_source(context, to->sourceid).name)
+        );
+
+        return;
+    }
+
+    assert(import_order_result.status == LAYEC_DEP_OK);
+    dynarr(laye_module*) ordered_modules = (dynarr(laye_module*))import_order_result.ordered_entities;
+    assert(arr_count(ordered_modules) == arr_count(context->laye_modules));
 
     // Step 2 is building the import/export symbol tables for each module.
-    // This can entirely be done syntactically, though imports which import all of something, without explicit names,
-    // cause a handful of dependency issues.
-    // These imports need to know what all is exported from a module before they can import those symbols, so modules
-    // which export all of something else must be resolved first before they can be imported elsewhere.
-    // For the time being, we just ignore this.
-    // This will be the job for a dependency system in the future, but we don't need it right away.
-    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
-        laye_sema_build_module_symbol_tables(context, context->laye_modules[i]);
+    // (in dependency order)
+    for (int64_t i = 0, count = arr_count(ordered_modules); i < count; i++) {
+        laye_module* module = ordered_modules[i];
+        //fprintf(stderr, "module: %.*s\n", STR_EXPAND(layec_context_get_source(context, module->sourceid).name));
+        laye_sema_build_module_symbol_tables(context, module);
 
-        assert(context->laye_modules[i]->imports != NULL);
-        assert(context->laye_modules[i]->exports != NULL);
+        assert(module->imports != NULL);
+        assert(module->exports != NULL);
     }
+
+    arr_free(ordered_modules);
 
     // TODO(local): somewhere in here, before sema is done, we have to check for redeclared symbols.
     // probably after top level types.

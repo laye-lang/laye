@@ -105,7 +105,13 @@ static layec_dependency_order_result resolve_dependencies(
 
     arr_push(SEEN, entity);
 
-    int64_t entry_index = dynarr_index_of((void**)graph->entries, entity);
+    int64_t entry_index = -1; // dynarr_index_of((void**)graph->entries, entity);
+    for (int64_t i = 0; i < arr_count(graph->entries) && entry_index == -1; i++) {
+        if (graph->entries[i]->node == entity) {
+            entry_index = i;
+        }
+    }
+
     bool requires_resolution = entry_index >= 0 && arr_count(graph->entries[entry_index]->dependencies) >= 0;
 
     if (requires_resolution) {
