@@ -23,6 +23,42 @@ typedef struct laye_print_context {
 
 static void laye_node_debug_print(laye_print_context* print_context, laye_node* node);
 
+void laye_symbol_print_to_string(laye_symbol* symbol, string* s, int level) {
+    assert(symbol != NULL);
+
+    lca_string_append_format(s, "; ");
+    for (int i = 0; i < level; i++) {
+        lca_string_append_format(s, "  ");
+    }
+
+    lca_string_append_format(s, "SYM ");
+    if (symbol->name.count > 0) {
+        lca_string_append_format(s, "'%.*s' ", STR_EXPAND(symbol->name));
+    }
+
+    switch (symbol->kind) {
+        default:
+        case LAYE_SYMBOL_ENTITY: {
+            lca_string_append_format(s, "ENTITY\n");
+            for (int64_t i = 0, count = arr_count(symbol->nodes); i < count; i++) {
+                lca_string_append_format(s, "; ");
+                for (int i = 0; i < level + 1; i++) {
+                    lca_string_append_format(s, "  ");
+                }
+
+                lca_string_append_format(s, "NODE %016llX\n", (size_t)(symbol->nodes[i]));
+            }
+        } break;
+
+        case LAYE_SYMBOL_NAMESPACE: {
+            lca_string_append_format(s, "NAMESPACE\n");
+            for (int64_t i = 0, count = arr_count(symbol->symbols); i < count; i++) {
+                laye_symbol_print_to_string(symbol->symbols[i], s, level + 1);
+            }
+        } break;
+    }
+}
+
 string laye_module_debug_print(laye_module* module) {
     assert(module != NULL);
     assert(module->context != NULL);
@@ -45,6 +81,11 @@ string laye_module_debug_print(laye_module* module) {
     bool use_color = print_context.use_color;
     string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(layec_context_get_source(module->context, module->sourceid).name), COL(RESET));
     string_append_format(print_context.output, "%s; %016llX%s\n", COL(COL_COMMENT), (size_t)module, COL(RESET));
+    string_append_format(print_context.output, "%s; Imports:\n", COL(COL_COMMENT));
+    laye_symbol_print_to_string(module->imports, print_context.output, 1);
+    string_append_format(print_context.output, "%s; Exports:\n", COL(COL_COMMENT));
+    laye_symbol_print_to_string(module->exports, print_context.output, 1);
+    string_append_format(print_context.output, "%s", COL(RESET));
 
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];

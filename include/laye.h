@@ -93,7 +93,9 @@ typedef struct laye_module {
     // namespaces to reference when traversing imports.
     // *only* for imports which generate namespaces.
     //dynarr(laye_module_import) imports;
+
     laye_symbol* exports;
+    laye_symbol* imports;
 
     dynarr(laye_token) _all_tokens;
     dynarr(laye_node*) _all_nodes;

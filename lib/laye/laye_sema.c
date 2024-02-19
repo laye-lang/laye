@@ -69,9 +69,7 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
         laye_module* search_module = from_module;
 
         for (int64_t name_index = 0, name_count = arr_count(nameref.pieces); name_index < name_count; name_index++) {
-            //bool is_last_name = name_index == name_count - 1;
-
-
+            // bool is_last_name = name_index == name_count - 1;
         }
     }
 
@@ -232,75 +230,50 @@ static int64_t maxi(int64_t a, int64_t b) {
     return a > b ? a : b;
 }
 
-static void laye_handle_module_imports(layec_context* context, laye_module* module) {
-    assert(context != NULL);
-    assert(module != NULL);
+static bool is_identifier_char(int c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
+}
 
-    if (module->has_handled_imports) {
-        return;
-    }
+static string_view import_string_to_laye_identifier_string(laye_node* import_node) {
+    assert(import_node != NULL);
+    assert(import_node->module != NULL);
+    assert(import_node->module->context != NULL);
 
-    module->has_handled_imports = true;
+    layec_context* context = import_node->module->context;
 
-    assert(module->exports == NULL);
-    module->exports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
-    assert(module->exports != NULL);
+    string_view module_name = import_node->decl_import.import_alias.string_value;
+    if (module_name.count == 0) {
+        module_name = string_as_view(layec_context_get_source(context, import_node->decl_import.referenced_module->sourceid).name);
 
-    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
-        laye_node* top_level_node = module->top_level_nodes[i];
-        if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
-            laye_token module_name_token = top_level_node->decl_import.module_name;
-            if (module_name_token.kind == LAYE_TOKEN_IDENT) {
-                layec_write_error(context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
-            }
+        int64_t last_slash_index = maxi(string_view_last_index_of(module_name, '/'), string_view_last_index_of(module_name, '\\'));
+        if (last_slash_index >= 0) {
+            module_name.data += (last_slash_index + 1);
+            module_name.count -= (last_slash_index + 1);
+        }
 
-            string_view module_name = module_name_token.string_value;
+        int64_t first_dot_index = string_view_index_of(module_name, '.');
+        if (first_dot_index >= 0) {
+            module_name.count = first_dot_index;
+        }
 
-            layec_source source = layec_context_get_source(context, module->sourceid);
-
-            string_view this_file_dir = string_as_view(source.name);
-            int64_t last_slash_index = maxi(string_view_last_index_of(this_file_dir, '/'), string_view_last_index_of(this_file_dir, '\\'));
-
-            string lookup_path = string_create(default_allocator);
-            if (last_slash_index < 0) {
-                lca_string_append_format(&lookup_path, "./");
-            } else {
-                this_file_dir.count = last_slash_index;
-                string_append_format(&lookup_path, "%.*s", STR_EXPAND(this_file_dir));
-            }
-
-            string_path_append_view(&lookup_path, module_name);
-            //fprintf(stderr, "%.*s\n", STR_EXPAND(lookup_path));
-            if (!lca_plat_file_exists(string_as_cstring(lookup_path))) {
-                layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name));
-                continue;
-            }
-
-            layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, string_as_view(lookup_path));
-            string_destroy(&lookup_path);
-
-            laye_module* found = NULL;
-            for (int64_t i = 0, count = arr_count(context->laye_modules); i < count && found == NULL; i++) {
-                laye_module* module = context->laye_modules[i];
-                if (module->sourceid == sourceid) {
-                    found = module;
+        if (module_name.count == 0) {
+            layec_write_error(context, import_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
+        } else {
+            for (int64_t j = 0; j < module_name.count; j++) {
+                if (!is_identifier_char(module_name.data[j])) {
+                    layec_write_error(context, import_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
+                    break;
                 }
             }
-
-            if (found != NULL) {
-                top_level_node->decl_import.referenced_module = found;
-                // already loaded, should be doing things
-                continue;
-            }
-
-            found = laye_parse(context, sourceid);
-            assert(found != NULL);
-
-            top_level_node->decl_import.referenced_module = found;
-            laye_handle_module_imports(context, found);
         }
+
+        // layec_write_note(context, import_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", STR_EXPAND(module_name));
     }
+
+    return module_name;
 }
+
+#if 0
 
 static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_module* queried_module, laye_node* query) {
     assert(context != NULL);
@@ -334,69 +307,170 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
     }
 }
 
-static bool is_identifier_char(int c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
-}
-
 static void laye_populate_module_import_scopes(layec_context* context, laye_module* module) {
     assert(context != NULL);
     assert(module != NULL);
 
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
-        if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
-            assert(top_level_node->decl_import.referenced_module != NULL);
+        switch (top_level_node->kind) {
+            default: break;
 
-            if (arr_count(top_level_node->decl_import.import_queries) == 0) {
-                string_view module_name = top_level_node->decl_import.import_alias.string_value;
-                if (module_name.count == 0) {
-                    module_name = string_as_view(layec_context_get_source(context, top_level_node->decl_import.referenced_module->sourceid).name);
+            case LAYE_NODE_DECL_IMPORT: {
+                assert(top_level_node->decl_import.referenced_module != NULL);
 
-                    int64_t last_slash_index = maxi(string_view_last_index_of(module_name, '/'), string_view_last_index_of(module_name, '\\'));
-                    if (last_slash_index >= 0) {
-                        module_name.data += (last_slash_index + 1);
-                        module_name.count -= (last_slash_index + 1);
-                    }
+                if (arr_count(top_level_node->decl_import.import_queries) == 0) {
+                    string_view module_name = import_string_to_laye_identifier_string(context, top_level_node);
+                    assert(module_name.count > 0);
 
-                    int64_t first_dot_index = string_view_index_of(module_name, '.');
-                    if (first_dot_index >= 0) {
-                        module_name.count = first_dot_index;
-                    }
-
-                    if (module_name.count == 0) {
-                        layec_write_error(context, top_level_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
+                    if (laye_symbol_lookup(module->imports, module_name) != NULL) {
+                        layec_write_error(module->context, top_level_node->location, "Redeclaration of name '%.*s'.", STR_EXPAND(module_name));
                     } else {
-                        for (int64_t j = 0; j < module_name.count; j++) {
-                            if (!is_identifier_char(module_name.data[j])) {
-                                layec_write_error(context, top_level_node->decl_import.module_name.location, "Could not implicitly create a valid Laye identifier from the module file path.");
-                                break;
-                            }
+                        laye_symbol* import_scope = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, module_name);
+                        assert(import_scope != NULL);
+
+                        arr_push(module->imports->symbols, import_scope);
+
+                        if (top_level_node->attributes.linkage == LAYEC_LINK_EXPORTED) {
+                            assert(laye_symbol_lookup(module->exports, module_name) == NULL && "somehow, this module already exports something with the same name");
+                            arr_push(module->exports->symbols, import_scope);
+                        }
+
+                        // shallow-copy all of the referenced module's exports into this new scope for our own imports (and potentially exports)
+                        laye_module* referenced_module = top_level_node->decl_import.referenced_module;
+                        for (int64_t export_index = 0, export_count = arr_count(referenced_module->exports->symbols); export_index < export_count; export_index++) {
+                            laye_symbol* imported_symbol = referenced_module->exports->symbols[export_index];
+                            assert(imported_symbol != NULL);
+                            assert(laye_symbol_lookup(import_scope, imported_symbol->name) == NULL);
+                            arr_push(import_scope->symbols, imported_symbol);
                         }
                     }
+                } else {
+                    // no import namespaces, populate this scope directly
+                    dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
+                    for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
+                        laye_node* query = queries[j];
+                        assert(query != NULL);
 
-                    //layec_write_note(context, top_level_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", STR_EXPAND(module_name));
-                }
-
-                /*
-                laye_module_import module_import_info = {
-                    .referenced_module = top_level_node->decl_import.referenced_module,
-                    .name = module_name,
-                };
-
-                arr_push(module->imports, module_import_info);
-                */
-            } else {
-                // no import namespaces, populate this scope directly
-                dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
-                for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
-                    laye_node* query = queries[j];
-                    assert(query != NULL);
-
-                    laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
+                        laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
+                    }
                 }
             }
+
+            case LAYE_NODE_DECL_ALIAS:
+            case LAYE_NODE_DECL_BINDING:
+            case LAYE_NODE_DECL_ENUM:
+            case LAYE_NODE_DECL_FUNCTION:
+            case LAYE_NODE_DECL_STRUCT: {
+                if (top_level_node->attributes.linkage != LAYEC_LINK_EXPORTED) {
+                    break;
+                }
+
+                laye_symbol* export_symbol = laye_symbol_lookup(module->exports, top_level_node->declared_name);
+                if (export_symbol != NULL) {
+                    if (export_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                        layec_write_error(module->context, top_level_node->location, "Redeclaration of symbol '%.*s', previously declared as a namespace.", STR_EXPAND(top_level_node->declared_name));
+                        break;
+                    }
+                } else {
+                    export_symbol = laye_symbol_create(module, LAYE_SYMBOL_ENTITY, top_level_node->declared_name);
+                    arr_push(module->exports->symbols, export_symbol);
+                }
+
+                assert(export_symbol != NULL);
+                assert(export_symbol->kind == LAYE_SYMBOL_ENTITY);
+
+                arr_push(export_symbol->nodes, top_level_node);
+            } break;
         }
     }
+}
+
+#endif
+
+static void laye_sema_resolve_module_import_declarations(layec_context* context, laye_module* module) {
+    assert(context != NULL);
+    assert(module != NULL);
+
+    if (module->has_handled_imports) {
+        return;
+    }
+
+    module->has_handled_imports = true;
+
+    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+        laye_node* top_level_node = module->top_level_nodes[i];
+        assert(top_level_node != NULL);
+
+        switch (top_level_node->kind) {
+            default: break; // nothing else is an import declaration, just ignore them in this step
+
+            case LAYE_NODE_DECL_IMPORT: {
+                laye_token module_name_token = top_level_node->decl_import.module_name;
+                if (module_name_token.kind == LAYE_TOKEN_IDENT) {
+                    layec_write_error(context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
+                }
+
+                string_view module_name = module_name_token.string_value;
+
+                layec_source source = layec_context_get_source(context, module->sourceid);
+
+                string_view this_file_dir = string_as_view(source.name);
+                int64_t last_slash_index = maxi(string_view_last_index_of(this_file_dir, '/'), string_view_last_index_of(this_file_dir, '\\'));
+
+                string lookup_path = string_create(default_allocator);
+                if (last_slash_index < 0) {
+                    lca_string_append_format(&lookup_path, "./");
+                } else {
+                    this_file_dir.count = last_slash_index;
+                    string_append_format(&lookup_path, "%.*s", STR_EXPAND(this_file_dir));
+                }
+
+                string_path_append_view(&lookup_path, module_name);
+                // fprintf(stderr, "%.*s\n", STR_EXPAND(lookup_path));
+                if (!lca_plat_file_exists(string_as_cstring(lookup_path))) {
+                    layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name));
+                    continue;
+                }
+
+                layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, string_as_view(lookup_path));
+                string_destroy(&lookup_path);
+
+                laye_module* found = NULL;
+                for (int64_t i = 0, count = arr_count(context->laye_modules); i < count && found == NULL; i++) {
+                    laye_module* module = context->laye_modules[i];
+                    if (module->sourceid == sourceid) {
+                        found = module;
+                    }
+                }
+
+                if (found != NULL) {
+                    top_level_node->decl_import.referenced_module = found;
+                    // already loaded, should be doing things
+                    continue;
+                }
+
+                found = laye_parse(context, sourceid);
+                assert(found != NULL);
+
+                top_level_node->decl_import.referenced_module = found;
+                laye_sema_resolve_module_import_declarations(context, found);
+            } break;
+        }
+    }
+}
+
+static void laye_sema_build_module_symbol_tables(layec_context* context, laye_module* module) {
+    assert(context != NULL);
+    assert(module != NULL);
+
+    assert(module->exports == NULL);
+    module->exports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
+    assert(module->exports != NULL);
+
+    assert(module->imports == NULL);
+    module->imports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
+    assert(module->imports != NULL);
 }
 
 void laye_analyse(layec_context* context) {
@@ -408,6 +482,8 @@ void laye_analyse(layec_context* context) {
         .dependencies = context->laye_dependencies,
     };
 
+    #if 0
+
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_handle_module_imports(context, context->laye_modules[i]);
     }
@@ -416,10 +492,34 @@ void laye_analyse(layec_context* context) {
         laye_populate_module_import_scopes(context, context->laye_modules[i]);
     }
 
+    #endif
+
+    // Step 1 of generating semantic symbols is making sure we have access to all of the modules we want to use.
+    // We walk through all import declarations recursively for all modules and resolve them to a valid module pointer.
+    // This may involve parsing all new source files if they haven't been parsed yet.
+    // NOTHING ELSE HAPPENS IN THIS STAGE
+    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+        laye_sema_resolve_module_import_declarations(context, context->laye_modules[i]);
+    }
+
+    // Step 2 is building the import/export symbol tables for each module.
+    // This can entirely be done syntactically, though imports which import all of something, without explicit names,
+    // cause a handful of dependency issues.
+    // These imports need to know what all is exported from a module before they can import those symbols, so modules
+    // which export all of something else must be resolved first before they can be imported elsewhere.
+    // For the time being, we just ignore this.
+    // This will be the job for a dependency system in the future, but we don't need it right away.
+    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+        laye_sema_build_module_symbol_tables(context, context->laye_modules[i]);
+
+        assert(context->laye_modules[i]->imports != NULL);
+        assert(context->laye_modules[i]->exports != NULL);
+    }
+
     // TODO(local): somewhere in here, before sema is done, we have to check for redeclared symbols.
     // probably after top level types.
 
-    return;
+    //return;
 
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);
@@ -1315,7 +1415,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     break;
                 }
             }
-            
+
             string from_type_string = string_create(sema->context->allocator);
             laye_type_print_to_string(type_from, &from_type_string, sema->context->use_color);
 
