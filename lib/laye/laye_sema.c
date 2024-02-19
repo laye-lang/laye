@@ -1301,17 +1301,26 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 break;
             }
 
+            laye_type type_to = node->type;
+            laye_type type_from = node->cast.operand->type;
+
             if (node->cast.kind == LAYE_CAST_HARD) {
-                if (laye_type_is_numeric(node->cast.operand->type) && laye_type_is_numeric(node->type)) {
+                // hard casts between numbers are allowed
+                if (laye_type_is_numeric(type_from) && laye_type_is_numeric(type_to)) {
+                    break;
+                }
+
+                // hard casts from pointer to pointer are allowed
+                if (laye_type_is_pointer(type_from) && laye_type_is_pointer(type_to)) {
                     break;
                 }
             }
             
             string from_type_string = string_create(sema->context->allocator);
-            laye_type_print_to_string(node->cast.operand->type, &from_type_string, sema->context->use_color);
+            laye_type_print_to_string(type_from, &from_type_string, sema->context->use_color);
 
             string to_type_string = string_create(sema->context->allocator);
-            laye_type_print_to_string(node->type, &to_type_string, sema->context->use_color);
+            laye_type_print_to_string(type_to, &to_type_string, sema->context->use_color);
 
             node->sema_state = LAYEC_SEMA_ERRORED;
             layec_write_error(
@@ -2026,6 +2035,7 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_t
 
         string to_type_string = string_create(sema->context->allocator);
         laye_type_print_to_string(to, &to_type_string, sema->context->use_color);
+
 
         (*node)->sema_state = LAYEC_SEMA_ERRORED;
         layec_write_error(
