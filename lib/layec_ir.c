@@ -1212,7 +1212,8 @@ static void layec_builder_recalculate_instruction_indices(layec_builder* builder
     assert(builder->function != NULL);
     assert(layec_value_is_function(builder->function));
 
-    int64_t instruction_index = 0;
+    int64_t instruction_index = layec_function_type_parameter_count(builder->function->type);
+    
     for (int64_t b = 0, bcount = arr_count(builder->function->function.blocks); b < bcount; b++) {
         layec_value* block = builder->function->function.blocks[b];
         assert(block != NULL);
