@@ -224,15 +224,11 @@ int main(int argc, char** argv) {
     if (args.output_file.count != 0) {
         output_file_path = string_view_to_string(default_allocator, args.output_file);
     } else {
-        if (arr_count(args.input_files) == 1) {
-            output_file_path = string_view_change_extension(default_allocator, args.input_files[0], "");
-        } else {
 #if _WIN32
-            output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.exe"));
+        output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.exe"));
 #else
-            output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.out"));
+        output_file_path = string_view_to_string(default_allocator, SV_CONSTANT("./a.out"));
 #endif
-        }
     }
 
     Nob_Cmd clang_ll_cmd = {0};
