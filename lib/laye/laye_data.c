@@ -3,6 +3,39 @@
 
 #include <assert.h>
 
+laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, string_view name) {
+    laye_symbol* symbol = lca_arena_push(module->arena, sizeof *symbol);
+    assert(symbol != NULL);
+    symbol->kind = kind;
+    symbol->name = name;
+    arr_push(module->_all_symbols, symbol);
+    return symbol;
+}
+
+laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, string_view name) {
+    assert(symbol_namespace != NULL);
+    assert(symbol_namespace->kind == LAYE_SYMBOL_NAMESPACE);
+
+    for (int64_t i = 0, count = arr_count(symbol_namespace->symbols); i < count; i++) {
+        laye_symbol* lookup = symbol_namespace->symbols[i];
+        if (string_view_equals(name, lookup->name)) {
+            return lookup;
+        }
+    }
+
+    return NULL;
+}
+
+void laye_symbol_destroy(laye_symbol* symbol) {
+    if (symbol == NULL) return;
+
+    if (symbol->kind == LAYE_SYMBOL_ENTITY) {
+        arr_free(symbol->nodes);
+    } else {
+        arr_free(symbol->symbols);
+    }
+}
+
 void laye_module_destroy(laye_module* module) {
     if (module == NULL) return;
 
@@ -27,12 +60,19 @@ void laye_module_destroy(laye_module* module) {
         laye_scope_destroy(scope);
     }
 
+    for (int64_t i = 0, count = arr_count(module->_all_symbols); i < count; i++) {
+        laye_symbol* symbol = module->_all_symbols[i];
+        assert(symbol != NULL);
+        laye_symbol_destroy(symbol);
+    }
+
     arr_free(module->_all_tokens);
     arr_free(module->_all_nodes);
     arr_free(module->_all_scopes);
+    arr_free(module->_all_symbols);
 
     arr_free(module->top_level_nodes);
-    arr_free(module->imports);
+    //arr_free(module->imports);
 
     lca_arena_destroy(module->arena);
 
@@ -80,12 +120,12 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, strin
     assert(module != NULL);
 
     bool is_type_declaration = declaration->kind == LAYE_NODE_DECL_STRUCT || declaration->kind == LAYE_NODE_DECL_ENUM || declaration->kind == LAYE_NODE_DECL_ALIAS || declaration->kind == LAYE_NODE_DECL_TEMPLATE_TYPE;
-    dynarr(laye_scope_entry)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
+    dynarr(laye_aliased_node)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
     assert(entity_namespace != NULL);
 
     if (!is_type_declaration) {
         for (int64_t i = 0, count = arr_count(*entity_namespace); i < count; i++) {
-            laye_scope_entry entry = (*entity_namespace)[i];
+            laye_aliased_node entry = (*entity_namespace)[i];
             
             string_view existing_name = entry.name;
             laye_node* existing_declaration = entry.node;
@@ -102,18 +142,18 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, strin
         }
     }
 
-    arr_push(*entity_namespace, ((laye_scope_entry){
+    arr_push(*entity_namespace, ((laye_aliased_node){
         .name = alias,
         .node = declaration,
     }));
 }
 
-static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_scope_entry) declarations, string_view name) {
+static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_aliased_node) declarations, string_view name) {
     assert(scope != NULL);
     assert(scope->module != NULL);
 
     for (int64_t i = 0, count = arr_count(declarations); i < count; i++) {
-        laye_scope_entry entry = declarations[i];
+        laye_aliased_node entry = declarations[i];
         assert(entry.node != NULL);
 
         if (string_view_equals(entry.name, name))
@@ -714,7 +754,7 @@ laye_type laye_type_with_source(laye_node* type_node, laye_node* source_node, bo
 }
 
 bool laye_node_kind_is_decl(laye_node_kind kind) {
-    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_PROXY;
+    return kind >= LAYE_NODE_DECL_IMPORT && kind <= LAYE_NODE_DECL_TEST;
 }
 
 bool laye_node_kind_is_type(laye_node_kind kind) {

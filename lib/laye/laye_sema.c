@@ -242,6 +242,10 @@ static void laye_handle_module_imports(layec_context* context, laye_module* modu
 
     module->has_handled_imports = true;
 
+    assert(module->exports == NULL);
+    module->exports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
+    assert(module->exports != NULL);
+
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
         if (top_level_node->kind == LAYE_NODE_DECL_IMPORT) {
@@ -298,29 +302,36 @@ static void laye_handle_module_imports(layec_context* context, laye_module* modu
     }
 }
 
-typedef struct laye_sema_aliased_node {
-    string_view alias;
-    laye_node* node;
-} laye_sema_aliased_node;
-
-static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_node* query) {
+static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_module* queried_module, laye_node* query) {
     assert(context != NULL);
     assert(module != NULL);
-    // `module` is not the current module, but the module we are querying into.
+    assert(queried_module != NULL);
 
-    /*
-    string_view alias = entities[i].alias;
-    if (alias.count > 0) {
-        laye_node* proxy = laye_node_create(module, LAYE_NODE_DECL_PROXY, entity->location, entity->type);
-        assert(proxy != NULL);
-        proxy->proxl_declaration = entity;
-        proxy->declared_name = alias;
-        proxy->declared_type = entity->declared_type;
-        entity = proxy;
+    laye_module* search_module = queried_module;
+    if (query->import_query.is_wildcard) {
+        laye_symbol* search_namespace = module->exports;
+    } else {
+        /*
+
+        // populate the module's scope with the imported entities.
+        for (int64_t k = 0, k_count = arr_count(query->import_query.imported_entities); k < k_count; k++) {
+            laye_node* entity = query->import_query.imported_entities[k];
+            assert(laye_node_is_decl(entity));
+            assert(entity->declared_name.count > 0);
+            assert(entity->declared_name.data != NULL);
+
+            if (query->import_query.alias.string_value.count > 0)
+                laye_scope_declare_aliased(module->scope, entity, query->import_query.alias.string_value);
+            else laye_scope_declare(module->scope, entity);
+        }
+
+        // add imported modules to the same import module array as import declarations with namespaces.
+        for (int64_t k = 0, k_count = arr_count(query->import_query.imported_modules); k < k_count; k++) {
+            arr_push(module->imports, query->import_query.imported_modules[k]);
+        }
+
+        */
     }
-    */
-    
-    //assert(false && "unimplemented");
 }
 
 static bool is_identifier_char(int c) {
@@ -366,33 +377,22 @@ static void laye_populate_module_import_scopes(layec_context* context, laye_modu
                     //layec_write_note(context, top_level_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", STR_EXPAND(module_name));
                 }
 
+                /*
                 laye_module_import module_import_info = {
                     .referenced_module = top_level_node->decl_import.referenced_module,
                     .name = module_name,
                 };
 
                 arr_push(module->imports, module_import_info);
+                */
             } else {
                 // no import namespaces, populate this scope directly
                 dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
                 for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
                     laye_node* query = queries[j];
-                    laye_sema_resolve_import_query(context, top_level_node->decl_import.referenced_module, query);
+                    assert(query != NULL);
 
-                    // populate the module's scope with the imported entities.
-                    for (int64_t k = 0, k_count = arr_count(query->import_query.imported_entities); k < k_count; k++) {
-                        laye_node* entity = query->import_query.imported_entities[k];
-                        assert(laye_node_is_decl(entity));
-                        assert(entity->declared_name.count > 0);
-                        assert(entity->declared_name.data != NULL);
-
-                        laye_scope_declare(module->scope, entity);
-                    }
-
-                    // add imported modules to the same import module array as import declarations with namespaces.
-                    for (int64_t k = 0, k_count = arr_count(query->import_query.imported_modules); k < k_count; k++) {
-                        arr_push(module->imports, query->import_query.imported_modules[k]);
-                    }
+                    laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
                 }
             }
         }
@@ -419,7 +419,7 @@ void laye_analyse(layec_context* context) {
     // TODO(local): somewhere in here, before sema is done, we have to check for redeclared symbols.
     // probably after top level types.
 
-    //return;
+    return;
 
     for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);

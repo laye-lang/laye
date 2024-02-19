@@ -54,9 +54,29 @@ typedef enum laye_cast_kind {
 } laye_cast_kind;
 
 typedef struct laye_module_import {
+    bool is_exported;
     string_view name;
     struct laye_module* referenced_module;
 } laye_module_import;
+
+typedef struct laye_aliased_node {
+    string_view name;
+    laye_node* node;
+} laye_aliased_node;
+
+typedef enum laye_symbol_kind {
+    LAYE_SYMBOL_ENTITY,
+    LAYE_SYMBOL_NAMESPACE,
+} laye_symbol_kind;
+
+typedef struct laye_symbol {
+    laye_symbol_kind kind;
+    string_view name;
+    union {
+        dynarr(laye_node*) nodes;
+        dynarr(struct laye_symbol*) symbols;
+    };
+} laye_symbol;
 
 typedef struct laye_module {
     layec_context* context;
@@ -69,19 +89,17 @@ typedef struct laye_module {
     lca_arena* arena;
 
     dynarr(laye_node*) top_level_nodes;
+
     // namespaces to reference when traversing imports.
     // *only* for imports which generate namespaces.
-    dynarr(laye_module_import) imports;
+    //dynarr(laye_module_import) imports;
+    laye_symbol* exports;
 
     dynarr(laye_token) _all_tokens;
     dynarr(laye_node*) _all_nodes;
     dynarr(laye_scope*) _all_scopes;
+    dynarr(laye_symbol*) _all_symbols;
 } laye_module;
-
-typedef struct laye_scope_entry {
-    string_view name;
-    laye_node* node;
-} laye_scope_entry;
 
 struct laye_scope {
     // the module this scope is defined in.
@@ -95,9 +113,9 @@ struct laye_scope {
     bool is_function_scope;
     // "value"s declared in this scope.
     // here, "value" refers to non-type declarations like variables or functions.
-    dynarr(laye_scope_entry) value_declarations;
+    dynarr(laye_aliased_node) value_declarations;
     // types declared in this scope.
-    dynarr(laye_scope_entry) type_declarations;
+    dynarr(laye_aliased_node) type_declarations;
 };
 
 typedef enum laye_mut_compare {
@@ -287,7 +305,6 @@ struct laye_token {
     X(DECL_TEMPLATE_TYPE)      \
     X(DECL_TEMPLATE_VALUE)     \
     X(DECL_TEST)               \
-    X(DECL_PROXY)              \
     X(IMPORT_QUERY)            \
     X(LABEL)                   \
     X(EMPTY)                   \
@@ -493,7 +510,6 @@ struct laye_node {
     // and the types declared by struct, enum or alias declarations.
     // this is not needed for import declarations, for example.
     laye_type declared_type;
-    laye_node* proxl_declaration;
 
     // should not contain any unique information when compared to the shared fields above,
     // but for syntactic preservation these nodes are stored with every declaration anyway.
@@ -530,9 +546,6 @@ struct laye_node {
             bool is_wildcard;
             dynarr(laye_token) pieces;
             laye_token alias;
-
-            dynarr(laye_node*) imported_entities;
-            dynarr(laye_module_import) imported_modules;
         } import_query;
 
         // not likely to ever be representable in Laye syntax, the `overloads`
@@ -887,6 +900,8 @@ struct laye_node {
         struct {
             // the condition to assert against.
             laye_node* condition;
+            // string literal message to include when the assert fails.
+            laye_token message;
         } _assert;
 
         struct {
@@ -1151,6 +1166,12 @@ laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
 void laye_analyse(layec_context* context);
 layec_module* laye_irgen(laye_module* module);
 void laye_module_destroy(laye_module* module);
+
+//
+
+laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, string_view name);
+void laye_symbol_destroy(laye_symbol* symbol);
+laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, string_view name);
 
 //
 
