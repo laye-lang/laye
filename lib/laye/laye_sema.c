@@ -305,7 +305,7 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
             }
 
             assert(imported_symbol != NULL);
-            
+
             if (exported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
                 assert(imported_symbol->kind == LAYE_SYMBOL_NAMESPACE);
                 // this node should also be freshly created
@@ -325,9 +325,101 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
     } else {
         assert(arr_count(query->import_query.pieces) > 0);
 
-        int64_t name_index = 0;
-        string_view search_name = query->import_query.pieces[name_index].string_value;
+        laye_symbol* resolved_symbol = NULL;
+        for (int64_t i = 0, count = arr_count(query->import_query.pieces); i < count; i++) {
+            bool is_last_name_in_path = i == count - 1;
 
+            laye_token search_token = query->import_query.pieces[i];
+            string_view search_name = search_token.string_value;
+
+            assert(search_namespace != NULL);
+
+            if (search_namespace->kind == LAYE_SYMBOL_ENTITY) {
+                assert(i > 0);
+                laye_token previous_search_token = query->import_query.pieces[i - 1];
+                layec_write_error(
+                    context,
+                    previous_search_token.location,
+                    "The imported name '%.*s' does not resolve to a namespace. Cannot search it for a child entity named '%.*s'.",
+                    STR_EXPAND(previous_search_token.string_value),
+                    STR_EXPAND(search_name)
+                );
+                break;
+            }
+
+            assert(search_namespace->kind == LAYE_SYMBOL_NAMESPACE);
+
+            laye_symbol* found_lookup_symbol = NULL;
+            for (int64_t j = 0, j_count = arr_count(search_namespace->symbols); j < j_count; j++) {
+                laye_symbol* search_symbol = search_namespace->symbols[j];
+                assert(search_symbol != NULL);
+
+                if (string_view_equals(search_symbol->name, search_name)) {
+                    found_lookup_symbol = search_symbol;
+                    break;
+                }
+            }
+
+            if (found_lookup_symbol == NULL) {
+                layec_write_error(
+                    context,
+                    search_token.location,
+                    "The name '%.*s' does not exist in this context.",
+                    STR_EXPAND(search_name)
+                );
+                break;
+            }
+
+            if (is_last_name_in_path) {
+                resolved_symbol = found_lookup_symbol;
+            } else {
+                search_namespace = found_lookup_symbol;
+            }
+        }
+
+        if (resolved_symbol == NULL) {
+            // if all went well, we reported an error. just leave
+            return;
+        }
+
+        string_view query_result_name = query->import_query.alias.string_value;
+        if (query_result_name.count == 0) {
+            query_result_name = query->import_query.pieces[arr_count(query->import_query.pieces) - 1].string_value;
+        }
+
+        laye_symbol* imported_symbol = laye_symbol_lookup(module->imports, query_result_name);
+        if (imported_symbol == NULL) {
+            imported_symbol = laye_symbol_create(module, resolved_symbol->kind, query_result_name);
+            assert(imported_symbol != NULL);
+            arr_push(module->imports->symbols, imported_symbol);
+        } else {
+            if (resolved_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                layec_write_error(context, query->location, "Query imports symbol '%.*s', which is a namespace. This symbol has already been declared, and namespace names cannot be overloaded.");
+                return;
+            }
+
+            if (imported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+                layec_write_error(context, query->location, "Query imports symbol '%.*s', which was previously imported as a namespace. Namespace names cannot be overloaded.");
+                return;
+            }
+        }
+
+        if (resolved_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+            assert(imported_symbol->kind == LAYE_SYMBOL_NAMESPACE);
+            // this node should also be freshly created
+            assert(arr_count(imported_symbol->symbols) == 0);
+
+            for (int64_t j = 0, j_count = arr_count(resolved_symbol->symbols); j < j_count; j++) {
+                arr_push(imported_symbol->symbols, resolved_symbol->symbols[j]);
+            }
+        } else {
+            assert(imported_symbol->kind == LAYE_SYMBOL_ENTITY);
+
+            for (int64_t j = 0, j_count = arr_count(resolved_symbol->nodes); j < j_count; j++) {
+                arr_push(imported_symbol->nodes, resolved_symbol->nodes[j]);
+            }
+        }
+        
         /*
 
         // populate the module's scope with the imported entities.
@@ -558,7 +650,7 @@ void laye_analyse(layec_context* context) {
     // (in dependency order)
     for (int64_t i = 0, count = arr_count(ordered_modules); i < count; i++) {
         laye_module* module = ordered_modules[i];
-        //fprintf(stderr, "module: %.*s\n", STR_EXPAND(layec_context_get_source(context, module->sourceid).name));
+        // fprintf(stderr, "module: %.*s\n", STR_EXPAND(layec_context_get_source(context, module->sourceid).name));
         laye_sema_build_module_symbol_tables(context, module);
 
         assert(module->imports != NULL);
@@ -876,8 +968,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_DECL_FUNCTION_PARAMETER: {
             laye_sema_analyse_type(sema, &node->declared_type);
             if (node->decl_function_parameter.default_value != NULL) {
-                //TODO: Analyse default value
-                //node->decl_function_parameter.default_value
+                // TODO: Analyse default value
+                // node->decl_function_parameter.default_value
             }
         } break;
 
@@ -2202,7 +2294,6 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_t
 
         string to_type_string = string_create(sema->context->allocator);
         laye_type_print_to_string(to, &to_type_string, sema->context->use_color);
-
 
         (*node)->sema_state = LAYEC_SEMA_ERRORED;
         layec_write_error(

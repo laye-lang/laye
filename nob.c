@@ -1,17 +1,24 @@
+#ifndef CC
+#    if defined(__clang__)
+#        define CC "clang"
+#    elif defined(__GNUC__)
+#        define CC "gcc"
+#    elif defined(_MSC_VER)
+#        define NOB_CL_EXE
+#        define CC "cl.exe"
+#    else
+#        define CC "cc"
+#    endif
+#endif
+
+#ifdef NOB_CL_EXE
+#    define NOB_REBUILD_URSELF(binary_path, source_path) CC, source_path
+#else
+#    define NOB_REBUILD_URSELF(binary_path, source_path) CC, "-o", binary_path, source_path
+#endif
+
 #define NOB_IMPLEMENTATION
 #include "include/nob.h"
-
-#ifndef CC
-#  if defined(__clang__)
-#    define CC "clang"
-#  elif defined(__GNUC__)
-#    define CC "gcc"
-#  elif defined(_MSC_VER)
-#    define CC "cl.exe"
-#  else
-#    define CC "cc"
-#  endif
-#endif
 
 typedef struct args {
     const char* build_project;
@@ -84,6 +91,9 @@ static void build_all() {
     build_parse_fuzzer();
 }
 
+static void install() {
+}
+
 static void run_fchk(bool rebuild) {
     build_layec_driver();
 
@@ -137,6 +147,15 @@ int main(int argc, char** argv) {
             nob_cmd_append(&cmd, "./out/layec");
             nob_da_append_many(&cmd, argv, argc);
             nob_cmd_run_sync(cmd);
+        } else if (0 == strcmp("install", command)) {
+            if (argc == 0) {
+                fprintf(stderr, "install command expects an install directory as its only argument.\n");
+                return 1;
+            }
+
+            const char* install_prefix = nob_shift_args(&argc, &argv);
+            build_layec_driver();
+            nob_copy_file("./out/layec", nob_temp_sprintf("%s/layec", install_prefix));
         } else if (0 == strcmp("fuzz", command)) {
             build_parse_fuzzer();
 
