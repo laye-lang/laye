@@ -46,7 +46,9 @@ static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
 }
 
-static char *layec_sources[] = {
+static const char *layec_headers_dir = "./include/";
+
+static const char *layec_sources[] = {
     "./lib/layec_shared.c",
     "./lib/layec_context.c",
     "./lib/layec_depgraph.c",
@@ -65,7 +67,7 @@ static char *layec_sources[] = {
 static int64_t layec_sources_count = sizeof(layec_sources) / sizeof(layec_sources[0]);
 static int64_t layec_sources_count_without_main = (sizeof(layec_sources) / sizeof(layec_sources[0])) - 1;
 
-static char *to_object_file_path(char *filepath) {
+static char *to_object_file_path(const char *filepath) {
     char *filename = basename((char *) filepath);
     char *objectfile_path = nob_temp_sprintf(BUILD_DIR"/"OBJECT_DIR"/%s.o", filename);
 
@@ -76,7 +78,44 @@ static void build_layec_object_files(bool complete_rebuild) {
     Nob_Proc processes[layec_sources_count];
     bool compiled_anything = false;
 
-    for (int i = 0; i < layec_sources_count; i++) {
+    // If no build directory exits it needs to be fully rebuild anyways
+    if (nob_file_exists(BUILD_DIR) != 1) complete_rebuild = true;
+
+    // checking for change in the header files
+    if (!complete_rebuild) {
+        Nob_File_Paths header_files = {0};
+
+        // TODO: Support nesting
+        // currently we check everything in the `layec_headers_dir` we can find, so
+        // no proper handling of non-header files and no handling of directories
+        if (!nob_read_entire_dir(layec_headers_dir, &header_files)) {
+            nob_log(NOB_WARNING, "Couldn't read header directory. Forcing rebuild");
+            complete_rebuild = true;
+            goto build;
+        }
+
+        // We need to rebuild, if any header file is newer than *some* object file.
+        // It can be *some* object file, because the newest object file will always
+        // be as old as the last built, so if a header file gets modified it will be
+        // newer than all object files
+        char *output_path = to_object_file_path(layec_sources[0]);
+
+        // add directory and file together as `nob_read_entire_dir` doesn't do this
+        size_t checkpoint = nob_temp_save();
+        for (int64_t i = 0; i < header_files.count; i++) {
+            header_files.items[i] = nob_temp_sprintf("%s/%s", layec_headers_dir, header_files.items[i]);
+        }
+
+        int64_t rebuild_is_needed = nob_needs_rebuild(output_path, header_files.items, header_files.count);
+        nob_temp_rewind(checkpoint);
+
+        if (rebuild_is_needed < 0) {
+            nob_log(NOB_WARNING, "Couldn't detected if headers changed. Forcing rebuild");
+        } else if (rebuild_is_needed) complete_rebuild = true;
+    }
+
+    build:
+    for (int64_t i = 0; i < layec_sources_count; i++) {
         char *output_path = to_object_file_path(layec_sources[i]);
 
         if (!complete_rebuild) {
