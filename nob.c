@@ -288,15 +288,18 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            const char* install_prefix = nob_shift_args(&argc, &argv);
+            const char* bin_prefix = nob_shift_args(&argc, &argv);
+            const char* lib_prefix = nob_shift_args(&argc, &argv);
 
-            if (!nob_mkdir_if_not_exists(install_prefix)) return 1;
-            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/bin", install_prefix))) return 1;
-            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/lib", install_prefix))) return 1;
+            if (!nob_mkdir_if_not_exists(bin_prefix)) return 1;
+
+            if (!nob_mkdir_if_not_exists(lib_prefix)) return 1;
+            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/lib", lib_prefix))) return 1;
 
             build_layec_driver();
 
-            nob_copy_file(BUILD_DIR"/layec", nob_temp_sprintf("%s/bin/layec", install_prefix));
+            nob_copy_file(BUILD_DIR"/layec", nob_temp_sprintf("%s/layec", bin_prefix));
+            nob_copy_directory_recursively("./liblaye", nob_temp_sprintf("%s/lib/liblaye", lib_prefix));
         } else if (0 == strcmp("fuzz", command)) {
             build_layec_object_files(false);
             build_parse_fuzzer();

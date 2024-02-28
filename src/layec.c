@@ -323,6 +323,20 @@ static bool parse_args(args* args, int* argc, char*** argv) {
             } else {
                 arr_push(args->link_libraries, string_view_from_cstring(nob_shift_args(argc, argv)));
             }
+        } else if (string_view_equals(arg, SV_CONSTANT("-I"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'-I' requires a file path as an include directory, but no additional arguments were provided\n");
+                return false;
+            } else {
+                arr_push(args->include_directories, string_view_from_cstring(nob_shift_args(argc, argv)));
+            }
+        } else if (string_view_equals(arg, SV_CONSTANT("-L"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'-L' requires a file path as a library directory, but no additional arguments were provided\n");
+                return false;
+            } else {
+                arr_push(args->library_directories, string_view_from_cstring(nob_shift_args(argc, argv)));
+            }
         } else if (string_view_starts_with(arg, SV_CONSTANT("-l"))) {
             arr_push(args->link_libraries, string_view_slice(arg, 2, -1));
         } else {

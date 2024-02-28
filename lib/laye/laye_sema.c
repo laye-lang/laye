@@ -382,6 +382,40 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
     }
 }
 
+static string laye_sema_get_module_import_file_path(layec_context* context, string_view relative_module_path, string_view import_name) {
+    // first try to find the file based on the relative directory of the module requesting it
+    int64_t last_slash_index = maxi(string_view_last_index_of(relative_module_path, '/'), string_view_last_index_of(relative_module_path, '\\'));
+
+    string lookup_path = string_create(default_allocator);
+    if (last_slash_index < 0) {
+        lca_string_append_format(&lookup_path, "./");
+    } else {
+        relative_module_path.count = last_slash_index;
+        string_append_format(&lookup_path, "%.*s", STR_EXPAND(relative_module_path));
+    }
+
+    string_path_append_view(&lookup_path, import_name);
+    if (lca_plat_file_exists(string_as_cstring(lookup_path))) {
+        return lookup_path;
+    }
+
+    for (int64_t include_index = 0, include_count = arr_count(context->include_directories); include_index < include_count; include_index++) {
+        string_view include_path = context->include_directories[include_index];
+
+        memset(lookup_path.data, 0, (size_t)lookup_path.count);
+        lookup_path.count = 0;
+
+        string_append_format(&lookup_path, "%.*s", STR_EXPAND(include_path));
+        string_path_append_view(&lookup_path, import_name);
+        if (lca_plat_file_exists(string_as_cstring(lookup_path))) {
+            return lookup_path;
+        }
+    }
+
+    string_destroy(&lookup_path);
+    return (lca_string){0};
+}
+
 static void laye_sema_resolve_module_import_declarations(layec_context* context, layec_dependency_graph* import_graph, laye_module* module) {
     assert(context != NULL);
     assert(module != NULL);
@@ -407,25 +441,11 @@ static void laye_sema_resolve_module_import_declarations(layec_context* context,
                     layec_write_error(context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
                 }
 
-                string_view module_name = module_name_token.string_value;
-
                 layec_source source = layec_context_get_source(context, module->sourceid);
+                string lookup_path = laye_sema_get_module_import_file_path(context, string_as_view(source.name), module_name_token.string_value);
 
-                string_view this_file_dir = string_as_view(source.name);
-                int64_t last_slash_index = maxi(string_view_last_index_of(this_file_dir, '/'), string_view_last_index_of(this_file_dir, '\\'));
-
-                string lookup_path = string_create(default_allocator);
-                if (last_slash_index < 0) {
-                    lca_string_append_format(&lookup_path, "./");
-                } else {
-                    this_file_dir.count = last_slash_index;
-                    string_append_format(&lookup_path, "%.*s", STR_EXPAND(this_file_dir));
-                }
-
-                string_path_append_view(&lookup_path, module_name);
-                // fprintf(stderr, "%.*s\n", STR_EXPAND(lookup_path));
-                if (!lca_plat_file_exists(string_as_cstring(lookup_path))) {
-                    layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name));
+                if (lookup_path.count == 0) {
+                    layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name_token.string_value));
                     continue;
                 }
 
