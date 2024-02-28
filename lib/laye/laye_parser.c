@@ -1657,7 +1657,9 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
     switch (p->token.kind) {
         default: {
             layec_location token_location = p->token.location;
-            laye_next_token(p);
+            if (!laye_parser_at(p, ';')) {
+                laye_next_token(p);
+            }
 
             laye_node* invalid_expr = laye_node_create(p->module, LAYE_NODE_INVALID, token_location, LTY(p->context->laye_types.poison));
             assert(invalid_expr != NULL);
