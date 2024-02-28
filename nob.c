@@ -289,8 +289,14 @@ int main(int argc, char** argv) {
             }
 
             const char* install_prefix = nob_shift_args(&argc, &argv);
+
+            if (!nob_mkdir_if_not_exists(install_prefix)) return 1;
+            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/bin", install_prefix))) return 1;
+            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/lib", install_prefix))) return 1;
+
             build_layec_driver();
-            nob_copy_file(BUILD_DIR"/layec", nob_temp_sprintf("%s/layec", install_prefix));
+
+            nob_copy_file(BUILD_DIR"/layec", nob_temp_sprintf("%s/bin/layec", install_prefix));
         } else if (0 == strcmp("fuzz", command)) {
             build_layec_object_files(false);
             build_parse_fuzzer();

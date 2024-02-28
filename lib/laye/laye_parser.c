@@ -2369,7 +2369,9 @@ static laye_parse_result laye_parse_binary_expression(laye_parser* p, laye_node*
         binary_expr->binary.lhs = result.node;
         binary_expr->binary.rhs = rhs_result.node;
 
-        result = laye_parse_result_combine(result, laye_parse_result_combine(laye_parse_result_success(binary_expr), rhs_result));
+        result = laye_parse_result_combine(result, laye_parse_result_success(binary_expr));
+        laye_parse_result_copy_diags(&result, rhs_result);
+        laye_parse_result_destroy(rhs_result);
     }
 
     return result;

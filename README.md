@@ -59,6 +59,8 @@ $ ./nob test
 
 Tests are located in the `./test` directory. Each test file is a source file which defines the test inline, as well as how it should be invoked by the tooling. Read the [`fchk`](https://github.com/Sirraide/fchk) documentation to understand how it works.
 
+### Adding tests
+
 ## Editor Support
 Laye has a Visual Studio Code extension for syntax hilighting. Find it [here](https://github.com/laye-lang/laye-vscode).
 
