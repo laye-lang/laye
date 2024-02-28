@@ -85,6 +85,8 @@ typedef struct laye_module {
     bool has_handled_imports;
     bool dependencies_generated;
 
+    struct layec_module* ir_module;
+
     laye_scope* scope;
     lca_arena* arena;
 
@@ -519,7 +521,7 @@ struct laye_node {
 
     // populated during IRgen, makes it easier to keep track of
     // since we don't have usable hash tables woot.
-    layec_value* ir_value;
+    //layec_value* ir_value;
 
     union {
         // node describing an import declaration.
@@ -1166,7 +1168,7 @@ struct laye_node {
 string laye_module_debug_print(laye_module* module);
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid);
 void laye_analyse(layec_context* context);
-layec_module* laye_irgen(laye_module* module);
+void laye_generate_ir(layec_context* context);
 void laye_module_destroy(laye_module* module);
 
 //

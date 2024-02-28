@@ -156,13 +156,7 @@ int main(int argc, char** argv) {
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
-        laye_module* module = context->laye_modules[i];
-        assert(module != NULL);
-
-        layec_module* ir_module = laye_irgen(module);
-        assert(ir_module != NULL);
-    }
+    laye_generate_ir(context);
 
     if (context->has_reported_errors) {
         goto program_exit;
@@ -199,17 +193,19 @@ int main(int argc, char** argv) {
         arr_push(llvm_modules, llvm_module_string);
     }
 
+    assert(arr_count(llvm_modules) == arr_count(context->ir_modules));
+
     if (args.print_llvm) {
-        for (int64_t i = 0; i < arr_count(args.input_files); i++) {
+        for (int64_t i = 0; i < arr_count(llvm_modules); i++) {
             fprintf(stdout, "%.*s", STR_EXPAND(llvm_modules[i]));
         }
 
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
+    for (int64_t i = 0; i < arr_count(llvm_modules); i++) {
         string llvm_module_string = llvm_modules[i];
-        string_view source_input_file_path = args.input_files[i];
+        string_view source_input_file_path = layec_module_name(context->ir_modules[i]);
 
         string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
         arr_push(output_file_paths_intermediate, output_file_path_intermediate);
@@ -245,7 +241,7 @@ int main(int argc, char** argv) {
         nob_cmd_append(&clang_ll_cmd, s);
     }
 
-    for (int64_t i = 0; i < arr_count(args.input_files); i++) {
+    for (int64_t i = 0; i < arr_count(output_file_paths_intermediate); i++) {
         const char* s = string_as_cstring(output_file_paths_intermediate[i]);
         nob_cmd_append(&clang_ll_cmd, s);
     }

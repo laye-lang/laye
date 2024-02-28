@@ -53,6 +53,8 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
     assert(arr_count(nameref.pieces) >= 1);
     string_view first_name = nameref.pieces[0].string_value;
 
+    assert(nameref.kind == LAYE_NAMEREF_DEFAULT && "only the default representation of a nameref is supported at this time");
+
     laye_node* found_declaration = NULL;
 
     while (search_scope != NULL) {
@@ -66,18 +68,65 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
     }
 
     if (found_declaration == NULL) {
-        laye_module* search_module = from_module;
+        laye_symbol* search_namespace = from_module->imports;
+        assert(search_namespace != NULL); // TODO(local): is this actually true?
+        assert(search_namespace->kind == LAYE_SYMBOL_NAMESPACE);
 
         for (int64_t name_index = 0, name_count = arr_count(nameref.pieces); name_index < name_count; name_index++) {
             // bool is_last_name = name_index == name_count - 1;
+            laye_token name_piece_token = nameref.pieces[name_index];
+            string_view name_piece = name_piece_token.string_value;
+
+            laye_symbol* symbol_matching = NULL;
+            for (int64_t symbol_index = 0, symbol_count = arr_count(search_namespace->symbols); symbol_index < symbol_count && symbol_matching == NULL; symbol_index++) {
+                laye_symbol* symbol_imported = search_namespace->symbols[symbol_index];
+                assert(symbol_imported != NULL);
+
+                if (string_view_equals(symbol_imported->name, name_piece)) {
+                    symbol_matching = symbol_imported;
+                }
+            }
+
+            if (symbol_matching == NULL) {
+                layec_write_error(
+                    from_module->context,
+                    name_piece_token.location,
+                    "Unable to resolve identifier '%.*s' in this context.",
+                    STR_EXPAND(name_piece)
+                );
+                return NULL;
+            }
+
+            if (symbol_matching->kind == LAYE_SYMBOL_ENTITY) {
+                if (name_index == name_count - 1) {
+                    assert(arr_count(symbol_matching->nodes) > 0 && "the symbol exists, so it should have at least one node in it");
+                    assert(arr_count(symbol_matching->nodes) == 1 && "no support for overloads just yet");
+                    return symbol_matching->nodes[0];
+                }
+
+                // TODO(local): resolve variants within types
+                layec_write_error(
+                    from_module->context,
+                    name_piece_token.location,
+                    "Entity '%.*s' is not a namespace in this context.",
+                    STR_EXPAND(name_piece)
+                );
+                return NULL;
+            } else {
+                assert(symbol_matching->kind == LAYE_SYMBOL_NAMESPACE);
+                search_namespace = symbol_matching;
+            }
         }
     }
 
+    assert(false && "todo"); // what case is this
     return NULL;
 }
 
 // TODO(local): combine lookup_value and lookup_type, mostly to help with import query resolution
 static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
+    return laye_sema_lookup_entity(sema, from_module, nameref, false);
+
     assert(sema != NULL);
     assert(from_module != NULL);
     assert(from_module->context != NULL);
@@ -135,6 +184,8 @@ static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_modul
 }
 
 static laye_node* laye_sema_lookup_type_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
+    return laye_sema_lookup_entity(sema, from_module, nameref, true);
+
     assert(sema != NULL);
     assert(from_module != NULL);
     assert(from_module->context != NULL);
