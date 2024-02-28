@@ -122,123 +122,12 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
     return found_declaration;
 }
 
-// TODO(local): combine lookup_value and lookup_type, mostly to help with import query resolution
 static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     return laye_sema_lookup_entity(sema, from_module, nameref, false);
-
-    assert(sema != NULL);
-    assert(from_module != NULL);
-    assert(from_module->context != NULL);
-
-    laye_scope* search_scope = nameref.scope;
-    assert(search_scope != NULL);
-
-    assert(arr_count(nameref.pieces) >= 1);
-    string_view first_name = nameref.pieces[0].string_value;
-
-    laye_node* found_declaration = NULL;
-
-    while (search_scope != NULL) {
-        laye_node* lookup = laye_scope_lookup_value(search_scope, first_name);
-        if (lookup != NULL) {
-            found_declaration = lookup;
-            break;
-        }
-
-        search_scope = search_scope->parent;
-    }
-
-    laye_module* search_module = from_module;
-    int64_t name_index = found_declaration == NULL ? 0 : 1;
-
-    while (found_declaration == NULL && name_index < arr_count(nameref.pieces)) {
-        assert(false && "todo laye_sema_lookup_value_declaration search through imports");
-    }
-
-    if (found_declaration == NULL) {
-        assert(name_index >= arr_count(nameref.pieces));
-        layec_write_error(
-            from_module->context,
-            arr_back(nameref.pieces)->location,
-            "'%.*s' is not a value name in this context.",
-            STR_EXPAND(arr_back(nameref.pieces)->string_value)
-        );
-        return NULL;
-    }
-
-    assert(name_index <= arr_count(nameref.pieces));
-    if (name_index < arr_count(nameref.pieces)) {
-        layec_write_error(
-            from_module->context,
-            arr_back(nameref.pieces)->location,
-            "'%.*s' is not a scope.",
-            STR_EXPAND(nameref.pieces[name_index].string_value)
-        );
-        return NULL;
-    }
-
-    assert(name_index == arr_count(nameref.pieces));
-    assert(found_declaration != NULL);
-    return found_declaration;
 }
 
 static laye_node* laye_sema_lookup_type_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
     return laye_sema_lookup_entity(sema, from_module, nameref, true);
-
-    assert(sema != NULL);
-    assert(from_module != NULL);
-    assert(from_module->context != NULL);
-
-    laye_scope* search_scope = nameref.scope;
-    assert(search_scope != NULL);
-
-    assert(arr_count(nameref.pieces) >= 1);
-    string_view first_name = nameref.pieces[0].string_value;
-
-    laye_node* found_declaration = NULL;
-
-    while (search_scope != NULL) {
-        laye_node* lookup = laye_scope_lookup_type(search_scope, first_name);
-        if (lookup != NULL) {
-            found_declaration = lookup;
-            break;
-        }
-
-        search_scope = search_scope->parent;
-    }
-
-    laye_module* search_module = from_module;
-    int64_t name_index = found_declaration == NULL ? 0 : 1;
-
-    while (found_declaration == NULL && name_index < arr_count(nameref.pieces)) {
-        assert(false && "todo laye_sema_lookup_type_declaration search through imports");
-    }
-
-    if (found_declaration == NULL) {
-        assert(name_index >= arr_count(nameref.pieces));
-        layec_write_error(
-            from_module->context,
-            arr_back(nameref.pieces)->location,
-            "'%.*s' is not a type name in this context.",
-            STR_EXPAND(arr_back(nameref.pieces)->string_value)
-        );
-        return NULL;
-    }
-
-    assert(name_index <= arr_count(nameref.pieces));
-    if (name_index < arr_count(nameref.pieces)) {
-        layec_write_error(
-            from_module->context,
-            arr_back(nameref.pieces)->location,
-            "'%.*s' is not a scope.",
-            STR_EXPAND(nameref.pieces[name_index].string_value)
-        );
-        return NULL;
-    }
-
-    assert(name_index == arr_count(nameref.pieces));
-    assert(found_declaration != NULL);
-    return found_declaration;
 }
 
 static void laye_generate_dependencies_for_module(layec_dependency_graph* graph, laye_module* module) {
