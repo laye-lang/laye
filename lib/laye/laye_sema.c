@@ -119,8 +119,7 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
         }
     }
 
-    assert(false && "todo"); // what case is this
-    return NULL;
+    return found_declaration;
 }
 
 // TODO(local): combine lookup_value and lookup_type, mostly to help with import query resolution
