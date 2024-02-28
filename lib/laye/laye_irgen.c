@@ -82,7 +82,6 @@ static void laye_irgen_generate_declaration(laye_irgen* irgen, laye_module* modu
         for (int64_t i = 0, count = arr_count(node->decl_function.parameter_declarations); i < count; i++) {
             laye_node *parameter_node = node->decl_function.parameter_declarations[i];
 
-            // TODO: add index
             layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(ir_function_type, i);
             layec_value* ir_parameter = layec_create_parameter(ir_module, parameter_node->location, parameter_type, parameter_node->declared_name, i);
 
@@ -227,7 +226,7 @@ void laye_generate_ir(layec_context* context) {
                     layec_value* store = layec_build_store(builder, parameter_node->location, alloca, ir_parameter);
                     assert(store != NULL);
 
-                    laye_irgen_ir_value_set(&irgen, module, parameter_node, ir_parameter);
+                    laye_irgen_ir_value_set(&irgen, module, parameter_node, alloca);
                 }
 
                 // generate the function body
