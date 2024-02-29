@@ -1275,26 +1275,26 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
             }
 
             assert(layec_type_is_ptr(layec_value_get_type(value)));
-            layec_type* underlying_type = laye_convert_type(node->index.value->type);
 
-            if (layec_type_is_array(underlying_type)) {
-                layec_type* element_type = layec_type_element_type(underlying_type);
+            laye_type lhs_type = node->index.value->type;
+            assert(lhs_type.node != NULL);
+
+            layec_type* lhs_ir_type = laye_convert_type(lhs_type);
+
+            if (laye_type_is_array(lhs_type)) {
+                layec_type* element_type = layec_type_element_type(lhs_ir_type);
                 assert(element_type != NULL);
 
-                layec_value* element_size_value = layec_int_constant(context, node->index.value->type.node->location, layec_int_type(context, 64), layec_type_size_in_bytes(element_type));
+                layec_value* element_size_value = layec_int_constant(context, lhs_type.node->location, layec_int_type(context, 64), layec_type_size_in_bytes(element_type));
                 assert(element_size_value != NULL);
 
-                laye_type laye_array_type = node->index.value->type;
-                assert(laye_array_type.node != NULL);
-                assert(laye_type_is_array(laye_array_type));
-
-                assert(arr_count(indices) == arr_count(laye_array_type.node->type_container.length_values));
+                assert(arr_count(indices) == arr_count(lhs_type.node->type_container.length_values));
 
                 layec_value* calc_index_value = indices[arr_count(indices) - 1];
                 int64_t current_stride = 1;
 
                 for (int64_t i = arr_count(indices) - 2; i >= 0; i--) {
-                    laye_node* length_value = laye_array_type.node->type_container.length_values[i + 1];
+                    laye_node* length_value = lhs_type.node->type_container.length_values[i + 1];
                     assert(length_value != NULL);
                     assert(length_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
                     assert(length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT);
@@ -1312,8 +1312,22 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 
                 calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
                 return layec_build_ptradd(builder, node->location, value, calc_index_value);
+            } else if (laye_type_is_buffer(lhs_type)) {
+                layec_type* element_type = laye_convert_type(lhs_type.node->type_container.element_type);
+                assert(element_type != NULL);
+
+                layec_value* element_size_value = layec_int_constant(context, lhs_type.node->location, layec_int_type(context, 64), layec_type_size_in_bytes(element_type));
+                assert(element_size_value != NULL);
+
+                assert(arr_count(indices) == 1);
+                layec_value* calc_index_value = indices[0];
+
+                arr_free(indices);
+
+                calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
+                return layec_build_ptradd(builder, node->location, value, calc_index_value);
             } else {
-                fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(underlying_type)));
+                fprintf(stderr, "for layec_type %s\n", layec_type_kind_to_cstring(layec_type_get_kind(lhs_ir_type)));
                 assert(false && "unsupported indexable type");
                 return NULL;
             }

@@ -1270,6 +1270,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 laye_node** argument_node_ref = &node->call.arguments[i];
                 assert(*argument_node_ref != NULL);
                 laye_sema_analyse_node(sema, argument_node_ref, NOTY);
+                laye_sema_lvalue_to_rvalue(sema, argument_node_ref, true);
             }
 
             laye_type callee_type = node->call.callee->type;
@@ -1337,6 +1338,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_INDEX: {
             laye_sema_analyse_node(sema, &node->index.value, NOTY);
 
+            //bool is_lvalue = laye_node_is_lvalue(node->index.value);
+            laye_expr_set_lvalue(node, true);
+
             for (int64_t i = 0, count = arr_count(node->index.indices); i < count; i++) {
                 laye_node** index_node_ref = &node->index.indices[i];
                 assert(*index_node_ref != NULL);
@@ -1385,6 +1389,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->type = value_type.node->type_container.element_type;
                 } break;
 
+                /*
                 case LAYE_NODE_TYPE_SLICE: {
                     if (arr_count(node->index.indices) != 1) {
                         layec_write_error(sema->context, node->location, "Slice types require exactly one index.");
@@ -1392,8 +1397,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     node->type = value_type.node->type_container.element_type;
                 } break;
-
+                */
+               
                 case LAYE_NODE_TYPE_BUFFER: {
+                    laye_sema_lvalue_to_rvalue(sema, &node->index.value, true);
+
                     if (arr_count(node->index.indices) != 1) {
                         layec_write_error(sema->context, node->location, "Buffer types require exactly one index.");
                     }
@@ -1404,9 +1412,6 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             assert(node->type.node != NULL);
             assert(node->type.node->kind != LAYE_NODE_INVALID);
-
-            bool is_lvalue = laye_node_is_lvalue(node->index.value);
-            laye_expr_set_lvalue(node, is_lvalue);
         } break;
 
         case LAYE_NODE_MEMBER: {
