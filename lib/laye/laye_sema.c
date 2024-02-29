@@ -212,7 +212,34 @@ static string_view import_string_to_laye_identifier_string(laye_node* import_nod
     return module_name;
 }
 
-static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_module* queried_module, laye_node* query) {
+static void laye_sema_add_symbol_shallow_copy(layec_context* context, laye_module* module, laye_symbol* namespace_symbol, laye_symbol* symbol) {
+    laye_symbol* existing_symbol = laye_symbol_lookup(namespace_symbol, symbol->name);
+    if (existing_symbol == NULL) {
+        existing_symbol = laye_symbol_create(module, symbol->kind, symbol->name);
+        arr_push(namespace_symbol->symbols, existing_symbol);
+    }
+
+    assert(existing_symbol != NULL);
+    assert(existing_symbol->kind == symbol->kind);
+
+    if (symbol->kind == LAYE_SYMBOL_NAMESPACE) {
+        assert(existing_symbol->kind == LAYE_SYMBOL_NAMESPACE);
+        // this node should also be freshly created
+        assert(arr_count(existing_symbol->symbols) == 0);
+
+        for (int64_t j = 0, j_count = arr_count(symbol->symbols); j < j_count; j++) {
+            arr_push(existing_symbol->symbols, symbol->symbols[j]);
+        }
+    } else {
+        assert(existing_symbol->kind == LAYE_SYMBOL_ENTITY);
+
+        for (int64_t j = 0, j_count = arr_count(symbol->nodes); j < j_count; j++) {
+            arr_push(existing_symbol->nodes, symbol->nodes[j]);
+        }
+    }
+}
+
+static void laye_sema_resolve_import_query(layec_context* context, laye_module* module, laye_module* queried_module, laye_node* query, bool export) {
     assert(context != NULL);
     assert(module != NULL);
     assert(queried_module != NULL);
@@ -259,6 +286,10 @@ static void laye_sema_resolve_import_query(layec_context* context, laye_module* 
                 for (int64_t j = 0, j_count = arr_count(exported_symbol->nodes); j < j_count; j++) {
                     arr_push(imported_symbol->nodes, exported_symbol->nodes[j]);
                 }
+            }
+
+            if (export) {
+                laye_sema_add_symbol_shallow_copy(context, module, module->exports, imported_symbol);
             }
         }
     } else {
@@ -508,7 +539,7 @@ static void laye_sema_build_module_symbol_tables(layec_context* context, laye_mo
 
                         arr_push(module->imports->symbols, import_scope);
 
-                        if (top_level_node->attributes.linkage == LAYEC_LINK_EXPORTED) {
+                        if (is_export_import) {
                             assert(laye_symbol_lookup(module->exports, module_name) == NULL && "somehow, this module already exports something with the same name");
                             arr_push(module->exports->symbols, import_scope);
                         }
@@ -532,7 +563,7 @@ static void laye_sema_build_module_symbol_tables(layec_context* context, laye_mo
                         laye_node* query = queries[j];
                         assert(query != NULL);
 
-                        laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query);
+                        laye_sema_resolve_import_query(context, query->module, top_level_node->decl_import.referenced_module, query, is_export_import);
                     }
                 }
             } break;

@@ -1,1 +1,1 @@
-export import "libc/stdio.laye";
+export import * from "libc/stdio.laye";
