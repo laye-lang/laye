@@ -1384,6 +1384,22 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     node->type = value_type.node->type_container.element_type;
                 } break;
+
+                case LAYE_NODE_TYPE_SLICE: {
+                    if (arr_count(node->index.indices) != 1) {
+                        layec_write_error(sema->context, node->location, "Slice types require exactly one index.");
+                    }
+
+                    node->type = value_type.node->type_container.element_type;
+                } break;
+
+                case LAYE_NODE_TYPE_BUFFER: {
+                    if (arr_count(node->index.indices) != 1) {
+                        layec_write_error(sema->context, node->location, "Buffer types require exactly one index.");
+                    }
+
+                    node->type = value_type.node->type_container.element_type;
+                } break;
             }
 
             assert(node->type.node != NULL);
@@ -2136,12 +2152,6 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
     assert(from.node->sema_state == LAYEC_SEMA_OK);
     assert(to.node->sema_state == LAYEC_SEMA_OK);
 
-#if 0
-    if (perform_conversion) {
-        laye_sema_lvalue_to_rvalue(sema, node, false);
-    }
-#endif
-
     if (perform_conversion) {
         laye_sema_lvalue_to_rvalue(sema, node_ref, false);
         from = node->type;
@@ -2212,7 +2222,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
                     *node_ref = laye_create_constant_node(sema, *node_ref, eval_result);
                 }
 
-                return 1 + score;
+                return score;
             }
         } else if (eval_result.kind == LAYEC_EVAL_STRING) {
         }
@@ -2308,7 +2318,10 @@ static bool laye_sema_convert_to_common_type(laye_sema* sema, laye_node** a, lay
     assert(b != NULL);
     assert(*b != NULL);
 
-    if (laye_sema_try_convert(sema, a, (*b)->type) >= 0) {
+    int a2b_score = laye_sema_try_convert(sema, a, (*b)->type);
+    int b2a_score = laye_sema_try_convert(sema, b, (*a)->type);
+
+    if (a2b_score >= 0 && a2b_score <= b2a_score) {
         return laye_sema_convert(sema, a, (*b)->type);
     }
 
