@@ -1585,6 +1585,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 if (laye_type_is_pointer(type_from) && laye_type_is_pointer(type_to)) {
                     break;
                 }
+
+                // hard casts from buffer to buffer are allowed
+                if (laye_type_is_buffer(type_from) && laye_type_is_buffer(type_to)) {
+                    break;
+                }
             }
 
             string from_type_string = string_create(sema->context->allocator);
