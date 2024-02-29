@@ -3,32 +3,44 @@
 
 foreign callconv(cdecl) i8 mut[*] malloc(uint count);
 
-// * define exported ccc main() -> int64 {
+// * define exported ccc main(int32 %0, ptr %1) -> int64 {
 // + entry:
-// +   %0 = alloca int64[10]
-// +   builtin @memset(ptr %0, int8 0, int64 80)
-// +   %1 = mul int64 2, 8
-// +   %2 = ptradd ptr %0, int64 %1
-// +   store %2, int64 2
+// +   %2 = alloca int32
+// +   store %2, int32 %0
 // +   %3 = alloca ptr
-// +   %4 = call ccc ptr @malloc(int64 10)
-// +   store %3, ptr %4
+// +   store %3, ptr %1
+// +   %4 = alloca ptr
 // +   %5 = load ptr, %3
-// +   %6 = mul int64 6, 1
+// +   %6 = mul int64 0, 8
 // +   %7 = ptradd ptr %5, int64 %6
-// +   store %7, int8 4
-// +   %8 = mul int64 2, 8
-// +   %9 = ptradd ptr %0, int64 %8
-// +   %10 = load int64, %9
-// +   %11 = load ptr, %3
-// +   %12 = mul int64 6, 1
-// +   %13 = ptradd ptr %11, int64 %12
-// +   %14 = load int8, %13
-// +   %15 = sext int64, int8 %14
-// +   %16 = add int64 %10, %15
-// +   return int64 %16
+// +   %8 = load ptr, %7
+// +   store %4, ptr %8
+// +   %9 = alloca int64[10]
+// +   builtin @memset(ptr %9, int8 0, int64 80)
+// +   %10 = mul int64 2, 8
+// +   %11 = ptradd ptr %9, int64 %10
+// +   store %11, int64 2
+// +   %12 = alloca ptr
+// +   %13 = call ccc ptr @malloc(int64 10)
+// +   store %12, ptr %13
+// +   %14 = load ptr, %12
+// +   %15 = mul int64 6, 1
+// +   %16 = ptradd ptr %14, int64 %15
+// +   store %16, int8 4
+// +   %17 = mul int64 2, 8
+// +   %18 = ptradd ptr %9, int64 %17
+// +   %19 = load int64, %18
+// +   %20 = load ptr, %12
+// +   %21 = mul int64 6, 1
+// +   %22 = ptradd ptr %20, int64 %21
+// +   %23 = load int8, %22
+// +   %24 = sext int64, int8 %23
+// +   %25 = add int64 %19, %24
+// +   return int64 %25
 // + }
-int main() {
+int main(i32 argc, i8[*][*] argv) {
+    i8[*] mut program_name = argv[0];
+
     int mut[10] arr;
     arr[2] = 2;
 

@@ -1398,7 +1398,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->type = value_type.node->type_container.element_type;
                 } break;
                 */
-               
+
                 case LAYE_NODE_TYPE_BUFFER: {
                     laye_sema_lvalue_to_rvalue(sema, &node->index.value, true);
 
@@ -2145,6 +2145,10 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
     laye_type from = (*node_ref)->type;
     assert(from.node != NULL);
     assert(laye_node_is_type(from.node));
+
+    // these are copies, so effectively ignore the outermost mutability
+    from.is_modifiable = false;
+    to.is_modifiable = false;
 
     if (laye_type_is_poison(from) || laye_type_is_poison(to)) {
         return LAYE_CONVERT_NOOP;
