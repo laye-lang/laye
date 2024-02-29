@@ -294,6 +294,7 @@ static layec_type* laye_convert_type(laye_type type) {
         }
 
         case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_BUFFER: {
             return layec_ptr_type(context);
         }
@@ -1148,10 +1149,42 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 }
 
                 case LAYE_TOKEN_PLUS: {
+                    if (laye_type_is_buffer(node->binary.lhs->type)) {
+                        layec_type* element_type = laye_convert_type(node->binary.lhs->type.node->type_container.element_type);
+                        int64_t element_size_in_bytes = layec_type_size_in_bytes(element_type);
+                        rhs_value = layec_build_mul(builder, node->binary.rhs->location, rhs_value, layec_int_constant(context, node->binary.rhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(rhs_value))), element_size_in_bytes));
+                        return layec_build_ptradd(builder, node->location, lhs_value, rhs_value);
+                    }
+
+                    if (laye_type_is_buffer(node->binary.rhs->type)) {
+                        layec_type* element_type = laye_convert_type(node->binary.rhs->type.node->type_container.element_type);
+                        int64_t element_size_in_bytes = layec_type_size_in_bytes(element_type);
+                        lhs_value = layec_build_mul(builder, node->binary.lhs->location, lhs_value, layec_int_constant(context, node->binary.lhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(lhs_value))), element_size_in_bytes));
+                        return layec_build_ptradd(builder, node->location, rhs_value, lhs_value);
+                    }
+
                     return layec_build_add(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_MINUS: {
+                    if (laye_type_is_buffer(node->binary.lhs->type)) {
+                        assert(layec_type_is_integer(layec_value_get_type(rhs_value)));
+                        layec_type* element_type = laye_convert_type(node->binary.lhs->type.node->type_container.element_type);
+                        int64_t element_size_in_bytes = layec_type_size_in_bytes(element_type);
+                        rhs_value = layec_build_mul(builder, node->binary.rhs->location, rhs_value, layec_int_constant(context, node->binary.rhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(rhs_value))), element_size_in_bytes));
+                        layec_value* negated = layec_build_sub(builder, node->binary.rhs->location, layec_int_constant(context, node->binary.rhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(rhs_value))), 0), rhs_value);
+                        return layec_build_ptradd(builder, node->location, lhs_value, negated);
+                    }
+
+                    if (laye_type_is_buffer(node->binary.rhs->type)) {
+                        assert(layec_type_is_integer(layec_value_get_type(lhs_value)));
+                        layec_type* element_type = laye_convert_type(node->binary.rhs->type.node->type_container.element_type);
+                        int64_t element_size_in_bytes = layec_type_size_in_bytes(element_type);
+                        lhs_value = layec_build_mul(builder, node->binary.lhs->location, lhs_value, layec_int_constant(context, node->binary.lhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(lhs_value))), element_size_in_bytes));
+                        layec_value* negated = layec_build_sub(builder, node->binary.lhs->location, layec_int_constant(context, node->binary.lhs->location, layec_int_type(context, layec_type_size_in_bits(layec_value_get_type(lhs_value))), 0), lhs_value);
+                        return layec_build_ptradd(builder, node->location, rhs_value, negated);
+                    }
+
                     return layec_build_sub(builder, node->location, lhs_value, rhs_value);
                 }
 

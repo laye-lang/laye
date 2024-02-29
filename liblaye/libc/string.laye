@@ -1,0 +1,1 @@
+export foreign callconv(cdecl) i32 strcmp(i8[*] a, i8[*] b);

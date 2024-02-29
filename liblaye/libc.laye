@@ -1,1 +1,2 @@
 export import * from "libc/stdio.laye";
+export import * from "libc/string.laye";

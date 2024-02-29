@@ -1301,7 +1301,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 laye_node** argument_node_ref = &node->call.arguments[i];
                 assert(*argument_node_ref != NULL);
                 laye_sema_analyse_node(sema, argument_node_ref, NOTY);
-                laye_sema_lvalue_to_rvalue(sema, argument_node_ref, true);
+                laye_sema_lvalue_to_rvalue(sema, argument_node_ref, false);
             }
 
             laye_type callee_type = node->call.callee->type;
@@ -1368,6 +1368,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
         case LAYE_NODE_INDEX: {
             laye_sema_analyse_node(sema, &node->index.value, NOTY);
+            laye_sema_implicit_de_reference(sema, &node->index.value);
 
             //bool is_lvalue = laye_node_is_lvalue(node->index.value);
             laye_expr_set_lvalue(node, true);
@@ -1751,6 +1752,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         node->binary.operator.kind == LAYE_TOKEN_TILDE ||
                         node->binary.operator.kind == LAYE_TOKEN_LESSLESS ||
                         node->binary.operator.kind == LAYE_TOKEN_GREATERGREATER;
+                    bool is_additive_operation = 
+                        node->binary.operator.kind == LAYE_TOKEN_PLUS ||
+                        node->binary.operator.kind == LAYE_TOKEN_MINUS;
                     // clang-format on
 
                     laye_sema_implicit_dereference(sema, &node->binary.lhs);
@@ -1776,6 +1780,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         }
 
                         node->type = node->binary.lhs->type;
+                    } else if (is_additive_operation && (laye_type_is_int(lhs_type) || laye_type_is_buffer(lhs_type)) && (laye_type_is_int(rhs_type) || laye_type_is_buffer(rhs_type))) {
+                        if (laye_type_is_buffer(lhs_type) && laye_type_is_buffer(rhs_type)) {
+                            goto cannot_arith_types;
+                        }
+
+                        node->type = laye_type_is_buffer(lhs_type) ? lhs_type : rhs_type;
                     } else {
                         // TODO(local): pointer arith
                         goto cannot_arith_types;
@@ -2222,11 +2232,16 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
     }
 
     if (perform_conversion) {
-        laye_sema_lvalue_to_rvalue(sema, node_ref, false);
+        laye_sema_lvalue_to_rvalue(sema, node_ref, true);
+        node = *node_ref;
         from = node->type;
     } else {
         from = laye_type_strip_references(node->type);
     }
+
+    // these are copies, so effectively ignore the outermost mutability
+    from.is_modifiable = false;
+    to.is_modifiable = false;
 
     if (laye_type_equals(from, to, LAYE_MUT_CONVERTIBLE)) {
         return LAYE_CONVERT_NOOP;
