@@ -8,7 +8,7 @@
 
 ## [Tutorials](Tutorials)
 
-[Hello, hunter!](HelloHunter)
+### [Hello, hunter!](Hello-Hunter)
 
 ## [How-to guides](How‐to-Guides)
 
