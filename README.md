@@ -59,45 +59,9 @@ $ ./nob test
 
 Tests are located in the `./test` directory. Each test file is a source file which defines the test inline, as well as how it should be invoked by the tooling. Read the [`fchk`](https://github.com/Sirraide/fchk) documentation to understand how it works.
 
-### Adding tests
-
 ## Editor Support
 Laye has a Visual Studio Code extension for syntax hilighting. Find it [here](https://github.com/laye-lang/laye-vscode).
 
-## Docs and the Wiki
+## Contributing
 
-The documentation (stored in the `docs` directory) is a git subtree of the [GitHub project wiki](https://github.com/laye-lang/laye/wiki). This allows for the documentation to be referenced and edited from within the main project.
-
-*Thanks to [this gist](https://gist.github.com/yukoff/5220f33123de5e7e428db63ef7025e72) for documentation on how to make this work!*
-
-### Initial local setup
-
-When cloning the main project repository for the first time, the wiki repository must be added as a remote.
-
-```sh
-$ git remote add wiki git@github.com:laye-lang/laye.wiki.git
-```
-
-### Adding documentation
-
-New and updated documentation should be committed and pushed in the main project repository just like any other file.
-
-*However, care should be taken to ensure documentation files are always committed separately from other project files. Individual commits should never contain both files inside and outside the docs directory.*
-
-### Pushing updates to the wiki
-
-Documentation changes in the main project repository can be pushed to the wiki repository at any time. This does not need to happen every time documentation is added or updated, but can happen as often as desired.
-
-```sh
-$ git subtree push --prefix docs wiki master
-```
-
-If the GitHub website is used to edit wiki files, then the push will fail, in which case any updates should be pulled as described below.
-
-### Pulling updates from the wiki
-
-It should only be necessary to pull updates directly from the wiki when the GitHub website is used to edit the documentation directly in the wiki. If pushing to the wiki ever fails, try pulling first.
-
-```sh
-git subtree pull --prefix docs wiki master --squash --message="Merge wiki updates into docs."
-```
+See the [documentation on contributing](https://github.com/laye-lang/laye/wiki/) in the GitHub project wiki.
