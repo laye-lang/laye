@@ -64,4 +64,4 @@ Laye has a Visual Studio Code extension for syntax hilighting. Find it [here](ht
 
 ## Contributing
 
-See the [documentation on contributing](https://github.com/laye-lang/laye/wiki/) in the GitHub project wiki.
+See the [documentation on contributing](https://github.com/laye-lang/laye/wiki/Contributing) in the GitHub project wiki.
