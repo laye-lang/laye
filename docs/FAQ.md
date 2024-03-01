@@ -8,4 +8,4 @@ I really like the game [Bloodborne](https://en.wikipedia.org/wiki/Bloodborne). M
 
 ## I've encountered an issue! How do I file a bug report?
 
-Head over to the [issue tracker](https://github.com/laye-lang/laye/issues) on the project's GitHub and first see if your issue has already been reported. The [documentation on contributing](https://github.com/laye-lang/laye/wiki/) has a section detailing proper practice on opening issues.
+Head over to the [issue tracker](https://github.com/laye-lang/laye/issues) on the project's GitHub and first see if your issue has already been reported. The [documentation on contributing](https://github.com/laye-lang/laye/wiki/Contributing) has a section detailing proper practice on opening issues.
