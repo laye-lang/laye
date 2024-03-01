@@ -1,0 +1,11 @@
+import "libc.laye";
+
+export foreign noreturn __laye_assert_fail(i8[*] condition_source_text, i8[*] file_name, int byte_offset, int line_number, int column_number, i8[*] associated_message) {
+    if (byte_offset >= 0) {
+        libc::printf("%s[%ld]: Assertion Failed: %s\n%s\n", file_name, byte_offset, condition_source_text, associated_message);
+    } else {
+        libc::printf("%s(%ld,%ld): Assertion Failed: %s\n%s\n", file_name, line_number, column_number, condition_source_text, associated_message);
+    }
+
+    libc::exit(1);
+}

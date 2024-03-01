@@ -1,0 +1,5 @@
+export struct string {
+}
+
+export struct string_view {
+}
