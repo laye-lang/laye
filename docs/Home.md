@@ -1,5 +1,9 @@
 Everything you need to know about the Laye programming languages and its tools.
 
+## How to pronounce it
+
+Laye is pronounced \[`'la.jɛ`\] or \[`'la.je`\] (see the interactive [IPA chart](https://www.ipachart.com/) for pronunciation guides.) It is two syllables: "lah", as in "law" in my accent, and "yeh" as in "yellow", with the stress on the first syllable.
+
 ## First steps
 
 If you're new to Laye, these are great places to start learning.
@@ -24,3 +28,5 @@ Laye aims to provide a lot of thorough documentation. It's broadly organized int
 - [How-to guides](How‐to-Guides) go more in depth on real-world, common problems. Take a look at these once you've dipped your toes in Laye and are looking to build the fundamentals.
 - [Topic guides](Topic-Guides) provide high level explanations of key topics and concepts, often including background information. If you're curious about specific things you've encountered, see what you can learn from these.
 - [References](References) contain technical details about the Laye programming language and its standard library APIs. If you need the formal information on a topic, check here for the nitty-gritty.
+
+This is roughly equivalent to the four categories in the [Divio Documentation System](https://documentation.divio.com/introduction.html). If you're interested in learning how to write documentation, I highly recommend giving it a read; it's very brief. If you want to contribute documentation, this is the system to follow.

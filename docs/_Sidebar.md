@@ -16,4 +16,6 @@
 
 ## [References](References)
 
+## [Contributing](Contributing)
+
 ## [FAQ](FAQ)
