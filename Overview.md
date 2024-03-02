@@ -1,4 +1,4 @@
-Note that this reference document is not yet implemented fully.
+Note that this overview document is not yet implemented fully.
 
 ## Types
 
