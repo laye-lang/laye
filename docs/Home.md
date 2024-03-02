@@ -9,7 +9,7 @@ Laye is pronounced \[`'la.jɛ`\] or \[`'la.je`\] (see the interactive [IPA chart
 If you're new to Laye, these are great places to start learning.
 
 - From scratch: [Overview](Overview) | [Installation](Installation)
-- Tutorials: [Hello, hunter!](Hello-Hunter)
+- Tutorials: [Hello, hunter!](Tutorials#hello-hunter)
 - Advanced Tutorials: TODO link some advanced tutorials
 
 ## Getting help
