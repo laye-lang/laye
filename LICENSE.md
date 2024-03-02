@@ -1,6 +1,8 @@
 This software is available under 2 licenses -- choose whichever you prefer.
+
 Note that the license does *not* apply to the Laye name or branding materials,
 only to the source code of the software.
+
 ------------------------------------------------------------------------------
 ALTERNATIVE A - MIT License
 Copyright (c) 2023 Local Atticus
