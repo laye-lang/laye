@@ -400,6 +400,22 @@ bool nob_mkdir_if_not_exists(const char *path)
             //nob_log(NOB_INFO, "directory `%s` already exists", path);
             return true;
         }
+
+        char* parent_dir = nob_temp_strdup(path);
+        for (int64_t i = (int64_t)strlen(parent_dir) - 1; i >= 0; i--) {
+            char c = parent_dir[i];
+            parent_dir[i] = 0;
+
+            if (c == '/' || c == '\\')
+                break;
+        }
+
+        if (strlen(parent_dir) != 0 && 0 != strcmp(path, parent_dir)) {
+            if (nob_mkdir_if_not_exists(parent_dir)) {
+                return nob_mkdir_if_not_exists(path);
+            }
+        }
+
         nob_log(NOB_ERROR, "could not create directory `%s`: %s", path, strerror(errno));
         return false;
     }

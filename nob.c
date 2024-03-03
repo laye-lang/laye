@@ -1,3 +1,19 @@
+#if defined(_WIN32)
+#    define NOB_WINDOWS
+#    define NOB_PATH_SEP "\\"
+#elif defined(__unix__)
+#    define NOB_UNIX
+#    define NOB_PATH_SEP "/"
+#else
+#    error "This build script currently only supports Windows and Unix, sorry"
+#endif
+
+#define BUILD_DIR "." NOB_PATH_SEP "out"
+#define OBJECT_DIR BUILD_DIR NOB_PATH_SEP "o"
+
+#define STAGE1_OUT_PATH BUILD_DIR NOB_PATH_SEP "laye1"
+#define STAGE2_OUT_PATH BUILD_DIR NOB_PATH_SEP "laye"
+
 #ifndef CC
 #    if defined(__clang__)
 #        define CC "clang"
@@ -20,11 +36,6 @@
 #define NOB_IMPLEMENTATION
 #include "stage1/include/nob.h"
 
-#include <libgen.h>
-
-#define BUILD_DIR  "./out"
-#define OBJECT_DIR "o"
-
 static bool no_asan;
 
 static const char* stage1_laye_headers_dir = "./stage1/include/";
@@ -42,11 +53,34 @@ static const char* stage1_laye_sources[] = {
     "./stage1/src/laye/laye_sema.c",
     "./stage1/src/laye/laye_irgen.c",
     // Main file always has to be the last
-    "./stage1/src/layec.c"
+    "./stage1/src/main.c"
 };
 
 static int64_t stage1_laye_sources_count = sizeof(stage1_laye_sources) / sizeof(stage1_laye_sources[0]);
 static int64_t stage1_laye_sources_count_without_main = (sizeof(stage1_laye_sources) / sizeof(stage1_laye_sources[0])) - 1;
+
+// if the path ends in a slash, this returns an empty string
+static const char* basename(const char* path) {
+    for (int64_t i = (int64_t)strlen(path) - 1; i >= 0; i--) {
+        if (path[i] == '/' || path[i] == '\\')
+            return &path[i + 1];
+    }
+
+    return path;
+}
+
+static const char* path_contact(const char* lhs, const char* rhs) {
+    if (rhs[0] == '/' || rhs[0] == '\\') {
+        rhs++;
+    }
+
+    size_t lhs_len = strlen(lhs);
+    if (lhs[lhs_len - 1] == '/' || lhs[lhs_len - 1] == '\\') {
+        return nob_temp_sprintf("%s%s", lhs, rhs);
+    } else {
+        return nob_temp_sprintf("%s" NOB_PATH_SEP "%s", lhs, rhs);
+    }
+}
 
 static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-I", stage1_laye_headers_dir);
@@ -63,12 +97,12 @@ static void cflags(Nob_Cmd* cmd) {
 }
 
 static void layeflags(Nob_Cmd* cmd) {
-    nob_cmd_append(cmd, "-I", "./lib/liblaye");
+    nob_cmd_append(cmd, "-I", "./lib/laye/liblaye");
 }
 
 static char* to_object_file_path(const char* filepath) {
-    char* filename = basename((char*)filepath);
-    char* objectfile_path = nob_temp_sprintf(BUILD_DIR "/" OBJECT_DIR "/%s.o", filename);
+    const char* filename = basename(filepath);
+    char* objectfile_path = nob_temp_sprintf(OBJECT_DIR "/%s.o", filename);
 
     return objectfile_path;
 }
@@ -440,6 +474,19 @@ static int nob_run(int argc, char** argv) {
 }
 
 static int nob_install(int argc, char** argv) {
+#if defined(NOB_WINDOWS)
+    const char* binary_prefix = "C:\\Program Files\\Laye\\bin";
+    const char* library_prefix = "C:\\Program Files\\Laye\\lib";
+#elif defined(NOB_UNIX)
+    const char* binary_prefix = "/usr/bin";
+    const char* library_prefix = "/usr/lib";
+#endif
+
+    nob_build_stage stage = NOB_BUILD_STAGE1;
+
+    bool has_provided_bin_dir = false;
+    bool has_provided_lib_dir = false;
+
     while (argc > 0) {
         int shared = nob_shared_args("install", &argc, &argv);
         if (shared >= 0) {
@@ -449,9 +496,96 @@ static int nob_install(int argc, char** argv) {
         }
 
         const char* arg = nob_shift_args(&argc, &argv);
-        fprintf(stderr, "Unknown argument '%s'.\n", arg);
-        nob_help("install");
+        if (0 == strcmp("--stage2", arg)) {
+            stage = NOB_BUILD_STAGE2;
+        } else if (0 == strcmp("--prefix", arg)) {
+            if (argc == 0) {
+                fprintf(stderr, "Option `--prefix` requires the install prefix path as an argument.\n");
+                return 1;
+            }
+
+            if (has_provided_bin_dir) {
+                fprintf(stderr, "A binary install prefix has already been specified before `--prefix`.\n");
+                return 1;
+            }
+
+            if (has_provided_lib_dir) {
+                fprintf(stderr, "A library install prefix has already been specified before `--prefix`.\n");
+                return 1;
+            }
+
+            const char* prefix = nob_shift_args(&argc, &argv);
+
+            binary_prefix = path_contact(prefix, "bin");
+            library_prefix = path_contact(prefix, "lib");
+
+            has_provided_bin_dir = true;
+            has_provided_lib_dir = true;
+        } else if (0 == strcmp("--bin-prefix", arg)) {
+            if (argc == 0) {
+                fprintf(stderr, "Option `--bin-prefix` requires the binary install prefix path as an argument.\n");
+                return 1;
+            }
+
+            if (has_provided_bin_dir) {
+                fprintf(stderr, "A binary directory install prefix has already been specified before `--bin-prefix`.\n");
+                return 1;
+            }
+
+            const char* prefix = nob_shift_args(&argc, &argv);
+            binary_prefix = prefix;
+            has_provided_bin_dir = true;
+        } else if (0 == strcmp("--lib-prefix", arg)) {
+            if (argc == 0) {
+                fprintf(stderr, "Option `--lib-prefix` requires the library install prefix path as an argument.\n");
+                return 1;
+            }
+
+            if (has_provided_bin_dir) {
+                fprintf(stderr, "A library directory install prefix has already been specified before `--lib-prefix`.\n");
+                return 1;
+            }
+
+            const char* prefix = nob_shift_args(&argc, &argv);
+            has_provided_lib_dir = true;
+            library_prefix = prefix;
+        } else {
+            fprintf(stderr, "Unknown argument '%s'.\n", arg);
+            nob_help("install");
+        }
     }
+
+    if (!nob_mkdir_if_not_exists(binary_prefix)) {
+        return 1;
+    }
+
+    if (!nob_mkdir_if_not_exists(library_prefix)) {
+        return 1;
+    }
+
+#if defined(NOB_WINDOWS)
+    const char* bin_path = path_contact(binary_prefix, "laye.exe");
+#elif defined(NOB_UNIX)
+    const char* bin_path = path_contact(binary_prefix, "laye");
+#endif
+    const char* lib_path = path_contact(library_prefix, "laye");
+
+    const char* binary_to_install = NULL;
+    if (stage == NOB_BUILD_STAGE1) {
+        binary_to_install = BUILD_DIR"/laye1";
+    }
+
+    if (stage >= NOB_BUILD_STAGE1) {
+        build_stage1_laye_driver();
+        build_exec_test_runner();
+    }
+
+    if (stage >= NOB_BUILD_STAGE2) {
+        build_stage2_laye_driver();
+    }
+
+    nob_copy_file(binary_to_install, bin_path);
+    nob_copy_directory_recursively("./lib/laye", lib_path);
 
     return 0;
 }
@@ -537,7 +671,7 @@ int main(int argc, char** argv) {
 
     const char* program = nob_shift_args(&argc, &argv);
     nob_mkdir_if_not_exists(BUILD_DIR);
-    nob_mkdir_if_not_exists(BUILD_DIR "/" OBJECT_DIR);
+    nob_mkdir_if_not_exists(OBJECT_DIR);
 
     if (argc > 0) {
         const char* maybe_command = argv[0];
