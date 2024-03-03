@@ -17,7 +17,7 @@ void main() {
 Save this code as `hello.laye`, then compile and run it with the following commands.
 
 ```sh
-$ layec -o hello hello.laye
+$ laye -o hello hello.laye
 $ ./hello
 Hello, hunter!
 ```
