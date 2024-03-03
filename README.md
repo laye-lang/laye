@@ -24,31 +24,21 @@ C is by no means perfect, nor is Laye trying to be perfect in its stead. Rather,
     ```
 
 2. Run Nob
-    `Nob` will automatically rebuild itself if any changes are made to the build script.
+    Nob will automatically rebuild itself if any changes are made to the build script.
 
     ```bash
     $ ./nob
     ```
 
-    The `layec` compiler driver as well as a `test_runner` for running the automated tests are placed in the `./out` directory.
-
-    The resulting build tool supports the following commands:
-
-    - `./nob build` will build all the projects.
-    - `./nob build layec` will build just the Laye compiler driver.
-    - `./nob test` will run the full test suite. This requires CMake to run the FCHK tests.
-
-    The build tool supports the following options in most commands:
-
-    - `--no-asan` to disable use of the address sanitizer.
+    You can run `./nob --help` to see all of the commands and configuration available to you, and `./nob <command> --help` for help filtered specifically to that command. By default, the `build` subcommand is assumed.
 
 ## Usage
 
 ```bash
-$ ./out/layec [options...] files...
+$ ./out/laye1 [options...] files...
 ```
 
-Run `./out/layec --help` for a list of avaliable options.
+Run `./out/laye1 --help` for a list of avaliable options.
 
 ## Testing
 The test suite is written for the [`fchk`](https://github.com/Sirraide/fchk) tool, which has a few additional dependencies as listed in [requirements](#requirements).
