@@ -92,7 +92,7 @@ if (BUILD_TESTING)
         PATTERN "*.laye"
         PREFIX "//"
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-        ARGS -l . -D "layec=./out/layec" -P re -P nocap
+        ARGS -l . -D "layec=./out/laye1" -P re -P nocap
         RECURSIVE
         DEPENDS fchk
     )

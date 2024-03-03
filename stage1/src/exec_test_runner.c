@@ -12,7 +12,7 @@
 #define LCA_DA_IMPLEMENTATION
 #include "lcads.h"
 
-#define LAYEC_PATH "./out/layec"
+#define LAYEC_PATH "./out/laye1"
 
 #define FCHK_DIR  "./fchk"
 #define FCHK_OUT  FCHK_DIR "/out"

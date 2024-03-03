@@ -1,0 +1,7 @@
+import * from "std.laye";
+import "libc.laye";
+
+export i32 main() {
+    libc::printf("Hello, laye!\n");
+    return 0;
+}
