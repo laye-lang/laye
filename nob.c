@@ -22,19 +22,14 @@
 
 #include <libgen.h>
 
-#define BUILD_DIR "./out"
+#define BUILD_DIR  "./out"
 #define OBJECT_DIR "o"
 
-typedef struct args {
-    const char* build_project;
-    bool no_asan;
-} args_t;
+static bool no_asan;
 
-static args_t args;
+static const char* stage1_laye_headers_dir = "./stage1/include/";
 
-static const char *stage1_laye_headers_dir = "./stage1/include/";
-
-static const char *stage1_laye_sources[] = {
+static const char* stage1_laye_sources[] = {
     "./stage1/src/layec_shared.c",
     "./stage1/src/layec_context.c",
     "./stage1/src/layec_depgraph.c",
@@ -50,13 +45,8 @@ static const char *stage1_laye_sources[] = {
     "./stage1/src/layec.c"
 };
 
-static const char* stage2_laye_sources[] = {
-    "./src/main.laye",
-};
-
 static int64_t stage1_laye_sources_count = sizeof(stage1_laye_sources) / sizeof(stage1_laye_sources[0]);
 static int64_t stage1_laye_sources_count_without_main = (sizeof(stage1_laye_sources) / sizeof(stage1_laye_sources[0])) - 1;
-static int64_t stage2_laye_sources_count = sizeof(stage2_laye_sources) / sizeof(stage2_laye_sources[0]);
 
 static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-I", stage1_laye_headers_dir);
@@ -65,7 +55,7 @@ static void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-pedantic-errors");
     nob_cmd_append(cmd, "-ggdb");
     nob_cmd_append(cmd, "-Werror=return-type");
-    if (!args.no_asan) {
+    if (!no_asan) {
         nob_cmd_append(cmd, "-fsanitize=address");
     }
     nob_cmd_append(cmd, "-D__USE_POSIX");
@@ -76,14 +66,14 @@ static void layeflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-I", "./lib/liblaye");
 }
 
-static char *to_object_file_path(const char *filepath) {
-    char *filename = basename((char *) filepath);
-    char *objectfile_path = nob_temp_sprintf(BUILD_DIR"/"OBJECT_DIR"/%s.o", filename);
+static char* to_object_file_path(const char* filepath) {
+    char* filename = basename((char*)filepath);
+    char* objectfile_path = nob_temp_sprintf(BUILD_DIR "/" OBJECT_DIR "/%s.o", filename);
 
     return objectfile_path;
 }
 
-static void build_stage1_laye_object_files(bool complete_rebuild) {
+static bool build_stage1_laye_object_files(bool complete_rebuild) {
     Nob_Proc processes[stage1_laye_sources_count];
     bool compiled_anything = false;
 
@@ -107,7 +97,7 @@ static void build_stage1_laye_object_files(bool complete_rebuild) {
         // It can be *some* object file, because the newest object file will always
         // be as old as the last built, so if a header file gets modified it will be
         // newer than all object files
-        char *output_path = to_object_file_path(stage1_laye_sources[0]);
+        char* output_path = to_object_file_path(stage1_laye_sources[0]);
 
         // add directory and file together as `nob_read_entire_dir` doesn't do this
         size_t checkpoint = nob_temp_save();
@@ -123,15 +113,15 @@ static void build_stage1_laye_object_files(bool complete_rebuild) {
         } else if (rebuild_is_needed) complete_rebuild = true;
     }
 
-    build:
+build:
     for (int64_t i = 0; i < stage1_laye_sources_count; i++) {
-        char *output_path = to_object_file_path(stage1_laye_sources[i]);
+        char* output_path = to_object_file_path(stage1_laye_sources[i]);
 
         if (!complete_rebuild) {
             int64_t rebuild_is_needed = nob_needs_rebuild1(output_path, stage1_laye_sources[i]);
 
             if (rebuild_is_needed < 0) {
-                char *msg = nob_temp_sprintf("Couldn't detected if file changed: %s", stage1_laye_sources[i]);
+                char* msg = nob_temp_sprintf("Couldn't detected if file changed: %s", stage1_laye_sources[i]);
                 nob_log(NOB_WARNING, msg);
             } else if (!rebuild_is_needed) {
                 processes[i] = NOB_INVALID_PROC;
@@ -167,41 +157,61 @@ static void build_stage1_laye_object_files(bool complete_rebuild) {
             if (result.exit_code != 0) exit(1);
         }
     }
+
+    return compiled_anything;
 }
 
 static void build_stage1_laye_executable() {
+    bool compiled_anything = build_stage1_laye_object_files(false);
+    if (!compiled_anything) {
+        return;
+    }
+
     Nob_Cmd cmd = {0};
 
     nob_cmd_append(&cmd, CC);
     cflags(&cmd);
-    nob_cmd_append(&cmd, "-o", BUILD_DIR"/laye1");
+    nob_cmd_append(&cmd, "-o", BUILD_DIR "/laye1");
 
     for (int i = 0; i < stage1_laye_sources_count; i++) {
-        char *output_path = to_object_file_path(stage1_laye_sources[i]);
+        char* output_path = to_object_file_path(stage1_laye_sources[i]);
         nob_cmd_append(&cmd, output_path);
     }
-    
+
     nob_cmd_run_sync(cmd);
 }
 
 static void build_stage2_laye_executable() {
+    Nob_File_Paths source_files = {0};
+    nob_read_entire_dir_recursively("./src", &source_files);
+
+    const char* stage2_output_path = BUILD_DIR "/laye";
+    int64_t rebuild_is_needed = nob_needs_rebuild(stage2_output_path, source_files.items, source_files.count);
+    if (rebuild_is_needed < 0) {
+        nob_log(NOB_WARNING, "Couldn't detected if source files changed. Forcing rebuild");
+    } else if (!rebuild_is_needed) {
+        return;
+    }
+
     Nob_Cmd cmd = {0};
 
     nob_cmd_append(&cmd, "./out/laye1");
     layeflags(&cmd);
-    nob_cmd_append(&cmd, "-o", BUILD_DIR"/laye");
+    nob_cmd_append(&cmd, "-o", stage2_output_path);
 
-    for (int i = 0; i < stage2_laye_sources_count; i++) {
-        nob_cmd_append(&cmd, stage2_laye_sources[i]);
+    for (int i = 0; i < source_files.count; i++) {
+        nob_cmd_append(&cmd, source_files.items[i]);
     }
-    
+
     nob_cmd_run_sync(cmd);
 }
 
 static void build_exec_test_runner() {
+    if (0 == nob_needs_rebuild1(BUILD_DIR "/exec_test_runner", "./stage1/src/exec_test_runner.c")) return;
+
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, CC);
-    nob_cmd_append(&cmd, "-o", BUILD_DIR"/exec_test_runner");
+    nob_cmd_append(&cmd, "-o", BUILD_DIR "/exec_test_runner");
     cflags(&cmd);
     nob_cmd_append(&cmd, "./stage1/src/exec_test_runner.c");
     nob_cmd_run_sync(cmd);
@@ -210,7 +220,7 @@ static void build_exec_test_runner() {
 static void build_parse_fuzzer() {
     Nob_Cmd cmd = {0};
     char fuzzer_path[] = "./fuzz/parse_fuzzer.c";
-    char *object_path = to_object_file_path(fuzzer_path);
+    char* object_path = to_object_file_path(fuzzer_path);
 
     // Compile `parse_fuzzer.c` to object file
     nob_cmd_append(&cmd, CC);
@@ -223,7 +233,7 @@ static void build_parse_fuzzer() {
     // Link with `-fsanitize=fuzzer` to executable
     Nob_Cmd cmd_link = {0};
     nob_cmd_append(&cmd_link, CC);
-    nob_cmd_append(&cmd_link, "-o", BUILD_DIR"/parse_fuzzer");
+    nob_cmd_append(&cmd_link, "-o", BUILD_DIR "/parse_fuzzer");
     nob_cmd_append(&cmd_link, "-fsanitize=fuzzer");
     cflags(&cmd_link);
 
@@ -237,22 +247,12 @@ static void build_parse_fuzzer() {
 }
 
 static void build_stage1_laye_driver() {
-    build_stage1_laye_object_files(false);
     build_stage1_laye_executable();
 }
 
 static void build_stage2_laye_driver() {
     build_stage1_laye_driver();
     build_stage2_laye_executable();
-}
-
-static void build_all() {
-    build_stage2_laye_driver();
-    build_exec_test_runner();
-    build_parse_fuzzer();
-}
-
-static void install() {
 }
 
 static void run_fchk(bool rebuild) {
@@ -278,7 +278,258 @@ static void run_fchk(bool rebuild) {
     nob_cmd_run_sync(cmd);
 }
 
-static void parse_args(int* argc, char*** argv) {
+#define NOB_HELP_TEXT_USAGE "usage: nob [--help] %s [<args>]\n"
+
+#define NOB_HELP_TEXT_BUILD \
+    "    --stage1             Build only the stage1 compiler\n"
+
+#define NOB_HELP_TEXT_RUN \
+    "    --stage2             Runs the stage2 compiler instead\n"
+
+#define NOB_HELP_TEXT_INSTALL \
+    "    --stage2             Install the stage2 compiler (not currently supported)\n"
+
+#define NOB_HELP_TEXT_TEST \
+    "    --stage2             Build the test suite for the stage2 compiler (not currently supported)\n"
+
+#define NOB_HELP_TEXT_FUZZ \
+    "    --stage2             Build the fuzzer for the stage2 compiler (not currently supported)\n"
+
+#define NOB_HELP_TEXT                                                                                       \
+    "\nCommands:\n\n"                                                                                       \
+    "build                    Used to build the Laye tools in this project.\n"                              \
+    "                         If no command is provided, this is the default.\n"                            \
+    NOB_HELP_TEXT_BUILD                                                                                     \
+    "\n"                                                                                                    \
+    "run                      Same as `build`, but also runs the resulting executable with the arguments\n" \
+    "                         provided after `--`.\n"                                                       \
+    "                         By default this runs the stage1 compiler.\n"                                  \
+    NOB_HELP_TEXT_RUN                                                                                       \
+    "\n"                                                                                                    \
+    "install                  Installs the requested build artifacts.\n"                                    \
+    "                         By default, this will install the stage1 compiler.\n"                         \
+    NOB_HELP_TEXT_INSTALL                                                                                   \
+    "\n"                                                                                                    \
+    "test                     Runs the automated test suite.\n"                                             \
+    "                         By default, tests are run against the stage1 compiler.\n"                     \
+    NOB_HELP_TEXT_TEST                                                                                      \
+    "\n"                                                                                                    \
+    "fuzz                     Runs the fuzzer. The fuzzer currently only runs through parsing.\n"           \
+    "                         By default, fuzzing is run against the stage1 compiler.\n"                    \
+    NOB_HELP_TEXT_FUZZ                                                                                      \
+    ""
+
+static int nob_help(const char* command) {
+    fprintf(stderr, NOB_HELP_TEXT_USAGE, command == NULL ? "[<command>]" : command);
+    if (command == NULL) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT);
+    } else if (0 == strcmp("build", command)) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT_BUILD);
+    } else {
+        fprintf(stderr, "unknown command\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+#define NOB_SHARED_ARG_HANDLED   -2
+#define NOB_SHARED_ARG_UNHANDLED -1
+
+static int nob_shared_args(const char* command, int* argc, char*** argv) {
+    if (*argc == 0) {
+        return NOB_SHARED_ARG_UNHANDLED;
+    }
+
+    int argc_cached = *argc;
+    char** argv_cached = *argv;
+
+    const char* arg = nob_shift_args(argc, argv);
+    if (0 == strcmp("--help", arg)) {
+        return nob_help(command);
+    }
+
+    *argc = argc_cached;
+    *argv = argv_cached;
+
+    return NOB_SHARED_ARG_UNHANDLED;
+}
+
+typedef enum nob_build_stage {
+    NOB_BUILD_STAGE1,
+    NOB_BUILD_STAGE2,
+} nob_build_stage;
+
+static int nob_build(bool explicit, int argc, char** argv) {
+    nob_build_stage stage = NOB_BUILD_STAGE2;
+
+    while (argc > 0) {
+        int shared = nob_shared_args(explicit ? "build" : NULL, &argc, &argv);
+        if (shared >= 0) {
+            return shared;
+        } else if (shared == NOB_SHARED_ARG_HANDLED) {
+            continue;
+        }
+
+        const char* arg = nob_shift_args(&argc, &argv);
+        if (0 == strcmp("--stage1", arg)) {
+            stage = NOB_BUILD_STAGE1;
+        } else {
+            fprintf(stderr, "Unknown argument '%s'.\n", arg);
+            nob_help(explicit ? "build" : NULL);
+        }
+    }
+
+    if (stage >= NOB_BUILD_STAGE1) {
+        build_stage1_laye_driver();
+        build_exec_test_runner();
+    }
+
+    if (stage >= NOB_BUILD_STAGE2) {
+        build_stage2_laye_driver();
+    }
+
+    return 0;
+}
+
+static int nob_run(int argc, char** argv) {
+    nob_build_stage stage = NOB_BUILD_STAGE1;
+
+    while (argc > 0) {
+        int shared = nob_shared_args("run", &argc, &argv);
+        if (shared >= 0) {
+            return shared;
+        } else if (shared == NOB_SHARED_ARG_HANDLED) {
+            continue;
+        }
+
+        const char* arg = nob_shift_args(&argc, &argv);
+        if (0 == strcmp("--", arg)) {
+            break;
+        } else if (0 == strcmp("--stage2", arg)) {
+            stage = NOB_BUILD_STAGE2;
+        } else {
+            fprintf(stderr, "Unknown argument '%s'.\n", arg);
+            nob_help("run");
+        }
+    }
+
+    if (stage >= NOB_BUILD_STAGE1) {
+        build_stage1_laye_driver();
+        build_exec_test_runner();
+    }
+
+    if (stage >= NOB_BUILD_STAGE2) {
+        build_stage2_laye_driver();
+    }
+
+    Nob_Cmd cmd = {0};
+    if (stage == NOB_BUILD_STAGE1) {
+        nob_cmd_append(&cmd, BUILD_DIR "/laye1");
+    } else if (stage == NOB_BUILD_STAGE2) {
+        nob_cmd_append(&cmd, BUILD_DIR "/laye");
+    } else {
+        fprintf(stderr, "unknown stage selected somehow: %d\n", stage);
+        return 1;
+    }
+
+    nob_da_append_many(&cmd, argv, argc);
+    nob_cmd_run_sync(cmd);
+
+    return 0;
+}
+
+static int nob_install(int argc, char** argv) {
+    while (argc > 0) {
+        int shared = nob_shared_args("install", &argc, &argv);
+        if (shared >= 0) {
+            return shared;
+        } else if (shared == NOB_SHARED_ARG_HANDLED) {
+            continue;
+        }
+
+        const char* arg = nob_shift_args(&argc, &argv);
+        fprintf(stderr, "Unknown argument '%s'.\n", arg);
+        nob_help("install");
+    }
+
+    return 0;
+}
+
+static int nob_test(int argc, char** argv) {
+    nob_build_stage stage = NOB_BUILD_STAGE1;
+
+    while (argc > 0) {
+        int shared = nob_shared_args("test", &argc, &argv);
+        if (shared >= 0) {
+            return shared;
+        } else if (shared == NOB_SHARED_ARG_HANDLED) {
+            continue;
+        }
+
+        const char* arg = nob_shift_args(&argc, &argv);
+        if (0 == strcmp("--stage2", arg)) {
+            stage = NOB_BUILD_STAGE2;
+        } else {
+            fprintf(stderr, "Unknown argument '%s'.\n", arg);
+            nob_help("test");
+        }
+    }
+
+    // TODO(local): need some way to specify which stage, as it's currently only going to run against stage1
+    // since that's all we know how to build it with
+    build_stage1_laye_driver();
+    build_exec_test_runner();
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, BUILD_DIR "/exec_test_runner");
+    if (!nob_cmd_run_sync(cmd)) {
+        return 1;
+    }
+
+    run_fchk(false);
+    return 0;
+}
+
+static int nob_fuzz(int argc, char** argv) {
+    nob_build_stage stage = NOB_BUILD_STAGE1;
+
+    while (argc > 0) {
+        int shared = nob_shared_args("fuzz", &argc, &argv);
+        if (shared >= 0) {
+            return shared;
+        } else if (shared == NOB_SHARED_ARG_HANDLED) {
+            continue;
+        }
+
+        const char* arg = nob_shift_args(&argc, &argv);
+        if (0 == strcmp("--stage2", arg)) {
+            stage = NOB_BUILD_STAGE2;
+        } else {
+            fprintf(stderr, "Unknown argument '%s'.\n", arg);
+            nob_help("fuzz");
+        }
+    }
+
+    if (stage >= NOB_BUILD_STAGE1) {
+        build_stage1_laye_driver();
+        build_exec_test_runner();
+    }
+
+    if (stage >= NOB_BUILD_STAGE2) {
+        build_stage2_laye_driver();
+    }
+
+    // TODO(local): need some way to specify which stage, as it's currently only going to run against stage1
+    // since that's all we know how to build it with
+    build_parse_fuzzer();
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, BUILD_DIR "/parse_fuzzer");
+    nob_cmd_append(&cmd, "./fuzz/corpus");
+    nob_cmd_run_sync(cmd);
+
+    return 0;
 }
 
 int main(int argc, char** argv) {
@@ -286,88 +537,27 @@ int main(int argc, char** argv) {
 
     const char* program = nob_shift_args(&argc, &argv);
     nob_mkdir_if_not_exists(BUILD_DIR);
-    nob_mkdir_if_not_exists(BUILD_DIR"/"OBJECT_DIR);
+    nob_mkdir_if_not_exists(BUILD_DIR "/" OBJECT_DIR);
 
     if (argc > 0) {
-        const char* command = nob_shift_args(&argc, &argv);
-        if (0 == strcmp("build", command)) {
-            if (argc > 0) {
-                const char* what_to_build = nob_shift_args(&argc, &argv);
-                if (0 == strcmp("laye1", what_to_build)) {
-                    build_stage1_laye_driver();
-                } else if (0 == strcmp("laye", what_to_build)) {
-                    build_stage2_laye_driver();
-                } else {
-                    fprintf(stderr, "Invalid project specified to build.\n");
-                    return 1;
-                }
-            } else {
-                build_all();
-            }
-        } else if (0 == strcmp("run", command)) {
-            build_stage1_laye_object_files(false);
-            build_stage1_laye_executable();
-
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, BUILD_DIR"/laye1");
-            nob_da_append_many(&cmd, argv, argc);
-            nob_cmd_run_sync(cmd);
-        } else if (0 == strcmp("install", command)) {
-            fprintf(stderr, "todo\n");
-            return 1;
-
-            if (argc == 0) {
-                fprintf(stderr, "install command expects an install directory as its only argument.\n");
-                return 1;
-            }
-
-            const char* bin_prefix = nob_shift_args(&argc, &argv);
-            const char* lib_prefix = nob_shift_args(&argc, &argv);
-
-            if (!nob_mkdir_if_not_exists(bin_prefix)) return 1;
-
-            if (!nob_mkdir_if_not_exists(lib_prefix)) return 1;
-            if (!nob_mkdir_if_not_exists(nob_temp_sprintf("%s/lib", lib_prefix))) return 1;
-
-            build_stage1_laye_driver();
-
-            nob_copy_file(BUILD_DIR"/laye1", nob_temp_sprintf("%s/laye1", bin_prefix));
-            nob_copy_directory_recursively("./liblaye", nob_temp_sprintf("%s/lib/liblaye", lib_prefix));
-        } else if (0 == strcmp("fuzz", command)) {
-            build_stage1_laye_object_files(false);
-            build_parse_fuzzer();
-
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, BUILD_DIR"/parse_fuzzer");
-            nob_cmd_append(&cmd, "./fuzz/corpus");
-            nob_cmd_run_sync(cmd);
-        } else if (0 == strcmp("test-exec", command)) {
-            build_stage1_laye_driver();
-            build_exec_test_runner();
-
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, BUILD_DIR"/exec_test_runner");
-            nob_cmd_run_sync(cmd);
-        } else if (0 == strcmp("test-fchk", command)) {
-            run_fchk(false);
-        } else if (0 == strcmp("test-fchk-build", command)) {
-            run_fchk(true);
-        } else if (0 == strcmp("test", command)) {
-            build_stage1_laye_driver();
-            build_exec_test_runner();
-
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, BUILD_DIR"/exec_test_runner");
-            nob_cmd_run_sync(cmd);
-
-            run_fchk(false);
-        } else {
-            fprintf(stderr, "Unknown nob command: %s\n", command);
-            return 1;
+        const char* maybe_command = argv[0];
+        if (0 == strcmp("build", maybe_command)) {
+            nob_shift_args(&argc, &argv);
+            return nob_build(true, argc, argv);
+        } else if (0 == strcmp("run", maybe_command)) {
+            nob_shift_args(&argc, &argv);
+            return nob_run(argc, argv);
+        } else if (0 == strcmp("install", maybe_command)) {
+            nob_shift_args(&argc, &argv);
+            return nob_install(argc, argv);
+        } else if (0 == strcmp("test", maybe_command)) {
+            nob_shift_args(&argc, &argv);
+            return nob_test(argc, argv);
+        } else if (0 == strcmp("fuzz", maybe_command)) {
+            nob_shift_args(&argc, &argv);
+            return nob_fuzz(argc, argv);
         }
-    } else {
-        build_all();
     }
 
-    return 0;
+    return nob_build(false, argc, argv);
 }

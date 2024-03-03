@@ -13,6 +13,7 @@ examples/raylib/*
 !examples/raylib/
 !examples/raylib/*.laye
 
+a.out
 out
 test-out
 nob

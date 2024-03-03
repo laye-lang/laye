@@ -397,7 +397,7 @@ bool nob_mkdir_if_not_exists(const char *path)
 #endif
     if (result < 0) {
         if (errno == EEXIST) {
-            nob_log(NOB_INFO, "directory `%s` already exists", path);
+            //nob_log(NOB_INFO, "directory `%s` already exists", path);
             return true;
         }
         nob_log(NOB_ERROR, "could not create directory `%s`: %s", path, strerror(errno));
@@ -703,6 +703,45 @@ bool nob_read_entire_dir(const char *parent, Nob_File_Paths *children)
     while (ent != NULL) {
         nob_da_append(children, nob_temp_strdup(ent->d_name));
         ent = readdir(dir);
+    }
+
+    if (errno != 0) {
+        nob_log(NOB_ERROR, "Could not read directory %s: %s", parent, strerror(errno));
+        nob_return_defer(false);
+    }
+
+defer:
+    if (dir) closedir(dir);
+    return result;
+}
+
+bool nob_read_entire_dir_recursively(const char* parent, Nob_File_Paths *children)
+{
+    bool result = true;
+    DIR *dir = NULL;
+
+    dir = opendir(parent);
+    if (dir == NULL) {
+        nob_log(NOB_ERROR, "Could not open directory %s: %s", parent, strerror(errno));
+        nob_return_defer(false);
+    }
+
+    errno = 0;
+    struct dirent *ent = readdir(dir);
+    while (ent != NULL) {
+        bool is_upnav = 0 == strcmp(".", ent->d_name) || 0 == strcmp("..", ent->d_name);
+
+        const char* ent_name = nob_temp_sprintf("%s/%s", parent, ent->d_name);
+        ent = readdir(dir);
+
+        if (is_upnav) continue;
+
+        Nob_File_Type file_type = nob_get_file_type(ent_name);
+        if (file_type == NOB_FILE_DIRECTORY) {
+            nob_read_entire_dir_recursively(ent_name, children);
+        } else {
+            nob_da_append(children, ent_name);
+        }
     }
 
     if (errno != 0) {
