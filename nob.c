@@ -8,7 +8,7 @@
 #    error "This build script currently only supports Windows and Unix, sorry"
 #endif
 
-#define BUILD_DIR "." NOB_PATH_SEP "out"
+#define BUILD_DIR  "." NOB_PATH_SEP "out"
 #define OBJECT_DIR BUILD_DIR NOB_PATH_SEP "o"
 
 #define STAGE1_OUT_PATH BUILD_DIR NOB_PATH_SEP "laye1"
@@ -320,8 +320,18 @@ static void run_fchk(bool rebuild) {
 #define NOB_HELP_TEXT_RUN \
     "    --stage2             Runs the stage2 compiler instead\n"
 
-#define NOB_HELP_TEXT_INSTALL \
-    "    --stage2             Install the stage2 compiler (not currently supported)\n"
+#define NOB_HELP_TEXT_INSTALL                                                                              \
+    "    --stage2             Install the stage2 compiler (not currently supported)\n"                     \
+    "    --bin-prefix         Set the install prefix for the binary files.\n"                              \
+    "                         This path will be suffixed with a `bin` directory.\n"                        \
+    "    --lib-prefix         Set the install prefix for the library files.\n"                             \
+    "                         This path will be suffixed with a `lib` directory.\n"                        \
+    "    --prefix             Set the install prefix for both the binary and library files.\n"             \
+    "                         This path will be suffixed with a `bin` or `lib` directory.\n"               \
+    "                         --prefix is identical to passing both a --bin-prefix and a --lib-prefix.\n"  \
+    "    --print-dirs         Prints the resulting installation directories, then exits.\n"                \
+    "                         When no explicit prefixes are passed, the default install directories for\n" \
+    "                         this platform will be printed."
 
 #define NOB_HELP_TEXT_TEST \
     "    --stage2             Build the test suite for the stage2 compiler (not currently supported)\n"
@@ -332,25 +342,20 @@ static void run_fchk(bool rebuild) {
 #define NOB_HELP_TEXT                                                                                       \
     "\nCommands:\n\n"                                                                                       \
     "build                    Used to build the Laye tools in this project.\n"                              \
-    "                         If no command is provided, this is the default.\n"                            \
-    NOB_HELP_TEXT_BUILD                                                                                     \
+    "                         If no command is provided, this is the default.\n" NOB_HELP_TEXT_BUILD        \
     "\n"                                                                                                    \
     "run                      Same as `build`, but also runs the resulting executable with the arguments\n" \
     "                         provided after `--`.\n"                                                       \
-    "                         By default this runs the stage1 compiler.\n"                                  \
-    NOB_HELP_TEXT_RUN                                                                                       \
+    "                         By default this runs the stage1 compiler.\n" NOB_HELP_TEXT_RUN                \
     "\n"                                                                                                    \
     "install                  Installs the requested build artifacts.\n"                                    \
-    "                         By default, this will install the stage1 compiler.\n"                         \
-    NOB_HELP_TEXT_INSTALL                                                                                   \
+    "                         By default, this will install the stage1 compiler.\n" NOB_HELP_TEXT_INSTALL   \
     "\n"                                                                                                    \
     "test                     Runs the automated test suite.\n"                                             \
-    "                         By default, tests are run against the stage1 compiler.\n"                     \
-    NOB_HELP_TEXT_TEST                                                                                      \
+    "                         By default, tests are run against the stage1 compiler.\n" NOB_HELP_TEXT_TEST  \
     "\n"                                                                                                    \
     "fuzz                     Runs the fuzzer. The fuzzer currently only runs through parsing.\n"           \
-    "                         By default, fuzzing is run against the stage1 compiler.\n"                    \
-    NOB_HELP_TEXT_FUZZ                                                                                      \
+    "                         By default, fuzzing is run against the stage1 compiler.\n" NOB_HELP_TEXT_FUZZ \
     ""
 
 static int nob_help(const char* command) {
@@ -359,6 +364,14 @@ static int nob_help(const char* command) {
         fprintf(stderr, "%s\n", NOB_HELP_TEXT);
     } else if (0 == strcmp("build", command)) {
         fprintf(stderr, "%s\n", NOB_HELP_TEXT_BUILD);
+    } else if (0 == strcmp("run", command)) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT_RUN);
+    } else if (0 == strcmp("install", command)) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT_INSTALL);
+    } else if (0 == strcmp("test", command)) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT_TEST);
+    } else if (0 == strcmp("fuzz", command)) {
+        fprintf(stderr, "%s\n", NOB_HELP_TEXT_FUZZ);
     } else {
         fprintf(stderr, "unknown command\n");
         return 1;
@@ -487,6 +500,8 @@ static int nob_install(int argc, char** argv) {
     bool has_provided_bin_dir = false;
     bool has_provided_lib_dir = false;
 
+    bool print_dirs = false;
+
     while (argc > 0) {
         int shared = nob_shared_args("install", &argc, &argv);
         if (shared >= 0) {
@@ -498,6 +513,8 @@ static int nob_install(int argc, char** argv) {
         const char* arg = nob_shift_args(&argc, &argv);
         if (0 == strcmp("--stage2", arg)) {
             stage = NOB_BUILD_STAGE2;
+        } else if (0 == strcmp("--print-dirs", arg)) {
+            print_dirs = true;
         } else if (0 == strcmp("--prefix", arg)) {
             if (argc == 0) {
                 fprintf(stderr, "Option `--prefix` requires the install prefix path as an argument.\n");
@@ -570,9 +587,15 @@ static int nob_install(int argc, char** argv) {
 #endif
     const char* lib_path = path_contact(library_prefix, "laye");
 
+    if (print_dirs) {
+        fprintf(stderr, "  laye binary install directory:  %s\n", bin_path);
+        fprintf(stderr, "  laye library install directory: %s\n", lib_path);
+        return 0;
+    }
+
     const char* binary_to_install = NULL;
     if (stage == NOB_BUILD_STAGE1) {
-        binary_to_install = BUILD_DIR"/laye1";
+        binary_to_install = BUILD_DIR "/laye1";
     }
 
     if (stage >= NOB_BUILD_STAGE1) {
