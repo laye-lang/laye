@@ -1,2 +1,9 @@
 export import * from "std/runtime.laye";
 export import * from "std/string.laye";
+
+export foreign callconv(cdecl) i8[*] shift_args(i32 mut& argc, i8[*][*] mut& argv) {
+    i8[*] result_value = argv[0];
+    argc = argc - 1;
+    argv = argv + 1;
+    return result_value;
+}
