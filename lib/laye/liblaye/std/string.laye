@@ -1,5 +1,12 @@
+import "libc.laye";
+
 export struct string {
+    i8 mut[*] data;
+    int count;
+    int capacity;
 }
 
 export struct string_view {
+    i8[*] data;
+    int count;
 }

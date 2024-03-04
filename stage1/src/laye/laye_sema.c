@@ -1476,6 +1476,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 break;
             }
 
+            laye_sema_implicit_dereference(sema, &node->member.value);
+            value_type = node->member.value->type;
+
             layec_location member_location = node->member.field_name.location;
             string_view member_name = node->member.field_name.string_value;
 
