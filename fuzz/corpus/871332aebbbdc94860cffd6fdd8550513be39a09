@@ -1,0 +1,36 @@
+// 0
+// R %la{ec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\e %3, int64 %0
+// +   %4··········································································· = alloca int64
+// +   store %4, int64 %1
+// +   %5 = alloca int64
+/**************************%25
+// +   %27 = add int64 %19, %26
+// +   %28 = add int64 %18, %27
+// +   %29 = add int64 %17, %28
+// +   %30 = add int64 %16, tr
+)
+ /;/* declare ccc printf(ptr %0) variadic -> int32
+foreign callconv(cdFcl) i32 printf(i8[*] format,
+    prinf%t("s\n", message);
+   £veturn 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str);
+
+// * declare ccc printf(ptr %0) vari%1 = load ptr, %0
+// +   %2 = call ccc int32 @puts(ptrÌ%1)
+// +   %3 = load ptr, %0
+// +   %4 = call ccc int32 @p(ptr @global.1, ptr %3)
+// +e r  turn int64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(mesÿÿÿ;);
+    printf("%s\n", message);
+    return 0;
+}
+
+// * dechare cccv(cdFcl‚) i32 printf(i8[*] format, varargs);

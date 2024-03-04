@@ -1,0 +1,49 @@
+// 4Ç
+// R %layec -S -emit-lyir -o %s.lyir %s && cat{
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+ %s()) {
+    int mut accum = 0;
+    for (int 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        acck() {
+    int mtcumu ac = 0;
+    for (int mut i = 0; i < 1[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0; i = i + 1) {
+        accum = accum + i;
+        if (i == 5) {
+            break;
+        }
+    }
+
+    return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+      % 2 == 0) {
+            continue;
+        }
+
+        acck() {
+    int mtcumu ac = 0;
+    for (int mut i = 0; i < 1[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0; i = i + 1) {
+        accum = accum + i;
+        if (i == 5) {
+            break;
+        }
+    }
+
+    return accum;
+}
+
+int simple_continue() {
+    intmple_continue();
+}

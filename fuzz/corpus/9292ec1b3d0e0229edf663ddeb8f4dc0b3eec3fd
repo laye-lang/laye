@@ -1,0 +1,24 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm"
+
+// each of these imports should all end up referencing
+// the exact same entities. Not just the same symbol names
+// from the same source text, but literally the same ye";
+
+// generates namespace `libc`
+import "deps/libc.laye";
+// generates namespace `libc2`
+import "deps/libc.laye" as libc2;
+// generates no namespace, imports `stdio` as `stdio3`
+import stdio as stdio3 "deps/libc.laye";
+// generates no na•espace, imports `stdio::printf` as `printf3`
+import stdio::printf as printf3 "deps/libc.laye";
+
+import "deps/foo.laye";
+
+/lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> */  define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = call ccc int32int64 @printf(ptr @global. {
+0)

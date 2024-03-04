@@ -1,0 +1,8 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyirÿÿÿÿÿÿÿÿÿÿÿÿÿ
+
+struct   mut v:c2i v;
+    v.x = 34;
+    v.y = 35;
+    return v.x. +vy ;
+}

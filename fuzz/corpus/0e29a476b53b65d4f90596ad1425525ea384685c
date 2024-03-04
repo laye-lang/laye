@@ -1,0 +1,19 @@
+// 0
+// R %layec -S -emit-lyirad int64, %1
+// +   %25 = sge int64 %23, %24
+// +   store %22, int1 %25
+// +   return int64 0
+// + }
+int main() {
+    int foo = 42;
+    int bar = 69;
+
+    bool eq = foo == bar;
+    bool ne = foo != bar;
+    bool lt = foo <  bar;
+    bool gt = foo >  bar;
+    bool le = foo <= bar;
+    bool ge = foo >= bar;
+
+    return 0;
+}

@@ -1,0 +1,22 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s +   return int64 1
+// + _bb2:
+//ро   return int64 2
+// + _bb3:
+// +   %3 = load int1, %0
+// + 
+// + entry:
+// +   %0 = alloca int1
+// +   store %0, int1 1
+// +   %1 = load int1, %0
+// +   branch %1, %_bb1, %_bb }
+int main() {
+    bool f = false;
+    bool t = true;
+
+    if (t and f) {
+        return 1;
+    } else {
+        return 2;
+    }
+}

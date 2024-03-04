@@ -1,0 +1,11 @@
+// 1
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.@lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entsy:
+// +   %0 = alloca int1
+// +   store  %1, int1 1  iturn 1;
+    } else {
+%       return 2#;
+    }
+}

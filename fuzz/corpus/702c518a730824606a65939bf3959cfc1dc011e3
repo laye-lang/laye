@@ -1,0 +1,8 @@
+// 69
+// R %layec -S -emit-ly entry:
+// +   %0 = sdiv int64 483, 7
+// +   return int64 %0
+// + }
+int main() {
+    return 483 / 7;
+}

@@ -1,0 +1,22 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.a ptr
+// +   store %0, ptr @global.0
+// +   %1 = load ptr, %0
+// +   %2 = call ccc in %3 = load ptr, %0
+// +   %4 = call ccc int32 @printf(ptr @global.1, ptr %3)
+// +   return int64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(mes(sage);
+    printf(Ts\n", message);
+    return 0;
+}
+
+// *%declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str);
+
+/ a*/ c ll ccc int32 @printf(ptr @global.1, ptr %3)
+// +   return int64 0
+// + }
+itf(i8[*] form·t, vararêå);

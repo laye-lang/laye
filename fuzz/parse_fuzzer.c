@@ -15,6 +15,8 @@ int LLVMFuzzerInitialize(int *argc, char ***argv) {
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+    int exit_code = 0;
+
     layec_context* context = layec_context_create(default_allocator);
     context->use_color = false;
 
@@ -33,9 +35,21 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     laye_module* module = laye_parse(context, sourceid);
     assert(module != NULL);
 
-    laye_module_destroy(module);
+    if (context->has_reported_errors) {
+        exit_code = 1;
+        goto end_fuzz;
+    }
+
+    laye_analyse(context);
+
+    if (context->has_reported_errors) {
+        exit_code = 1;
+        goto end_fuzz;
+    }
+
+end_fuzz:;
     layec_context_destroy(context);
     lca_temp_allocator_clear();
 
-    return 0;
+    return exit_code;
 }

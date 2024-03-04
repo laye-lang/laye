@@ -1,0 +1,16 @@
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign              if (t) { continue loop; }
+                }
+                forward2:
+                for {
+                    defer j();
+                    if (t) { continue; }
+ continue loop0; }
+                }
+            }      if (t) { ber l();
+      ‡ﬂﬂﬂ  if (t) { break; }
+        }
+    }
+}

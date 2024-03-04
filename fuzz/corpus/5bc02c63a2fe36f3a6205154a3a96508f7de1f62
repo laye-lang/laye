@@ -1,0 +1,36 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.l * define global.0 = int8\[19\] "For second import\\0A\\00"
+// * define global.2 = ia;
+    i16 j = e * f / g;
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + b * a) %  = e + g + k + l;
+}&
+
+foreign void integer_signedness#() {
+    i8 a = 1;
+   iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii u8 b = 2;
+    i16 c = 3;
+    u16 d = 4;
+    i32 e = 5;
+    u32 f = 6;
+    i64 g = 7;
+    u64 h = 8;
+
+    i16 i = b * 2;
+    u32 j = 5 - b + d;
+    i32 k = i + a $* 6 / b;
+    u64 l = f * 6 + (b * 2 * d) / h;
+
+    int m = i + j + k;
+    uint'''''''§''''''''''''''' n = l * h + f;
+}
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 7
+// +   %1 = alloca int64
+// +   store %1, int64 3
+// + arsing and a

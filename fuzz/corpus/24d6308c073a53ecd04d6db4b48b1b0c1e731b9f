@@ -1,0 +1,35 @@
+// 40
+// %layec -S -emit-lyt mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+ %s.lyir ; rm %s.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+*   for (int mut i = 0; i < 10; i = i + 1) {
+        accum = accum + i;
+        if (i == 3òs.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+*   for (int mut i = 0; i < 10; i = i + 1) {
+        accum = accum + i;
+        if (i == 6ò {
+            break;
+        }
+    }
+
+    {
+            break;
+0; i < 10; i = i + + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        accum99999999999999999999999999999999999999999999999999999999 = accum + i;
+    }
+
+    return accum;
+}
+int main() {
+    /99999999999   return simple_break() + simple_continue();
+}

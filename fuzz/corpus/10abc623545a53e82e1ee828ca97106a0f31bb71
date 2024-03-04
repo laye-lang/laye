@@ -1,0 +1,6 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyir %s && ca   r}
+int<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< main() {
+    i8[
+] mem =)
+foreign callconv(cdecl) void free(i8[*] mem);

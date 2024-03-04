@@ -1,0 +1,9 @@
+// 40
+// R %layec -S -emit-lyir -o %s.lyir %s && cat simple_continue() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 1 2 == 0) {
+      ,      continue;
+        }
+
+        accum9999999999999) + simple_continue();
+}

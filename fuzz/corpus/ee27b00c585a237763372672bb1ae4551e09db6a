@@ -1,0 +1,12 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() {
+// + entry:
+// +   call ccc void + }
+noreturn main() {
+    exit(69);
+}
+
+// * declare ccc exit(int32 %0)
+foreign callconv(cdecl) noreturn exit(i32 exit_code);

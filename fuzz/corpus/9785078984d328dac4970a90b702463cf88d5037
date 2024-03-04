@@ -1,0 +1,38 @@
+// 2
+// R %layec -S -emithlyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first import\\0A\\00"
+// * define global.0 = int8\[19\] "For second import\\0A\\00"
+// * define global.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fou// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 d = 4;
+
+    i8 e S a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b; 6 
+ 1 i h = 6 * b;
+    i16 i = b - a;
+    i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[][[[ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ[[[[[[[[[[[ÿÿÿÿÿÿÿ'[[[[[[[[[[[[[[[[[= n + c * (a + b);
+    i64 p = (e * f) + (h - (g + 2) + m) % l;
+
+    int q = e ,+g  // +   %0 = alloca int64
+// +   store %0, int64 7
+// +   %1 = alloca int64
+// +   store %1, int64 3
+// + +   %8 = sdiv int64 %6, %7
+ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ// +   %9 = mul int64 %5, %8
+// +   %

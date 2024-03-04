@@ -1,5 +1,5 @@
 // 123
-// R %layec --ir %s
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 // * define exported ccc main() -> int64 {
 // + entry:

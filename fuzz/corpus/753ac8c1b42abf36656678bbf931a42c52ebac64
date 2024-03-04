@@ -1,0 +1,8 @@
+// 1
+// R %layec -S -emit-lyir -o %s.lyi ; rm %s.lyir
+
+// *  return int64 %0
+// + }
+int main() {
+    return 123 & 1;
+}

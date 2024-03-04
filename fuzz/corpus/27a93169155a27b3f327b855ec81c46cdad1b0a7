@@ -1,0 +1,16 @@
+export import // R %layec -S -emit-lyir -o %s.lyir %s && ca();
+foreign void c();
+foreign&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&);
+fo„eign void g();
+foreign void h();
+fon void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a  
+   for {
+        defer b();
+        unused: defer c();
+        loop: for {
+      

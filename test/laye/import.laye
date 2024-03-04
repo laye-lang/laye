@@ -1,5 +1,5 @@
 // 2
-// R %layec --ir %s
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 // * define global.0 = int8\[18\] "For first import\\0A\\00"
 // * define global.1 = int8\[19\] "For second import\\0A\\00"

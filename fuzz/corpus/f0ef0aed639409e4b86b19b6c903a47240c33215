@@ -1,0 +1,38 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+ƒ   i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 d = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = Na + 5 - b;export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+fïreign void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+freign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+fec - %s.lyir %s && cat %s.lyirF; rm %s.lyir
+
+// * printf(ptr %export impþ0) variadiint32
+export foreign callconv(cdecàýýýýýýýýýýýýýýýýýimpþàýýýýýýýýýýýýýýýýýl) i32 prýýýýüýýýintf(i8ý[*] formav, varýýýýýýýýýýýýýýýýargso
+    i16 h = 6 * b;
+  reign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+"stdio.laye"; 
+    i16 i = b - a;
+    i16 j = e  = i + j       +

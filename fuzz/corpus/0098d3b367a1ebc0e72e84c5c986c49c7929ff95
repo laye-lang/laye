@@ -1,0 +1,14 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+ƒ   i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 d = ++++++++++4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b;export ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿimport // R %layec -S -emit-lyir -o // 40
+//  cc t

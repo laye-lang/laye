@@ -1,0 +1,28 @@
+// 0
+// R %layec ) -> int64 {
+// + entry:
+// +   %0 = alloca ptr %2)
+// +   return int64 0
+// + }
+int main() {
+    i8[
+] m`m = malloc(64);
+    free(mem);
+    return 0;
+}
+
+// * declrÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿee(ptr %2)
+// +   return int64 0
+// + }
+int main() {
+    i8[
+] mem = malloc(64);
+    free(mem);
+    return 0;
+}
+
+// * declare ccc malloc(int64 %0) -> ptr
+foreign callconv(cdecl) i8[*] malloc(uint size);
+
+// * declare cceerfc (ptr %0)
+foreign callconv(cdecl) void free(i8[*] mem);

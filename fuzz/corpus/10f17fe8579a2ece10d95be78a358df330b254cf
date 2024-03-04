@@ -1,0 +1,28 @@
+// 40
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+int simple_break() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+      I  accum = accum + i;
+        if (i == 5) {
+            break;
+        }
+    }
+
+   -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+int simple_ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿi = i + 1) {
+      I  accum = accum + i;
+        if (i == 5) {
+            break;
+        }
+    }
+
+    return acc4 34
+
+
+int simple_continue() {
+    int mut accum = 0;
+    fonue();
+}

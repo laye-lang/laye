@@ -312,7 +312,7 @@ static void run_fchk(bool rebuild) {
     nob_cmd_run_sync(cmd);
 }
 
-#define NOB_HELP_TEXT_USAGE "usage: nob [--help] %s [<args>]\n"
+#define NOB_HELP_TEXT_USAGE "Usage: nob %s [--help] [<args>]\n"
 
 #define NOB_HELP_TEXT_BUILD \
     "    --stage1             Build only the stage1 compiler\n"
@@ -331,7 +331,7 @@ static void run_fchk(bool rebuild) {
     "                         --prefix is identical to passing both a --bin-prefix and a --lib-prefix.\n"  \
     "    --print-dirs         Prints the resulting installation directories, then exits.\n"                \
     "                         When no explicit prefixes are passed, the default install directories for\n" \
-    "                         this platform will be printed."
+    "                         this platform will be printed.\n"
 
 #define NOB_HELP_TEXT_TEST \
     "    --stage2             Build the test suite for the stage2 compiler (not currently supported)\n"

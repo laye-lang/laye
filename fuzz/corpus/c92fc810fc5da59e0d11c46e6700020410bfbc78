@@ -1,0 +1,54 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first impol, this test just checks
+// for the existence of at least one declaration of `printf`:
+
+// * declare reexported ccc printf(ptr %0) variadic -> int32
+// * declare reexported ccc exit(int32 %0)
+
+// generates namespace `stdio`
+import "deps/stdio.laye";
+// generates namespace `stdio2`
+import "deps/stdio.laye" as stdio2;
+// generates no namespace, imports `printf`
+import * from "deps/stdio.laye";
+// generates no namespace, imports `printf2` (alias to `printf`)
+import printf as printf2 from "deps/stdio.laye";
+
+// generates namespace `libc`
+import "deps/libc.laye";
+// generates namespace `libc2`
+import "deps/libc.laye" as libc2;
+// generates no namespace, imports `stdio` as `stdio3`
+import stdio as stdio3 "deps/libc.laye";
+// generates no namespace, imports `stdio::printf` as `printf3`
+import stdio::printf as printf3 "deps/libc.laye";
+
+import "deps/foo.laye";
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = call ccc int32 @printf(ptr @global.0)
+// +   %1 = call ccc int32 @printf(ptr @global.1)
+// +   %2 = call ccc int32 @printf(ptr @global.2)
+// +   %3 = call ccc int32 @printf(ptr @global.3)
+// +   %4 = call ccc int32 @printf(ptr @global.4)
+// +   %5 = call ccc int32 @printf(ptr @global.5)
+// +   %6 = call ccc int32 @printf(ptr @global.6)
+// +   %7 = call ccc int32 @printf(ptr @global.7)
+// +   call ccc void @exit(int32 2)
+// +   return int64 0
+// + }
+int main() {
+    stdio::printf("For first import\n");
+    stdio2::printf("For second import\n");
+    printf("For third import\n");
+    printf2("For fourth import\n");
+    libc::stdio::printf("For fifth import\n");
+    libc2::stdio::printf("For sixth import\n");
+    stdio3::printf("For seventh import\n");
+    printf3("For eigth import\n");
+    foo::exit(2);
+    return 0;
+}

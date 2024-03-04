@@ -1,0 +1,18 @@
+// 69
+// R %layec -S -emitA-lyir -o %s.lyir %s && lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b i8 f = 2 * a;
+
+    i16 g = a + 5 - b;
+    i16 h = 6 * b;
+    i1gi = b - a;
+    i16 j = e * f / g;
+
+    i32 k = 10 *  mmain----------rt imporQQQ%15
+// + }
+int main() { a = 7;
+    int b = 3;
+    int c = 19(a-  ; + b));
+}

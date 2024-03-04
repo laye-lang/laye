@@ -1,0 +1,5 @@
+// 22return int43 %0
+// + }
+int main() {
+    return ~34;
+}

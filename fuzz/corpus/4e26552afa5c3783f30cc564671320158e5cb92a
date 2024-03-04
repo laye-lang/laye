@@ -1,0 +1,170 @@
+// 8
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s@.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = sar int64 34,ÿÿÿÿÿÿÿ 2
+// +   return int64 %0
+// + }
+
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   branch %_bb1
+// + _bb1:
+// +   %1 = load int64, %0
+// +   %2 = slt int64 %1, 10
+// +   branch %2, %_bb2, %_bb3
+// + _bb2:
+// +   %3 = load int64, %0
+// +   %4 = add int64 %3, 1
+// +   store %0, int64 %4
+// +   branch %_bb1
+// + _bb3:
+// +   %5 = load int64, %0
+// +   return int64 %5
+// + }
+int condition() {
+    int mut accum = 0;
+    while (accum < 10) {
+        accum = accum + 1;
+    }
+    return accum;
+}
+
+// * define layecc noinit() -> int64 {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   %1 = •“loca int64
+// +   store %1, int64 0
+// +   branch %_bb1
+// + _bb1:
+// +   %2 = load int64, %1
+// +   %3 = slt int64 %2, 10// +   branch %3, %_bb2, %_bb4
+// + _bb2:
+// +   %4 = load int64, %0
+// +   %5 = load int64, %1
+// +   %6 = add int64 %4, %5
+// +   store %0, int64 %6
+// +   branch %_bb3
+// + _bb3:
+// +   %7 = load int64, %1
+// +   %8 = add int64 %7, 1
+// +   store %1, int64 %8
+// +   branch %_bb1
+// + _bb4:
+// +   %9 = load int64, %0
+// +   return int64 %9
+// + }
+int noinit() {
+    int mut accum = 0;
+    int mut i = 0;
+    for (; i < 10; i = i + 1) {
+        accum = accum + i;
+    }
+    return accum;
+}
+
+// * define layecc noinc() -> int64 / +     store %0, int64 %6
+// +   %7 = load int64, %1
+// +   %8 = add int64 %7, 1
+// +   store %1, int64 %8
+// +   branch %_bb1
+// + _bb3:
+// +   %9 = load int64, %0
+//(+   return int64 %9
+// + }
+int noinc() {
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; ) {
+        accum = accum + i;
+        i = i + 1;
+    }
+    return ac %2, 10
+// +   branch %3, %_bb2, %_bb4
+// + _bb2:
+// +   %4 = load int64, %0
+// +   %5 = load int64, %1
+// +   %6 = add int64 %4, %5
+// +   store %0, int64 %6
+/ +   branch %_bb1
+// + _bb3:
+// +   %5 = load int64, %0
+// +   return int64 %5
+// + }
+int condition() {
+    int mut accum = 0;
+    while (accum < 10) {
+        accum = accum + 1;
+    }
+    return accum;/ +   branch %_bb3
+// + _bb3:
+// +   %7 = load int64, %1
+// +   %8 = add int64 %7, 1
+// +   store %1, int64 %8
+//4 = add int64 %3, 1
+// +   store %0, int64 %4
+// +   branch %_bb1
+// + _bb3:
+// +   %5 = load int64, %0
+// +   return int64 %5
+// + }
+int condition() {
+    int mut accum = 0;
+    while (accum < 10) {
+        accum = accum + 1;
+    }
+    return accum;
+}
+
+// * define la/ + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   %1 = cum;
+}
+
+// * define layecc nocondition() {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   branch %_bb1
+// + _bb1:
+// +   call layecc void @foo()
+// +   branch %_bb2
+// + _bb4:
+// +   %1 = load int64, %0
+// +   %2 = add int64 %1, 1
+// +   store %0, int64 %2
+// +   branch %_bb1
+/] + }
+noreturn nocondition() {
+    for (int mut i = 0; ; i = i + 1) {
+        foo();
+    }
+}
+
+// * define layecc cfor() -> int64 {.lyir ; rm %s.lyir
+t mut x;
+    mut int y;
+
+    x = 34;
+    y = 35;
+
+    return x + yayec -S -
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   %1 = alloca int64
+// +   store %1, int64 0
+// +   branch %_bb1
+// + _bb1:
+// +   %2 = load int64, %1
+// +   %3 = slt int64 %2, 10
+// +   branch %3, %_bb2, %_bb4
+// + _bb2:
+// +   %4 = load int32, %0
+// +   %5 = load int64, %1
+// +   %6 = add int64 %4, %5
+// +   storint main() {
+    return 34 >> 2;
+}

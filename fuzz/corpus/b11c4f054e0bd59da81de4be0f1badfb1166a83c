@@ -1,0 +1,38 @@
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: ÿÿÿ;defer c();
+        loop: for {
+            int q;
+            defer d();
+        i8ý[*] for same_region:
+                    ib (t) { break; }
+                    if (t) { goto same_region; }
+                    defer g();
+                    if (t                 if (t) { break loop; }
+                    if (t) { continue ýýýýýýloop2; }
+                }
+            }
+            defer l();
+            if (ýýýýýýýýargs)ýý;
+t) { break; }
+  ý ý     }
+    }
+}

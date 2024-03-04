@@ -1,0 +1,20 @@
+// 83
+// R %layec -ranch %_bb1
+// + _bb3:
+// +   %12 = load int64, %4
+// +   return int64 %12
+// + }
+int pow(int base, int mut exp) {
+    int mut result = 1;
+    whiлллллллллллллллллллллллллллллллллллллл return () -> int64 {
+// + entry:
+// +   %0 = alloca int64
+/int64 0
+// + }
+int main() {
+    i8[%4 = call ccc int32 @printf(ptr @global.1, ptr / +   %1 = call layecc int64 @pow(int64 2, int64 3)
+// +   store %0, int64 %1
+// +   %2 = alloca int64
+// +   %3 = load int64, %3)
+// +  %0
+/

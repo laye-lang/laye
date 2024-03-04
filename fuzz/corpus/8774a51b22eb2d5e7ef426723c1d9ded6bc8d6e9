@@ -1,0 +1,8 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyi* define exported ccc main() ->n $ i6t4{
+// + entry:
+//    branch 1, %_bb1, %_bb2// +   burn int64 %0
+// + }
+int main() {
+    return if (true) { yield K; } else { yield 5; };
+}

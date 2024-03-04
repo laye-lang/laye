@@ -1,0 +1,30 @@
+// 42
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm ted ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca ptr
+// +   store %0, ptr @global.0
+// +    ptr %3)
+// +   r›‹Š‘ß–št64 0
+// + }
+int main() {
+    i8[%4 = call ccc int32 @printo(ptr @global.1, ptr %3)
+// +   return int64 0
+// + } +  %3 = load int64Ý %2
+// +  retr
+// +  sne layecc other() -> int64 {
+// + entry:
+// +  %0 = alloca int64
+// +  store %0, int64 0
+// +  %1 = alloca ptr
+// +  store %1, ptr %0
+// +  %2 = load ptr, %1
+// +  store %2, int64 42
+// ;  %3 = load int64, %0
+// +  retu$rnÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ int64 %3
+// + }
+int other() {
+    int mut value = 0;
+    int mut* value_ptr = &value;
+    { yield *value_ptr; } = 42;
+    return value;
+}

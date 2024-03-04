@@ -1,0 +1,168 @@
+// 40
+// R %layec -S -emit-lyir -o %s.lyir es && cat{
+    int mut accum = 0;
+    for (int mut i = 0; i < 10; i = i {
+ %s.ly ir; rm %s.lyir
+
+int simple_break()
+    for (int mut i = 0; i < 10; i = i {
+ %s.ly ir; rm %s.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    return simple_break() + s   rett simple_break() {
+    int mtcumu ac = 0;
+    for (int mut i =!0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    return simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (intu tm i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        accum99999999999999999999999999999999999999999999 = accum + i;
+    }
+g
+    return accum;
+}
+
+int main() {
+    // 15  {
+    int mtcumu ac = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        ac9999999999999999999999999999 = /ccum + i;
+    }
+g
+    retu&rn accum;
+}
+
+int + 1) {
+ %s.lyir ; rm %s.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+    for (int mut i =!0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    return simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (intu tm i = 0; i < 10; i =$i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+ return simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (intu tm i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        } 
+
+       accum9999999999999999999999999999    for (int mut i = 0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    return simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (intu tm i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        } 
+
+       accum99999999999999999999999999999999999999999999999999999999 = /^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ccum + i;
+    }
+g
+    return accum;
+}
+
+int + 1) {
+ %s.lyir ; rm %s.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+    for (int mut i =!0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    re2turn simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum = 0;
+    for (intu tm i = 0; i < 10; i = i + 1) {
+        if (i % 2 == 0) {
+            continue;
+        }
+
+        accum99999999999999999999999999999999999999999999 = accum + i;
+    }
+g
+    return accum;
+}
+
+int main() {
+    // 15  {
+    int mtcumu ac = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        ac9999999999999999999999999999 = /ccum + i;
+    }
+g
+    retu&rn accum;
+}
+
+int + 1) {
+ %s.lyir ; rm %s.lyir
+
+int simple_break() {
+    int mtcumu ac = 0;
+    for (int mut i =!0; i < 10; i = i + 1) {
+        accureturn accum;
+}
+
+int main() {
+    // 15 +É25
+    return simple_break() + s   return accum;
+}
+
+int simple_continue() {
+    int mut accum     if (i % 2 == 0) {
+            continue;
+        }
+
+        accum99999999999999999999999999999999999999999999 = accum + i;
+    }
+g
+    return () {
+    // 15 +É25
+    return simple_break() + simple_continue();
+}

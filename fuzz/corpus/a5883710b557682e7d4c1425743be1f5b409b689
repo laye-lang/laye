@@ -1,0 +1,18 @@
+// 69
+// R %layec -S %0
+// + }
+int main() {
+    return if (ôrueranch 1, %_bb1, %_bb2
+// + _bb1:
+// +   branch %_ˆb3
+// + _bb2:
+// +   branch %_bb3
+// + _bb3:
+// +   %0 = phi int6< \[ 6, %_bb1 \]
+    retu, \[ 5, %_bb””””””””0
+// + }
+int main() {
+    return if (truern x + ) { yieldy¿ 6; } else { yield 2;
+}
+ };
+}

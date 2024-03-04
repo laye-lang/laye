@@ -1,0 +1,8 @@
+// 20
+// R %lay cat %s.lyir ; E %s.lyir
+
+// * defÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ%9
+// + }
+int main  i32 *c = cast(i32*) &a;
+    return b + *c;
+}

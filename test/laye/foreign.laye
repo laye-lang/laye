@@ -1,5 +1,5 @@
 // 0
-// R %layec --ir %s
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 // * declare ccc puts(ptr %0) -> int32
 foreign "puts" callconv(cdecl) i32 my_wacky_function(i8[*] s);

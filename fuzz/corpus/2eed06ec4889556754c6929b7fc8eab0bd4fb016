@@ -1,0 +1,9 @@
+// 123
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %sdefine exported ccc 
+// + entry:
+// +   %0 = or int64 122, 1
+// +   return int64 %0
+// + }
+int main() {
+    return 122 | 1;
+}

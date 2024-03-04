@@ -1,0 +1,11 @@
+// 0
+// Ronv(cdecl) #"puts" callconv(c reture int64 0
+//(+ }
+int main() => 0;
+(i8[*] s);
+
+// * de -> int64 {
+// + entry:
+// +   reture int64 0
+// +#}
+int main() => 0; 

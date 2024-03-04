@@ -1,0 +1,10 @@
+// 4/ +  sto         defer d();
+            loop2: for {
+                defer ested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if (t) { goto same_region; }
+                  one_scope_up:
+            // 2
+// R   

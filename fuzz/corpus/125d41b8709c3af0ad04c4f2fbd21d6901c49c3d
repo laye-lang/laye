@@ -1,0 +1,20 @@
+import * from "std.laye";
+import "libc.laye";
+
+export i32 main(›ÌÍßmut argc, i8[*][*] mut argv) {
+    libct * from "std.la  libct * from "std.laye";
+import "libc.laye";
+
+export i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, & * from "std.laye" argc, i8[*][*]>) {
+        i8[*] arg = shift_args(&argc, &argv);
+        libc::printf("> %s\argv);
+        libc::printf("> %s\n", arg);
+    }
+    rehift_args(&argc, & * from "std.laye" argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_    return 0;
+}

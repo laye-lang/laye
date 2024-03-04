@@ -1,0 +1,40 @@
+// 42
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// %0, int64 0
+// +  %1 = alloca ptr
+// +  store %1, ptr %0
+// +  %2 = load ptr, %1
+// +  store %2, int64 42
+// +  %3 /= load int64, %0
+// +  return int66 %3
+// + }
+int main() {
+    int mut value = 0;
+   nÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿint mut value = 43;
+    int mut* value_ptr = &value;
+    return *value_ptr;
+}
+
+// * define layecc other() -> int64 {
+// + entry:
+// +  %0 = her() {
+    int mut value = 0;
+    int mut* value_ptrv&=  alue;
+    { yield *value_ptr; } = 42;
+    alloca int64øÐ/ +  store %0, int64 0
+// +  %1 = alloca ptr
+// +  store %1, ptr %0
+// +  %2 = load ptr, %1
+// +  store %2, int64 42
+// *  %3 = load int64, %0
+// +  return int64 %3
+// + }
+int other() {
+    int mut value = 0;
+    int mut* value_ptrv&=  alue;
+    { yield *value_ptr; } = 42;
+    return value;
+}

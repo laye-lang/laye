@@ -1,0 +1,12 @@
+export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign voi();
+foreign void e();
+foreign void f();
+foreig>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>n void g-);
+foreign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+foreign {
+   &  

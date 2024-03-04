@@ -1,0 +1,11 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyirye";
+import "libc.laye";
+
+export i32 main(i32 mut arg// 42
+// R %layec -S -emit-lyi R %layec -S -emit-lyir -o %s.lyirye";
+import "libc.laye";
+
+export i32 main(i32 mut%s && cat %s.lyir ; rm %s.5
+//c, + }
+in i8[*][*]t m

@@ -143,7 +143,13 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
         assert(top_level_node != NULL);
 
         switch (top_level_node->kind) {
-            default: assert(false && "unreachable"); break;
+            default: {
+                fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(top_level_node->kind));
+                assert(false && "unreachable");
+            } break;
+
+            case LAYE_NODE_DECL_BINDING: {
+            } break;
 
             case LAYE_NODE_DECL_IMPORT: {
             } break;
@@ -469,6 +475,7 @@ static void laye_sema_resolve_module_import_declarations(layec_context* context,
             case LAYE_NODE_DECL_IMPORT: {
                 laye_token module_name_token = top_level_node->decl_import.module_name;
                 if (module_name_token.kind == LAYE_TOKEN_IDENT) {
+                    top_level_node->sema_state = LAYEC_SEMA_ERRORED;
                     layec_write_error(context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
                 }
 
@@ -476,6 +483,7 @@ static void laye_sema_resolve_module_import_declarations(layec_context* context,
                 string lookup_path = laye_sema_get_module_import_file_path(context, string_as_view(source.name), module_name_token.string_value);
 
                 if (lookup_path.count == 0) {
+                    top_level_node->sema_state = LAYEC_SEMA_ERRORED;
                     layec_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name_token.string_value));
                     continue;
                 }
@@ -520,6 +528,10 @@ static void laye_sema_build_module_symbol_tables(layec_context* context, laye_mo
 
     for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
+        if (top_level_node->sema_state == LAYEC_SEMA_ERRORED) {
+            continue;
+        }
+
         switch (top_level_node->kind) {
             default: break;
 
@@ -942,7 +954,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         } break;
 
         case LAYE_NODE_DECL_BINDING: {
-            laye_sema_analyse_type(sema, &node->declared_type);
+            if (!laye_sema_analyse_type(sema, &node->declared_type)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+                break;
+            }
+            assert(node->declared_type.node != NULL);
             if (node->decl_binding.initializer != NULL) {
                 if (laye_sema_analyse_node(sema, &node->decl_binding.initializer, node->declared_type)) {
                     laye_sema_convert_or_error(sema, &node->decl_binding.initializer, node->declared_type);

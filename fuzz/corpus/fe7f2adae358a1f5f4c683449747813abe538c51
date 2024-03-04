@@ -1,0 +1,34 @@
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyign void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if (t) { goto same_region; }
+                    defer g();
+                    if (          defer l();
+            if (t) { break; }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+// 221
+// R %la  int mtcumu ac = 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+        accum = accum + i;
+        if (i ) {
+        accum = accum + i;
+        if (i = 5) {
+            break;
+        }
+    }
+
+    retu// 0
+// R %la{ec -S -emit-lyir -o %s.lyirn accum;
+}
+
+int simple_continue() {r %s && cat %s.lyir 
+    int.lyir
+
+struct vec3iy1
+// cum = accum + i;
+        if (i == 5) {
+            braak;
+        }
+    }
+
+    retu// 0
+// R %la{ec -S -emit-lyir -o %s.lÏurn ~34;
+n ~34;
+}

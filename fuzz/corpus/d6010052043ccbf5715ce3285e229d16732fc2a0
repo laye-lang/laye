@@ -1,0 +1,5 @@
+// 136
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s. }
+int main() {
+    return 34 << 2;
+}

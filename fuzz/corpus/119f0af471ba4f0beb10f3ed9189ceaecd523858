@@ -1,0 +1,21 @@
+// 3
+// R %layec -S -eÿÿÿ	mit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc ma
+// +   r64 3
+// + _bb4:
+// +   returt64 2
+// + }
+int main() {
+   [ if (false) {
+        return 1;
+    } else if (true) {
+        return 3;
+    } else {
+        if (false) {
+        return 1;
+    } else if (true) {
+        return 3;
+ return 2;
+    }
+}

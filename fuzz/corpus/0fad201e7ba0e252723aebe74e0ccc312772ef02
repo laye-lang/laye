@@ -1,0 +1,16 @@
+import * from "std.laye";
+import "lˇˇˇˇˇˇˇˇibc.laye";
+
+export i32 main(i64 mut argc, i8[*"Hello, laye!\n");
+    while (argc > 0) {
+        i8[*] arg = shift_argv);
+                defer f();
+                    same_region:
+                    if (t) { break; }
+  tinue loop; }
+                }
+                forwardÿ≈
+      %s\n", arg);
+    }
+    return 5;
+}

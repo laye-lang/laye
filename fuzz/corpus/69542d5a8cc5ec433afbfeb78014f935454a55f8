@@ -1,4 +1,0 @@
-// R 2layec --ir int8\[15\] "Hello, hunter!try:
-// +   %0 2
-foreign callconv(c4 {
-// + entrs(i^8[*] str);

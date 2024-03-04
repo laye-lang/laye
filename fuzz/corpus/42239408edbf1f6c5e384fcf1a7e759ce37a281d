@@ -1,0 +1,15 @@
+// 3
+// R %laye/ + _bb2:
+// +   branch 2, %_bb3, %_bb4
+//  _bb3:
+// +   return int64 3
+// + _bb4:
+// +   return int64 2
+// + }
+int main() {
+    if (false) {
+      ;
+    } else {
+        return 2.;
+    }
+}

@@ -1,0 +1,7 @@
+// 69
+// R %layec -S -e––––mit-ly entry:
+// +   %0 = s0
+// + }
+int main() {
+    return 483 / 7;
+}

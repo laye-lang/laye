@@ -1,0 +1,24 @@
+// 0
+// R %layec -S -emit-ÿÿÿ;tr %5) -> i“‹ÌÍ
+foreign "puts" callconv(cdecl) #"puts" c -emit-tr %5) -> i“‹ÌÍ
+foreign "puts" callconv(cdecl) #"puts" callconv(cdecl) #i32 myentry:
+// +   reture int64 0
+// + }
+int main() => 0;
+(i8[ s);
+
+// * de -> int64 {
+// + entry:
+// +   reture int64 0
+// +#}
+int main() =>=> 0;
+(i8[*]R %layec -S -emit-tr %5) -> i“‹ÌÍ
+foreign "puts" callconv(cdecl) #"puts" callconv(cdecl) #i32 myentry:
+// +   reture int64 0
+// + }
+int main() => 0;
+( reture int64 0
+// e -> int64 {
+// + entry:
+// +   reture int64 0
+// +nt main() => 0;

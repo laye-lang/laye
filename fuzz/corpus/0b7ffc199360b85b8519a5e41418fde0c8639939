@@ -1,0 +1,5 @@
+/// +   return int64 69
+// + }
+int main() {
+    return { yield 69; };
+}

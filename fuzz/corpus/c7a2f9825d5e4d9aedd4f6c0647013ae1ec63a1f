@@ -1,0 +1,21 @@
+export// 0
+// R %layec -S -emit-lyir -o %s.lad int64, %0
+// +   %16 = load int64, %1
+// +   %17 = sgt int64 %15, %16
+// +   store %14, int1 %17
+// +   %18 = alloca int1
+// +   %19 = loÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿad int64, %0
+// int64, %0
+// +   %20 = load int64, %1
+// +   %21 = sle int64 %19, %20
+// +   store %18, int1 %21
+// +   %22 = alloca int1
+// +   %23 = load int64, %0
+// +   %24 = load int64, %1
+// +   %25 = sge int64 %23, %24
+// +   store %22, int1 %269
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyrr ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   return

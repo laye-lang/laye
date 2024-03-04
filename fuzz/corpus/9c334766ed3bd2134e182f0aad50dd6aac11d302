@@ -1,0 +1,38 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyirye";
+import "libc.laye";
+
+export i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libct * from "std.laye";
+import "libc.lan(i32 mut argc, i8[*][*] mut argv) {
+    libc::printf("He::print %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\00"
+// * define global.1 = int8\[4\] "%s\\0A\, hunter!";
+    pu\n", message);
+    return9
+//r -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   return int64 69
+// + }
+int mai 0;
+}
+
+// * dec callconv(cdecl) i32 printf(i8[*] format, varargs); int64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hur!ent";
+    puts(message);
+    printf("%s\n", message);
+    retu
+n 0;
+}
+
+// * t64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(message);
+    printf("%s\n", mmat, varargs);

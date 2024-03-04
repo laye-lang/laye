@@ -1,0 +1,163 @@
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign voi;
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if%(t) { goto same_region; }
+                    defer g();
+                    if (t) { break loop2; }
+                }
+                one_scope_up:
+                defer h();
+                for {
+                    int w;
+                    defer i();
+         ;
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: ]efer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer goto forward2; }
+                    if (t) { goto nested; }
+                    if (t) { continue loop; }
+              ÿ	                if (t) { continue; }
+                               defeu j();
+    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign voi;
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for// 3
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   bran// 35
+// R %layec -S -emit-lyir -o      }
+                forward2:
+                for {
+                    defer j();
+    ÿ	                if (t) { continue; }
+                               defeu j();
+    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign voi;
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for// 3
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   bran// 35
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+void foo() { }
+
+// * define layecc forever() {
+// + entry:
+// +   branch %_bb1
+// + _bb1:
+// +   call layecc void @foo()
+// +   branch %_bb1
+// + }
+noreturn forever() {
+    while {
+        foo();
+    }
+}
+
+// * define layecc forever_cfor() {
+// + entry:
+// +   branch %_bb1
+// + _bb1:
+// +   call layecc void @foo()
+// +   branch %_bb1
+// + }
+noreturn forever_cfor() {
+    for (;;) {
+        foo();
+    }
+}
+
+// * define layecc condition() -> int64 {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 0
+// +   branch %_b {
+        deb1
+// + _bb1:
+// +   %1 = load int64, %0
+// +   %2 = slt int64 %1, 10
+// +   branch %2, %_bb2, %_bb3
+// + _fer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nesbb2:
+// +   %3 = load int64ted: } } }, %0
+// +   %4 = add int64 %3, 1
+// +   store@%0, int64 %4
+// +   branch %_bb1
+// + _bb3:
+// +   %5 = load int64, %0
+// +   return int64 %5
+// + }
+int condition() {
+    int mut accum = 0;
+    while 
+       (accum < 10) {

@@ -1,3 +1,0 @@
-//}
-export foreign int main() {
-    i8[*] message =) i32 puts(i8[*] str);

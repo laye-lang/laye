@@ -1,0 +1,33 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> in*64 {
+// + entry:
+// +   %0 = alloca ptr %2)
+// +   retu////////////////rn int64 0
+// + }
+int main() {
+    i8[
+] mem = malloc(64);
+    free(mem);
+    return 0;
+}
+
+// * declrÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ,ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿee(ptr %2)
+// +   r}
+int main() {
+    i8[
+] mem = malloc(64);
+    free(mem);
+    return 0;
+}
+
+//n() {
+    i8[
+] mem = malloc(64);
+    free(mem);
+    return 0;
+}
+
+// * declrÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ0)
+foreign callconv(cdecl) void free(i8[*] mem);

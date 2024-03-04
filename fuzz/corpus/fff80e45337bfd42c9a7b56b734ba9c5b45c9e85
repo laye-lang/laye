@@ -1,0 +1,21 @@
+// 6
+// R %layÿÿÿÿÿÿÿÿec -R -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign callconv(cdecl) i8 mut[*] malloc(uint count);
+
+// * define exported ccc main(int32 %0, ptr %1) -> int64 {
+// + entry:
+// +   %2  2, 8
+// +   %11 = purn int64 %25
+// + }
+int main(i32 argc, i8[*][*] argv) {
+    i8[*] mut program_name = argv[0];
+
+    int mut[10] arr;
+    arr[2] = 2;
+
+    i8 mut[*] buf = malloc(10);
+    buf[6] = 4;
+
+    return arr[2] + buf[6];
+}

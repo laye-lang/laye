@@ -1,0 +1,8 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exp|||||||||||||||||||||||||||64 0
+// + }
+int main() {
+    i8[
+] mem =d free(i8[*] mem);

@@ -1,0 +1,9 @@
+// 69nt32
+// +   store %0, int324 = sext int64, int32 %3
+// +   return int64 %4
+// + }
+int main() {
+    mut i32 a = 34;
+    a = a + 35;
+    return a;
+}

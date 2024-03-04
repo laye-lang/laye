@@ -1,0 +1,13 @@
+// 0
+// R %layec -S -emit-ly
+    int bar = 69;
+
+    bool eq = foo == bar;
+    bool ne = foo != bar;
+    bool lt = foo <  bar;
+    bool gt = foo >  bar;
+    bool le = foo <= bar;
+    bool ge = foo >= bar;
+
+    return 0;
+}

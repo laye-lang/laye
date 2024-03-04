@@ -1,0 +1,20 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+struct vec2i {
+    mut int x;
+    mut int y;
+.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca int1
+// +   store %0, int1 0
+// +   %1 = lm %s.lyir
+
+// * d   branch %1,// 42
+// R %layec -S - v;
+    v.x = 34;
+    v.y = 35;
+    return v.x + v.y;
+}

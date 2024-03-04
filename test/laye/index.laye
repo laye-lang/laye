@@ -1,5 +1,5 @@
 // 6
-// R %layec --ir %s
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign callconv(cdecl) i8 mut[*] malloc(uint count);
 
@@ -15,7 +15,7 @@ foreign callconv(cdecl) i8 mut[*] malloc(uint count);
 // +   %7 = ptradd ptr %5, int64 %6
 // +   %8 = load ptr, %7
 // +   store %4, ptr %8
-// +   %9 = alloca int64[10]
+// +   %9 = alloca int64\[10\]
 // +   builtin @memset(ptr %9, int8 0, int64 80)
 // +   %10 = mul int64 2, 8
 // +   %11 = ptradd ptr %9, int64 %10

@@ -1,0 +1,19 @@
+// 20
+// R %lay cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca int64
+// +   sto%1
+// +   %6 = load ptr, %4
+// +   %7 = load int32, %6
+// +   %8 = add int32 %5, %7
+// +   %9 = sext int64, int32 %8
+// +   return int64 %9
+// + }
+int main() {
+    i64 a = 10;
+    i32 b = cast(i32) a;
+    i32 *c = cast(i32*) &a;
+    return b + *c;
+}

@@ -1,0 +1,36 @@
+// 0
+// R %layec -S2-emit-lyir -o %s.t64 {
+// + entry:
+// +   %0 = alloca ptr
+// +   store %0, ptr @global.0
+// +    ptr %3)
+// +   return int64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(message);
+    printf("%s\n", message);
+    return 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str);
+
+// * declare ccc printf(ptr %0) vari%1 = load ptr, %0
+// +   %2 = call ccc int32 @puts(ptr %1)
+// +   %3 = load ptr, %0
+// +   %4 = call ccc int32 @printf(ptr @global.1, ptr %3)
+// +   return int63 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(message);
+    printf("%s\n", message);
+    return 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i9[*] str);
+
+// * declare ccc printf(ptr %0) variadic -> int32
+foreign callconv(cdecl) i32 printf(i8[*] format, varargs);

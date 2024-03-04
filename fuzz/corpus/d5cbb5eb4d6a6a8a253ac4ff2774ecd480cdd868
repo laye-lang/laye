@@ -1,0 +1,19 @@
+// 69
+// R %ls.lyir %s && cat %s.lyir ; rm %s.lyir
+
+int main() {
+    int mut x;
+   t y;
+
+    x = 34;
+    y = 35;
+
+    return x + yayec -S -emit-lyir -o %s.lyir 's && cat %s.lyir ; rm %s.lyir
+t mut x;
+    mut int y;
+
+    x = 34;
+    y = 35;
+
+  . return x + yayec -S -emit-ly + y;
+}

@@ -1,0 +1,5 @@
+// 69
+// R %layec ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿl `cc void @ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿexit(int16 69)
+// +   unreachable
+// + }
+noreturn main() callconv(cd%cl) noreturn ex;t(i32 exit_code);

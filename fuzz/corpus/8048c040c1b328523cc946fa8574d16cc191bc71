@@ -1,0 +1,148 @@
+// 2
+// R %layec -S -emithlyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first impoobal.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fou// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 ] = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b;
+    i16 h = 6 * b;
+    i16 i = b - a;
+  : i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + S -emithlyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first impoobal.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fou// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 ] = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b;
+    i16 h = 6 * b;
+    i16 i = b - a;
+  : i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[[[[[[[[[[[[[[K[[[[[[[[[[[[[[[[[[[[[[[[[* b;
+    i16 i = b -  %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\00"
+// * define global.1 = int8\[4\] "%s\\0A\\00"
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca ptr
+// +   store %0, ptr @global.0
+// +    ptr %3)
+b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[[[[[[[[[[[[[[K[[[[[[[[[[[[[[[[[[[[[[[[[* b;
+    i16 i = b -  %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\00"
+// * define global.1 = int8\[4\] "%s\\0A\\00"
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca ptr
+// +   store %0, ptr @globaleger_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 ] = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b;
+    i16 h = 6 * b;
+    i16 i = b - a;
+  : i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + S -emithlyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first impoobal.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fou// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 ] = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b;
+    i16 h = 6 * b;
+    i16 i = b - a;
+  : i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[[[[[[[[[[[[[[K[[[[[[[[[[[[[[[[[[[[[[[[[* b;
+    i16 i = b -  %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, hunter!\\00"
+// * define global.1 = int8\[4\] "%s\\0A\\00"
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca ptr
+// +   store %0, ptr @global.0
+// +    ptr %3)
+b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[[[[[[[[[[[[[[K[[[[[[[[[[[[[[[[[[[[[[[[[* b;
+    i16 i = b -  %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[15\] "Hello, h.0
+// +    ptr %3)
+// +   rAturn int64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(message);
+    printf("%s\n", message);
+    return 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str);
+
+// * declare ccc printf(ptr %0) vari%1 = ld ptr, %0
+// +   %4 = call ccc int32 @printf(ptr @gl;
+;
+    i16 c = 3;
+ 

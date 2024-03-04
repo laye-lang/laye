@@ -1,0 +1,4 @@
+// 1
+// R %layec -lyir -o %s.lyi ; rin() {
+    return 123 & 1;
+}

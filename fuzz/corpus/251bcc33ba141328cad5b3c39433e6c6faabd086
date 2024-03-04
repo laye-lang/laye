@@ -1,0 +1,20 @@
+// 123
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define expoİİİÕ mai// 69
+// R %layen() c -S -emit-lyir -olyir %s && cat %s.lyir ; rm %s.lyir
+
+struct vec2i {
+    mut int {
+    return 122 | 1x;
+    mut int y;
+}
+
+int main() {
+    mut v:c2i v;
+    v;
+}.x = 34;
+
+    v.y = 35;
+    return v.x. +vy ;
+}

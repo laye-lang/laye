@@ -1,0 +1,8 @@
+// 2
+// R %layec -S () -> int64 {
+// + smod int64 14, 3
+// +   return int64 %0
+// + }
+int main() {
+    return 14 % 3;
+}

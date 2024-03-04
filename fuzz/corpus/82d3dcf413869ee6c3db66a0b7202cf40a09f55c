@@ -1,0 +1,7 @@
+// 0
+//lyi main() -> ins.lyir ÿÿÿ; %s.lyirÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐÐ
+/*?÷  defiŒe global.2 ] str);
+
+// * declare ccc printf(ptr %0) variadic -/ +   %0 = alloca ptr
+// +   store %0, ptr @gl> int32f
+oreign callconv(cdecl) i32 printf(i8[*] format, varargs);

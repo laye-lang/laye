@@ -1698,7 +1698,7 @@ static void layec_global_print(layec_print_context* print_context, layec_value* 
 static void layec_function_print(layec_print_context* print_context, layec_value* function);
 static void layec_type_print_struct_type_to_string_literally(layec_type* type, string* s, bool use_color);
 
-string layec_module_print(layec_module* module) {
+string layec_module_print(layec_module* module, bool use_color) {
     assert(module != NULL);
     assert(module->context != NULL);
 
@@ -1706,11 +1706,11 @@ string layec_module_print(layec_module* module) {
 
     layec_print_context print_context = {
         .context = module->context,
-        .use_color = module->context->use_color,
+        .use_color = use_color,
         .output = &output_string,
     };
 
-    bool use_color = print_context.use_color;
+    //bool use_color = print_context.use_color;
 
     lca_string_append_format(
         print_context.output,

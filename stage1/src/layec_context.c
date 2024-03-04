@@ -171,10 +171,12 @@ void layec_context_destroy(layec_context* context) {
 
     for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
         layec_module_destroy(context->ir_modules[i]);
+        context->ir_modules[i] = NULL;
     }
 
     for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
         laye_module_destroy(context->laye_modules[i]);
+        context->laye_modules[i] = NULL;
     }
 
     arr_free(context->allocated_strings);

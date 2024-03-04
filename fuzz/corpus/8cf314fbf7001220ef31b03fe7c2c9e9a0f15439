@@ -1,0 +1,29 @@
+export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign void e();
+foreign ‚void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign voimit-lyir -o %s.lyir %s && cat %s.lyir ; rm %sid c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+"stdio.laye"; 
+  d j();
+foreign void k();
+foreign void l();    defer b();
+        unused: defer c();
+        loop: for {
+      

@@ -1,0 +1,32 @@
+import * from "std.laye";
+import "libc.laye";
+ïreign t i32 main(i32 mut argc, i8[*][*] mut argv) {
+    lvoid c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h()ibc::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i9[*] arg = shift_args(&crgc, &argv);
+        libc::;
+foreign voiÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿimport // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+fïreign t i32 main(i32 mut argc, i8[*][*] mut argv) {
+    lvoid c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h()ibc::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i9[*] arg = shift_args(&crgc, &argv);
+        libc::;
+foreign void i();
+foreign void j();
+foreigš void k();
+ÿÿÿÿÿÿimport // R %l= a + 5 - b;export ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ", arg);
+    }
+    r= 5 e

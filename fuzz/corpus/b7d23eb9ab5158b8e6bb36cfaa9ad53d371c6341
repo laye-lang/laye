@@ -1,0 +1,49 @@
+import * from "std.laye";
+import "libc.laye";
+
+export i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libct * from "std.laye";
+import "libc.laye";
+
+export i32 main(i32 muarg = sxport i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libct * from "std.laye";
+import "libc.laye";
+
+expoEEEEEEEEEEEEEEEEErt i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, ”†šŞ£‘Ô);
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, & * from "std.laye" argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, &argv);
+        libc::printf("> %s\argv);
+        libc::printf("> %s\n", arg);
+    }
+    rehift_args(&argc, & * from "std.laye" argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  t argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = sxport i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libct * from "std.laye";
+import "libc.laye";
+
+expoEEEEEEEEEEEEEEEEErt i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, & * from "std.laye" argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, &argv);
+        libc::printf("> %s\argv);
+        libc::printf("> %s\n", arg);
+    }
+    rehift_args(&argc, & * from "std.laye" argc, i8[*][*] mut argv) {
+    libc::printf("He::printf("Hello, laye!\n");
+    while (argc  0>) {
+        i8[*] arg = shift_args(&argc, &argv);
+        libc::print2f("> %s\argv);
+        libc::printf("> %s\n", arg);
+    }
+    return 0;
+}

@@ -1219,6 +1219,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
                 layec_write_error(p->context, p->token.location, "Expected an identifier.");
                 name_token.kind = LAYE_TOKEN_INVALID;
                 name_token.location.length = 0;
+                name_token.string_value = SV_CONSTANT("<invalid>");
             }
 
             layec_location parameter_location = name_token.location.length != 0 ? name_token.location : parameter_type.node->location;
@@ -1226,6 +1227,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
             assert(parameter_node != NULL);
             parameter_node->declared_type = parameter_type;
             parameter_node->declared_name = name_token.string_value;
+            assert(parameter_node->declared_name.count > 0);
 
             arr_push(parameters, parameter_node);
 
@@ -1362,6 +1364,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             if (arr_count(attributes) != 0) {
                 result.success = false;
                 arr_push(result.diags, layec_error(p->context, p->token.location, "Cannot apply attributes to non-declarations."));
+                arr_free(attributes);
             }
 
             return laye_parse_result_combine(result, laye_parse_statement(p, consume_semi));
@@ -1944,7 +1947,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
         assert(first_node != NULL);
         first_node->compiler_generated = true;
     } else {
-        for_result = laye_parse_declaration(p, true, false);
+        for_result = laye_parse_result_combine(for_result, laye_parse_declaration(p, true, false));
         first_node = for_result.node;
     }
 
@@ -2617,6 +2620,7 @@ static bool is_digit_char(int c, int radix) {
 }
 
 static void laye_next_token(laye_parser* p) {
+restart_token:;
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -3170,6 +3174,8 @@ static void laye_next_token(laye_parser* p) {
             }
 
             token.string_value = layec_context_intern_string_view(p->context, identifier_source_view);
+            assert(token.string_value.count > 0);
+            assert(token.string_value.data != NULL);
             token.kind = LAYE_TOKEN_IDENT;
         } break;
 
@@ -3182,8 +3188,8 @@ static void laye_next_token(laye_parser* p) {
 
             arr_push(p->module->_all_tokens, token);
 
-            laye_next_token(p);
-            return;
+            //laye_next_token(p);
+            goto restart_token;
         }
     }
 

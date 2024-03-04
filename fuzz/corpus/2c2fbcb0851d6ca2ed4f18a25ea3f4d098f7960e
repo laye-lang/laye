@@ -1,0 +1,29 @@
+// 2
+// R %layec -S -emithlyir -o %s.lyir %s &&0cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = int8\[18\] "For first import\\0A\\00"
+// * define global.0 = int8\[19\] "Foresc ond import\\0A\\00"
+// * define global.1 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fou// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void integer_conversions() {
+    i8 a = 1;
+    i16 b = 2;
+    i32 c = 3;
+    i64 d = 4;
+
+    i8 e = a + 1;
+    i4 f = 2 * a;
+
+    i16 g = a + 5 - b; 6 
+ 1 i h = 6 * b;
+    i16 i = b - a;
+    i16 j = e * f / g{
+
+    i32 k = 10 * a + b / 2;
+    i32 l = k / 2;
+    i32 m = (k + b * a) % 5;
+
+    i64 n = 1 + 2 + 3 * d;
+    i64 o [[[)[[[[[[[[[[ZZZZZZZZZZZZZZZZZZ

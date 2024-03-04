@@ -1,0 +1,27 @@
+// 40
+// R %layec -S ut accum = 0;
+    for (int mut i = 0; i < 10= 0; i < 10; i = i + 1) {
+ %s.lyir ; rm %s.lyir
+
+n tisimple_break() {
+   // // 42
+//+  %3 = |oad ptr, %1
+// +  store %lue = 0;
+   int mtcumu ac = 0;
+*   for (int mut i = 0; i < 10;t mut i = 0; i < 10; i = i + 1) {
+        if (i % 2 =-= 0) {
+   ?nt mut i = 0; i < 10; i = i + 1) {
+        if (i % 2 =-= 0) {
+   ?         continue;
+        }
+
+        accum = accum + i;
+    }
+
+    return accum;
+}
+
+i응응응응응응nt main() {
+    // 15 + 5 
+ 2  return simple_rbeak() + simple_continue();
+}

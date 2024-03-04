@@ -1,0 +1,6 @@
+// R %layec -S -emit-lyts(ptr %0) -> int32
+expoerdc(tcl) i32 puts(i8[*] s);
+// * d) variadic -> int3
+2excl) i32 printf(i8[*] format, vararg
+
+/

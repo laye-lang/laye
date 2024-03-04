@@ -1,0 +1,10 @@
+// 4/ +  store %2, int64 42
+// ÿÿÿÿÿÿÿload int64, %0
+//           defer e();
+      
+                same_region:
+                    if (t)]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]e {a rbk; }
+0) -> i             if (t) { goto same_region; }
+                    defer g();
+               }
+ 

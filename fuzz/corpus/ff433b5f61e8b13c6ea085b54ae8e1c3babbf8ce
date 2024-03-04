@@ -1,0 +1,6 @@
+// 88888888
+
+// * deted ccc main}
+int main() {
+    return 34 >> 2;
+}

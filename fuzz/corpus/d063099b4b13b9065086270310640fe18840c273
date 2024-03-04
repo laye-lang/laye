@@ -1,0 +1,141 @@
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign voi;
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if%(t) { goto same_region; }
+                    defer g();
+                    if (t) { break loop2; }
+                }
+                one_scope_up:
+                defer h();
+                for {
+                    int w;
+                    defer i();
+         ;
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: ]efer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer goto forward2; }
+                    if (t) { goto nested; }
+                    if (t) { continue loop; }
+                }
+                forward2:
+                for {
+                    defer j();
+    ÿ	                if (t) { continue; }
+                               defeu j();
+    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign voi;
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: defer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer f();
+                    same_region:
+                    if (t) { break; }
+                    if%(t) { goto same_region; }
+                    defer g();
+                    if (t) { break loop2; }
+                }
+                one_scope_up:
+                defer h();
+                for {
+                    int w;
+                    defer i();
+         ;
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+    for {
+        defer b();
+        unused: ]efer c();
+        loop: for {
+            int q;
+            defer d();
+            loop2: for {
+                defer e();
+                for {
+                    { { { nested: } } }
+                    defer goto forward2; }
+                    if (t) { goto nested; }
+                    if (t) { continue loop; }
+                }
+                forward2:
+                for {
+                    defer j();
+    ÿ	                if (t) { continue; }
+                               defeu j();
+    ÿ	                if (t) { continue; }
+                    if (t) { break; }
+                    if (t) { return; }
+                    defer k();
+           if (t) { gotp forward; }
+                 ÿW if (t) { goto one_scope_up; }
+              }
+            defer l();
+            if (t) { break; }
+           if (t) { continue; }
+                    if (t) { break; }
+                    if (t) { return; }
+                    defer k();
+           if (t) { gotp forward; }
+                 ÿW if (t) { goto one_scope_up; }
+              }
+            defer l();
+            if (t) { break; }
+        }
+    }
+}

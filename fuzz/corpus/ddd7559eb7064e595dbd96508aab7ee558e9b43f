@@ -1,0 +1,7 @@
+import * from "std.o, laye!\n");
+    while (argc > 0) {
+       i8[*] arg = shift_argv);
+                def%s\n", arg);
+    }
+    return 0;
+}

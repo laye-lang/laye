@@ -1,0 +1,9 @@
+// 41
+// R %layec -S -emit-lyir -o %s.lyir %s && cat{
+    intn() {
+   int mut accum = 0;
+    for (int mut i = 0; i < 10; i = ;
+}
+
+int m999999999999999999999999.99999999999999999999999999999999 = accum    /9999999e_continue();
+}

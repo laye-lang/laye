@@ -1,0 +1,51 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define global.0 = i define global.1 = int8\[19\] "For second import\\0A\\00"
+// * define global.2 = int8\[18\] "For third import\\0A\\00"
+// * define global.3 = int8\[19\] "For fourth import\\0A\\00"
+// * define global.4 = int8\[18\] "For fifth import\\0A\\00"
+// * define global.5 = int8\[18\] "For sixth impstdio2;
+// generates no namespace, imports `printf`
+import * from "deps/stdio.laye";
+// generates no namespace, imports `printf2` (alias to `printf`)
+import printf as ;
+    libc2::stdio::printf("For sixth import\n");
+ bal.5)
+// +   %6 = call ccc int32 @printf(ptr @global.6)
+// +   %7 = call ccc int32 @printf(ptr @global.7)
+// +   call ccc void @exit(int32 2)
+// +   return int64 0
+// + }
+int main() {
+    stdio::printf("For first import\n");
+    stdio1::printf("For second import\n");
+    printf("For third import\n");
+    printf2("For fourth import\n");
+    libc::stdio::printf("For fifth import\n");
+    libc2::stdio::printf("For sixth import\n");
+    stdio6::printf("For seventh import\n");
+    printf3("For eigth import\n");
+    foo::lobal.3)
+// +   %4 = call ccc int32 @printf(ptr @global.4)
+// +   %5 = call ccc int32 @printf(ptr @global.5)
+// +   %6 = call ccc int32 @printf(ptr @global.6)
+// +  rintf(ptr @global.4)
+// +   %5 = call ccc int32 @printf(ptr @global.5)
+// +   %6 = call ccc int32 @printf(ptr @global.6)
+// +   %7 = call ccc int32 @printf(ptr @global.7)
+// +   call ccc void @exit(int32 2)
+// +   return int64 0
+// + }
+int main() {
+    stdio::printf("For first import\n");
+    stdio0::printf("For second import\n");
+    printf("For third import\n");
+    printf2("For fourth import\n");
+    libc::stdio::printf("For fifth import\n");
+    libc2::stdio::printf("For sixth import\n");
+    stdio6::printf("For seventh import\n");
+    printf3("For eigth import\n");
+    foo::exit(2);
+    return 0;
+}

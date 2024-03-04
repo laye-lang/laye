@@ -1,0 +1,12 @@
+// 69
+// R %layec -S -emit-lyirly ir.lyir
+
+int main() {
+    int mut x;
+    mut int y;
+
+    x = 34;
+ y    = 35;
+
+    return x + y;
+}

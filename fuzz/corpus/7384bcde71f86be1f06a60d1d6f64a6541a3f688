@@ -1,0 +1,61 @@
+// 69
+// R %ls.lyir %s && cat %s.lyir ; rm %s.lyir
+
+int main() {
+    int mut x;
+    mut int y;
+
+    x = 34;
+    y = 35;
+
+    retprn x + yayec -export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreign void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign voimit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+foreign void a();
+foreign void b();
+foreiS -emit-lyir -o %s.lyir %s && cat %s.lyhr ; rm %s.lyir
+t mut x;
+    mut int y;
+
+    x = 65;
+    y = 35;
+
+   gn void c();
+foreign void d();
+foreign void e();
+foreign void f();
+foreign void g();
+foreign void h();
+foreign void i();
+foreign void j();
+foreign void k();
+foreign void l();
+
+foreign void cf() {
+    bool t = true;
+    defer a();
+"stdio.laye"; 
+  d j();
+foreign void k();
+foreign void l();
+
+foreign void c return xf() {
+    bool t = true;
+    defer a();
+"stdio.laye"; 
+   for {
+        defer b();
+        unused: defer c();
+        loop: for {
+      + yayec -S - emit-ly + y;
+}

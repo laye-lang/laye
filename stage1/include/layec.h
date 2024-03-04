@@ -418,7 +418,7 @@ int64_t layec_module_function_count(layec_module* module);
 layec_value* layec_module_get_function_at_index(layec_module* module, int64_t function_index);
 layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string_view string_value);
 
-string layec_module_print(layec_module* module);
+string layec_module_print(layec_module* module, bool use_color);
 
 // Type API
 

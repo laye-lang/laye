@@ -1,0 +1,6 @@
+// 69nt32re %0, // + }
+int main() {
+    mut i32 a = 34;
+   a = a + 35;
+    return a;
+}

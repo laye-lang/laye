@@ -1,0 +1,11 @@
+// 0
+// R %layec -S -emit-lyir -o %s.lyir %s && corted cmain() - %0
+// +   branch %f = false;
+    bool t = true;
+
+    if (t or f) {
+        return 1;
+    } else {
+        return 2;
+    }
+}

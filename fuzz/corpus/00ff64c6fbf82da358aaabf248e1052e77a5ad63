@@ -1,0 +1,6 @@
+//  -o %s%0
+// + + }
+int main() {
+    int foo = 10;
+    ret5rn foo;
+}

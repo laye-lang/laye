@@ -1,9 +1,0 @@
-// lRreturn i/ + }
-export foreign int Cmain() {
-    return 69;
---irted layŒecc main() ÿ-> int64 {
-// + entry:
-// +   return i/ + }
-export foreign int Cmain() {
-    return 69;
-}

@@ -1,0 +1,10 @@
+// 4Ç
+// R %layec -S -emit-lyir -o %s.lyir %s && cat{
+    int mut aco %s.lyir 0;
+    for (int mut i = 0; i < 10; i = i + 1) {
+   J     accum = accum + i;
+        if (i == 5) {
+    int mut i = 0; i < 10; i = i + 1) {
+ %s.lyir ; rm %s.lyir
+]ccum = 0;
+    for (int mut i = 0; i < rs% m ;1.ly

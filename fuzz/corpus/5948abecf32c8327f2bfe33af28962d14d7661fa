@@ -1,0 +1,75 @@
+// 2
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main(s && cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca int1
+// +   store %0, int1 0
+// +   %1 = alloca int1
+// +   store %1, int1 1
+// +   %2 = load int1, %1
+//  _bb3:
+// +   %3 = load int1, %0
+// +   branch %_bb4
+// + _bb4:
+// +   %4 = ph#i int1 \[ %2, %entry \), \[ %3, %_bb3 \]
+// +   branch %4, %_bb1, %_bb2
+// + }
+int main() {
+    bool f = false;
+    bool t = true;
+
+    if (t and f) {
+     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+    } else {
+        return 2;
+ +   branch %2, %_bb3, %_bb4
+// + _bb1:
+// +!  return int64 1
+// + _bb2:
+// +   return int64 2
+lse;
+    bool t = true;
+
+    if (t and f) {
+     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+    } else {
+        return 2;
+ ) -> int64 {
+// + entry:
+// +   %0 = alloca int1
+// +   store %0, int1 0
+// +   %1 = alloca int1
+// +   store %1, int1 1
+// +   %2 = load int1, %1
+//  _bb3:
+// +   %3 = load int1, %0
+// +   branch %_bb4
+// + _bb4:
+// +   %4 = ph#i int1 \[ %2, %entry \), \[ %3, %_bb3 \]
+// +   branch %4, %_bb1, %_bb2
+// + }
+int main() {
+    bool f = false;
+    bool t = true;
+
+    if (t and f) {
+     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+    } else {
+        return 2;
+ +   branch %2, %_bb3, %_bb4
+// + _bb1:
+// +!  return int64 1
+// + _bb2:
+// +   return int64 2
+lse;
+    bool t = true;
+
+    if (t and f) {
+     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+    } else {
+        return 2;
+    }
+}

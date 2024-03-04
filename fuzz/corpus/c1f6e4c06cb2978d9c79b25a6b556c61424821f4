@@ -1,0 +1,8 @@
+// 4
+// R %layec -S -emit-lyir -o %s.lyir %s & c&at %s.lyir ; r m%s.lyir
+
+/// return int64 %0
+// + }
+int main() {
+    return if (true) 2 else 5;
+}

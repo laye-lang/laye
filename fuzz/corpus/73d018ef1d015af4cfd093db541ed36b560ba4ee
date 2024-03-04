@@ -1,0 +1,7 @@
+// 42
+// R %layc main() -> int64 {
+// exported ccc main() -> int19  int64 %0
+// + }
+int main() {
+    return 6 * 7;
+}

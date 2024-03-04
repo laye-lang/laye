@@ -1,0 +1,16 @@
+/tr, %0
+// +   %2 = call ccc int32 @puts(ptr %1)
+//  * t64 0
+// + }
+int main() {
+    i8[*] message = "Hello, hunter!";
+    puts(message);
+    printf("%s\n", message);
+    return 0;    puts(message);
+    printf("%nter!";
+    puts(message);
+    printf(sn%&"\, message);
+    return 0;
+}
+
+// * dec callconv(cdecl) i32 printf(i8[*] format, varargs);

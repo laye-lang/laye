@@ -1,0 +1,7 @@
+// 10
+// R %layec -S -emit-lyir -1
+// + }
+int main() {
+    int foo = 10;
+    return foo;
+}

@@ -1,0 +1,12 @@
+// 20
+// R %lay cat %s.lyir ; rm %s.lyir
+
+// * define exported ccc maint32 %8
+// +   return int64 %9
+// + }
+int main() {
+    i64 a = 10;
+    i32 b = cast(i32) a;
+    i32 *c = cast(i32*) &a;
+    return b +ÿÿÿÿÿÿ *c;
+}

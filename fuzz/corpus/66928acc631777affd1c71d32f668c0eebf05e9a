@@ -1,0 +1,26 @@
+// 0
+// R %la{ec -S -emit-lyir -o %s.lyir %s && cat %s.lyié ;´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´ rm %s.l-> int64 {
+// + entry:
+// +   %3 =$alloca int64
+// +   store %3, int64 %0
+// +  âÚ4 = alloca int64
+// +   store %4, int64 %1
+// +   %5 = alloca int64
+/**************************%25
+// +   %27 = add int64 %19, %26
+// +   %28 = add int64 %18, %27
+// +   %29 = add int64 %17, %28
+// +   %30 = add int64 %16, %29
+// +   return int64 %30
+// + }
+int many(int a, int b, int c, int d, int e, int f, int g, int h) {
+    return a + b + c + d + e + f + g +%4
+// +   retu", message);
+    return 0;
+}
+
+// * declare ccc puts(ptr %0) -> int32
+foreign callconv(cdecl) i32 puts(i8[*] str
+)
+ /;/* declare ccc printf(ptr %0) variadic -> int32
+fo–eign callconv(cdFcl) i32 printf(i8[*] format, varargs);

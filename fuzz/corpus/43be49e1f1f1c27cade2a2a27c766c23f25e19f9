@@ -1,9 +1,0 @@
-; ModuedlueIloID"./testye/locals.laye"
-
-define%%%%%%%%%%%%%main() {
-enty:
-  %0 = alloca i62, i64 
-1 so tre i64 Ó0, ptr %0
-  %ad i64, ptr %0
-  ret
-

@@ -1,2 +1,0 @@
-// R %layeoreign noreturnàccc exit(int32 %0)
-foreign callconv(cdecl) noreturn exit(i32 exit_code);

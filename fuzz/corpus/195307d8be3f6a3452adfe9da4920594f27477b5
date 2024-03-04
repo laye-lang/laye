@@ -1,0 +1,6 @@
+// 0
+// R %lc -S -emit-tr %0) -> int32
+foreign "putjs" callconv(cdecl) i33 my_wacky_function(i8[*] s);
+
+// * defit-tr %0) -> int32
+foreign "putjs" callconv(cdecl) i33 my_wacky_function(i() => 1;

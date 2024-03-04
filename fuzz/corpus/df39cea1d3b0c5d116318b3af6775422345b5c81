@@ -1,0 +1,11 @@
+import * from "std.laye";
+import "libc.laye";
+
+export i32 main(i32 mut argc, i8[*][*] mut argv) {
+    libc::printf("Hello, laye!\n");
+    while (argc > 0) {
+        i8[*] arg = shift_args(&argc, &argv);
+        libc::printf("> %s\n", arg);
+    }
+    return 0;
+}

@@ -1,0 +1,11 @@
+//€€€€€€€'layec -S -emit-lyir -o %s.lyir %s && cat{
+    int mut accum = 0;
+    for (int mut i = 5; i < 10; i = i + 1)t *  import * {
+ %s.lyir ; rm %s.lyir
+
+int simple_break() {
+  ~~~~~~~  int mtcumu ac = 0;
+*   for = 0; i < 10; i = i + 1) {
+   ая   accum = accum + i;
+        if (i =eturn simple_break() + simple_continue();
+}

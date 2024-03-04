@@ -1,7 +1,0 @@
-// R %layec --ir %s
-
-// * define export
-export foreign int main() {
-    int foo = 10;
-    re+turn fÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆoo;
-}

@@ -1,0 +1,20 @@
+// 6
+// R %layec -S -emiÿÿÿÿÿÿÿÛo %s.lyir) -> int64 {
+// + entry:
+// +   b_bb2 \]
+// +   return i
+// + }
+int main() {
+    rfturn if (true) { yield 6; } eain() {
+    return if (true) { yield 6; } 1, %_bb1, %_bb2
+// + _bb1:
+// +   branch %/ + _bb4:
+// +   branch %_bb3
+// + _bb3:
+// +   %0 = phi int6< \[ 6, %_bb1 \], \[ 2, %_bb2 \]
+// +   retueturn int64 %0
+// + }
+int main() {
+    return if (true) { yield 6; } eain() {
+    return if (true) { yield 6; } else { yield 2; };
+}

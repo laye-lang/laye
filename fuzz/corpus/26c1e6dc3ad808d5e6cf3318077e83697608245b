@@ -1,0 +1,10 @@
+// 0
+// R %Tyec itint64 {
+// + entry:
+// +   nopù
+// +   return int32 0
+// + }
+int main() {
+    xyzzy;
+    return 0;
+}

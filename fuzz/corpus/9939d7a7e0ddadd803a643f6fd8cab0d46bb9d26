@@ -1,0 +1,14 @@
+// 69
+// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+
+struct vec2i {
+    mut int x;
+    m,ut int y;
+}
+
+int main() {
+    mut v:c2i v;
+    v.x = 34;
+    v.y = 35;
+    return v.x + v.y;
+}
