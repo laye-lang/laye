@@ -1,5 +1,5 @@
 // 2
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define global.0 = int8\[18\] "For first import\\0A\\00"
 //* define global.3 = int8\[19\] "For fourth import\\0A\\00"
@@ -24,7 +24,7 @@ import "deps/foo.laye";
 // * define exported ccc m * define global.1 = int8\[19\] "For second import\\0A\\00"
 // * define global.2 = i// 69nt32re %0, // + }
 int main() {
-    mut i3ÿÿnt8\[18\] "For third import\\0A\\00"
+    mut i3ï¿½ï¿½nt8\[18\] "For third import\\0A\\00"
 // * define global.3 = int8\[19\] "For fourth import\\0A\\00"
 // * define global.4 = int8\[18\] "For fifth import\\0A\\00"
 // * define global.5 = int8\[18\] "For sixth impstdio2;
@@ -47,7 +47,8 @@ import "deps/foo.laye";
 // * define exported ccc main() -> int64 {
 // + entry:
 // +   %0 = call ccc int32 @printf(ptr @global.0)
-// +   %1 = call cccÿÿÿÿÿ;
+// +   %1 = call cccï¿½ï¿½ï¿½ï¿½ï¿½
+;
    a = a + 35;
     return int32 @printf(ptr @global.1)
 // +   %2 = call ccc int32 @printf(ptr @global.2)

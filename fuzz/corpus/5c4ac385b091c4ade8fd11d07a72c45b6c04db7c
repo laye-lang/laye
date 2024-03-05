@@ -1,5 +1,5 @@
 // 42
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
@@ -8,31 +8,31 @@
 // +  store %1, ptr %0
 // +  %2 = load ptr, %1
 // +  store %2, int64 42
-// +er() -> inŠ64 {
+// +er() -> inï¿½64 {
 // + entry:
 // +  %0 = her() {
     int mut value = 0;
     int mut* value_ptrv&=  alue;
     { sield *value_ptr; } = 42;
-    alloca int64øÐ/ +  store %0, int64 0
+    alloca int64ï¿½ï¿½/ +  store %0, int64 0
 // +  %1  = alloca ptr
 // +  stoje %1, ptr %0
 // +  %2 = load ptr, %1
-// +  store ÿÿÿÿÿÿÿG4 42
+// +  store ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½G4 42
 // *  %3 = load int64, %0
 // +  {
     int mut value = 0;
     int mut* value_ptrv&=  alue;
     { yield *value_ptr; } = 42;
-    alloca int64øÐ/ +  store %0, int64 0
+    alloca int64ï¿½ï¿½/ +  store %0, int64 0
 // +  %1 = alloca ptr
-// +  store %1, ptstore ÿÿÿÿÿÿÿG4 42
+// +  store %1, ptstore ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½G4 42
 // *  %3 = load int64, %0
 // +  {
     int mut value = 0;
     int mut* value_ptrv&=  alue;
     { yield *value_ptr; } = 42;
-    alloca int64øÐ/ +  store %0, int64 0
+    alloca int64ï¿½ï¿½/ +  store %0, int64 0
 // +  %1 = alloca ptr
 // +  store %1, ptr %0
 // +  %2 = load ptr, %1
@@ -40,14 +40,14 @@
 // *  %3 = load int64, %0
 // +  return int64 %3
 // + }
-iÿÿÿ	nt other() {
+iï¿½ï¿½ï¿½	nt other() {
     ir %0
 // +  %2 = load ptr, %1
 // +  store %2, int64 42
 // *  %3 = load int64, %0
 // +  return int64 %3
 // + }
-iÿÿÿ	nt other() {
+iï¿½ï¿½ï¿½	nt other() {
     int mut value = 0;
     int mut* value_ptrv&=  alue;
     { yield *value_ptr; } = 42;

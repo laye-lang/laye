@@ -1,5 +1,5 @@
 // 0
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define global.0 = int8\[15\] "Hello, hunter!\\00"
 // * define global.1 = int8\[4\] "%s\\0A\\00"

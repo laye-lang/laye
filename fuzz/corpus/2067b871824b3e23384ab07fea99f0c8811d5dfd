@@ -3,7 +3,7 @@
 
 // * define global.0 = int8\[18\] "For first impoobal.2 = int8\[18\] "For third import\\0A\\00"
 // * define global.3 = int8\[19\] "For fou// 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
     i8 a = 1;
@@ -25,7 +25,7 @@ foreign void integer_conversions() {
 
 // * define global.0 = int8\[18\] "For first impoobal.2 = int8\[18\] "For third import\\0A\\00"
 // * define global.3 = int8\[19\] "For fou// 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
     i8 a = 1;

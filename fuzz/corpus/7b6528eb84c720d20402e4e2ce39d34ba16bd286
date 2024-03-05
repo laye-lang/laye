@@ -1,8 +1,8 @@
 // 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
-ƒ   i8 a = 1;
+ï¿½   i8 a = 1;
     i16 b = 2;
     i32 c = 3;
     i64 d = 4;
@@ -10,13 +10,13 @@ foreign void integer_conversions() {
     i8 e = a + 1;
     i4 f = 2 * a;
 
-    i16 g = a + 5 - b;export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+    i16 g = a + 5 - b;export import // R %layec -S -emit-lyir -o - %s
 
 foreign void a();
 foreign void b();
 foreign void c();
 foreign void d();
-foreign void e()»
+foreign void e()ï¿½
 foreign void f();
 foreign void g();
 foreign void h();

@@ -1,5 +1,5 @@
 // 83
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define layecc add_three_numbers(int64 %0, int64 %1, int64 %2) -> int64 {
 // + entry:

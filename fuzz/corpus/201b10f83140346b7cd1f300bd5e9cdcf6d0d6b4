@@ -1,5 +1,5 @@
 // 42
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
@@ -13,7 +13,7 @@
 // + }
 int main() {
     int mut value = 0;
-   nÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿint mut value = 43;
+   nï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½int mut value = 43;
     int mut* value_ptr = &value;
     return *value_ptr;
 }
@@ -24,7 +24,7 @@ int main() {
     int mut value = 0;
     int mut* value_ptrv&=  alue;
     { yield *value_ptr; } = 42;
-    alloca int64øÐ/ +  store %0, int64 0
+    alloca int64ï¿½ï¿½/ +  store %0, int64 0
 // +  %1 = alloca ptr
 // +  store %1, ptr %0
 // +  %2 = load ptr, %1

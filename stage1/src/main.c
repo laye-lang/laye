@@ -21,6 +21,9 @@
     "    --help               Print this help text, then exit.\n"                                            \
     "    --version            Print version information, then exit.\n"                                       \
     "\n"                                                                                                     \
+    "    -o <file>                 Write output to <file>. If <file> is '-` (a single dash), then output\n"  \
+    "                              will be written to stdout.\n"                                             \
+    "\n"                                                                                                     \
     "  actions:\n"                                                                                           \
     "    -E, --preprocess          Run the preprocessor step (for C files). Writes the result to stdout.\n"  \
     "    --ast                     Run the parse step. Writes a representation of the AST to stdout.\n"      \
@@ -78,8 +81,10 @@ typedef struct compiler_state {
     bool emit_llvm;
 
     string_view output_file;
+    bool is_output_file_stdout;
+
     dynarr(string_view) input_files;
-    
+
     dynarr(string) total_intermediate_files;
     dynarr(string) llvm_modules;
 
@@ -132,11 +137,13 @@ static laye_module* parse_module(compiler_state* state, layec_context* context, 
 static int emit_lyir(compiler_state* state) {
     for (int64_t i = 0, count = arr_count(state->context->ir_modules); i < count; i++) {
         bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
+        bool is_output_file_stdout = state->is_output_file_stdout;
+        bool use_color = is_output_file_stdout ? state->use_color : false;
 
         layec_module* ir_module = state->context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string ir_module_string = layec_module_print(ir_module, false);
+        string ir_module_string = layec_module_print(ir_module, use_color);
         string_view intermediate_file_name = {0};
         if (is_only_file) {
             assert(string_view_equals(layec_module_name(ir_module), state->input_files[0]));
@@ -145,12 +152,17 @@ static int emit_lyir(compiler_state* state) {
             intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".lyir");
         }
 
-        if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), ir_module_string.data, (size_t)ir_module_string.count)) {
-            string_destroy(&ir_module_string);
-            return 1;
+        if (is_output_file_stdout) {
+            assert(is_only_file);
+            fprintf(stdout, "%.*s", STR_EXPAND(ir_module_string));
+        } else {
+            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), ir_module_string.data, (size_t)ir_module_string.count)) {
+                string_destroy(&ir_module_string);
+                return 1;
+            }
         }
 
-        //fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
+        // fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
         string_destroy(&ir_module_string);
 
         if (is_only_file) {
@@ -190,6 +202,11 @@ int main(int argc, char** argv) {
 
     if (state.verbose) {
         fprintf(stderr, "Laye Compiler " LAYEC_VERSION "\n");
+    }
+
+    if (state.is_output_file_stdout && arr_count(state.input_files) != 1) {
+        fprintf(stderr, "When requesting output to stdout, exactly one input file must be provided.\n");
+        return 1;
     }
 
     lca_temp_allocator_init(default_allocator, 1024 * 1024);
@@ -438,6 +455,9 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
                 return false;
             } else {
                 args->output_file = string_view_from_cstring(nob_shift_args(argc, argv));
+                if (string_view_equals(args->output_file, SV_CONSTANT("-"))) {
+                    args->is_output_file_stdout = true;
+                }
             }
         } else if (string_view_equals(arg, SV_CONSTANT("-l"))) {
             if (argc == 0) {

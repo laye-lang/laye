@@ -1,5 +1,5 @@
 // 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyirÿÿÿÿÿÿÿÿÿÿÿÿÿ
+// R %layec -S -emit-lyir -o - %sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 struct   mut v:c2i v;
     v.x = 34;

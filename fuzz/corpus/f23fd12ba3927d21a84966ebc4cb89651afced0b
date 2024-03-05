@@ -1,4 +1,4 @@
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void a();
 foreign void b();
@@ -52,9 +52,9 @@ foreign void cf() {
                     defer goto forward2; }
                     if (t) { goto nested; }
                     if (t) { continue loop; }
-              ÿ	                if (t) { continue; }
+              ï¿½	                if (t) { continue; }
                                defeu j();
-    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+    ï¿½	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign void a();
 foreign void b();
@@ -69,7 +69,7 @@ foreign void cf() {
     bool t = true;
     defer a();
     for// 3
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
@@ -78,9 +78,9 @@ foreign void cf() {
                 forward2:
                 for {
                     defer j();
-    ÿ	                if (t) { continue; }
+    ï¿½	                if (t) { continue; }
                                defeu j();
-    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+    ï¿½	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign void a();
 foreign void b();
@@ -95,12 +95,12 @@ foreign void cf() {
     bool t = true;
     defer a();
     for// 3
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
 // +   bran// 35
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 void foo() { }
 

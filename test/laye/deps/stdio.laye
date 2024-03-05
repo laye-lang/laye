@@ -1,4 +1,4 @@
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * declare reexported ccc puts(ptr %0) -> int32
 export foreign callconv(cdecl) i32 puts(i8[*] s);

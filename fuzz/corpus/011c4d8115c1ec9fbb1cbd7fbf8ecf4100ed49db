@@ -1,4 +1,4 @@
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void a();
 foreign              if (t) { continue loop; }
@@ -10,7 +10,7 @@ foreign              if (t) { continue loop; }
  continue loop0; }
                 }
             }      if (t) { ber l();
-      àßßß  if (t) { break; }
+      ï¿½ï¿½ï¿½ï¿½  if (t) { break; }
         }
     }
 }

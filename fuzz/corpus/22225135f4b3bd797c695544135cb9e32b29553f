@@ -1,10 +1,10 @@
 // 3
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
 // +   bran// 35
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 void foo() { }
 
@@ -61,7 +61,7 @@ int condition() {
 }
 
 // * define layecc no/ + }
-int noinitÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝ() {
+int noinitï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½() {
     int mut accum = 0;
     int mut i = 0;
     for (; i < 10; i = i + 1) {
@@ -74,7 +74,7 @@ int noinitÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝ() {
 // + entry:
 // +   %0 = alloca int64
 // + bran// 35
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 void foo() { }+ _bb1:
 // +   %2 = load int64, %1

@@ -1,5 +1,5 @@
 // 2
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main(s && cat %s.lyir ; rm %s.lyir
 
@@ -22,7 +22,7 @@ int main() {
     bool t = true;
 
     if (t and f) {
-     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   return 1;
     } else {
         return 2;
  +   branch %2, %_bb3, %_bb4
@@ -34,7 +34,7 @@ lse;
     bool t = true;
 
     if (t and f) {
-     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   return 1;
     } else {
         return 2;
  ) -> int64 {
@@ -56,7 +56,7 @@ int main() {
     bool t = true;
 
     if (t and f) {
-     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   return 1;
     } else {
         return 2;
  +   branch %2, %_bb3, %_bb4
@@ -68,7 +68,7 @@ lse;
     bool t = true;
 
     if (t and f) {
-     ÿÿÿÿÿÿÿÿÿÿÿ   return 1;
+     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   return 1;
     } else {
         return 2;
     }

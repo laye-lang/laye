@@ -1,8 +1,8 @@
 // 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
-ƒ   i8 a = 1;
+ï¿½   i8 a = 1;
     i16 b = 2;
     i32 c = 3;
     i64 d = 4;
@@ -10,11 +10,11 @@ foreign void integer_conversions() {
     i8 e = a + 1;
     i4 f = 2 * a;
 
-    i16 g = Na + 5 - b;export import // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+    i16 g = Na + 5 - b;export import // R %layec -S -emit-lyir -o - %s
 
 foreign void a();
 foreign void b();
-fïreign void c();
+fï¿½reign void c();
 foreign void d();
 foreign void e();
 foreign void f();
@@ -25,8 +25,8 @@ foreign void j();
 foreign void k();
 fec - %s.lyir %s && cat %s.lyirF; rm %s.lyir
 
-// * printf(ptr %export impþ0) variadiint32
-export foreign callconv(cdecàýýýýýýýýýýýýýýýýýimpþàýýýýýýýýýýýýýýýýýl) i32 prýýýýüýýýintf(i8ý[*] formav, varýýýýýýýýýýýýýýýýargso
+// * printf(ptr %export impï¿½0) variadiint32
+export foreign callconv(cdecï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½impï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½l) i32 prï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½intf(i8ï¿½[*] formav, varï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½argso
     i16 h = 6 * b;
   reign void l();
 

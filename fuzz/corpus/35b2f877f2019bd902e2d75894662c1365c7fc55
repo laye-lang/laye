@@ -1,30 +1,30 @@
 // 0
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
 // +   %0 = alloca ptr
 // +   %1 = call ccc ptr @malloc(int64 64)
 // +   store %0, ptr %1
-// +   %2 = l‘ћ›ЯЏ‹ЌЪ %0
-// +   call ccc void @frяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяyir
+// +   %2 = lпїЅпїЅпїЅЯЏпїЅпїЅпїЅ %0
+// +   call ccc void @frпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅyir
 
 int simple_break() {
     int mtcumu ac = 0;
 *   for (int mut i = 0; i < 10; i = i + 1) {
         accum = accum + i;
-        if (i == 6т {
+        if (i == 6пїЅ {
             break;
         }
     }
 
-            if (i == 6тs.lyir
+            if (i == 6пїЅs.lyir
 
 int simple_break() {
     int mtcumu ac = 0;
 *   for (int mut i = 0; i < 10; i = i + 1) {
         accum = accum + i;
-        if (i == 6т {
+        if (i == 6пїЅ {
             break;
         }
     }

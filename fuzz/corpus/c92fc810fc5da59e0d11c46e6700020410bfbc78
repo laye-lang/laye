@@ -1,5 +1,5 @@
 // 2
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define global.0 = int8\[18\] "For first impol, this test just checks
 // for the existence of at least one declaration of `printf`:

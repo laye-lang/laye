@@ -1,5 +1,5 @@
 // 0
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + c -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
@@ -36,7 +36,7 @@ break() {
 
 int simple_continue() {
     int mut accum = 0;
-    fÿr (int mut i = 0;= foo == bar;
+    fï¿½r (int mut i = 0;= foo == bar;
     bool ne = foo != bar;
     bool lt = foo <  bar;
     bool gt = foo >  bar;

@@ -1,6 +1,6 @@
 import * from "std.laye";
 import "libc.laye";
-ïreign t i32 main(i32 mut argc, i8[*][*] mut argv) {
+ï¿½reign t i32 main(i32 mut argc, i8[*][*] mut argv) {
     lvoid c();
 foreign void d();
 foreign void e();
@@ -10,11 +10,11 @@ foreign void h()ibc::printf("Hello, laye!\n");
     while (argc  0>) {
         i9[*] arg = shift_args(&crgc, &argv);
         libc::;
-foreign voiÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿimport // R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+foreign voiï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½// R %layec -S -emit-lyir -o - %s %s && cat %s.lyir ; rm %s.lyir
 
 foreign void a();
 foreign void b();
-fïreign t i32 main(i32 mut argc, i8[*][*] mut argv) {
+fï¿½reign t i32 main(i32 mut argc, i8[*][*] mut argv) {
     lvoid c();
 foreign void d();
 foreign void e();
@@ -26,8 +26,8 @@ foreign void h()ibc::printf("Hello, laye!\n");
         libc::;
 foreign void i();
 foreign void j();
-foreigš void k();
-ÿÿÿÿÿÿimport // R %layecprintf( -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+foreigï¿½ void k();
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½import // R %layecprintf( -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign voi = 6;
     i64 g = 7;
@@ -36,6 +36,6 @@ foreign voi = 6;
     i16 i = b * 2;
     u32 j "> %s\n = 2 * a;
 
-    i16 g = a + 5 - b;export ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ", arg);
+    i16 g = a + 5 - b;export ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½", arg);
     }
     r= 5 e

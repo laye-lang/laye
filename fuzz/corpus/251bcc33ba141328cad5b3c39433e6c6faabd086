@@ -1,7 +1,7 @@
 // 123
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
-// * define expoÝÝÝÕ mai// 69
+// * define expoï¿½ï¿½ï¿½ï¿½ mai// 69
 // R %layen() c -S -emit-lyir -olyir %s && cat %s.lyir ; rm %s.lyir
 
 struct vec2i {

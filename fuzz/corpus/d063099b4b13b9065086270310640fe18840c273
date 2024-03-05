@@ -1,4 +1,4 @@
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void a();
 foreign void b();
@@ -56,9 +56,9 @@ foreign void cf() {
                 forward2:
                 for {
                     defer j();
-    ÿ	                if (t) { continue; }
+    ï¿½	                if (t) { continue; }
                                defeu j();
-    ÿ	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+    ï¿½	        yec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign void a();
 foreign void b();
@@ -116,14 +116,14 @@ foreign void cf() {
                 forward2:
                 for {
                     defer j();
-    ÿ	                if (t) { continue; }
+    ï¿½	                if (t) { continue; }
                                defeu j();
-    ÿ	                if (t) { continue; }
+    ï¿½	                if (t) { continue; }
                     if (t) { break; }
                     if (t) { return; }
                     defer k();
            if (t) { gotp forward; }
-                 ÿW if (t) { goto one_scope_up; }
+                 ï¿½W if (t) { goto one_scope_up; }
               }
             defer l();
             if (t) { break; }
@@ -132,7 +132,7 @@ foreign void cf() {
                     if (t) { return; }
                     defer k();
            if (t) { gotp forward; }
-                 ÿW if (t) { goto one_scope_up; }
+                 ï¿½W if (t) { goto one_scope_up; }
               }
             defer l();
             if (t) { break; }

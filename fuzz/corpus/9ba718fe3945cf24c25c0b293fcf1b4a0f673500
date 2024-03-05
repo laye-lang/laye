@@ -1,5 +1,5 @@
 // 0
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exp|||||||||||||||||||||||||||64 0
 // + }

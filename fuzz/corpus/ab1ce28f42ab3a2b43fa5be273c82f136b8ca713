@@ -1,5 +1,5 @@
 // 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
     i8 a = 1;
@@ -28,7 +28,7 @@ foreign void integer_conversions() {
     u32 j = 5 - b + d;
    i32 k = i + a * 6 / b;
     u64 l = f // 83
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define layecc add_t* 6 + (b * 2 * d) / h;
 

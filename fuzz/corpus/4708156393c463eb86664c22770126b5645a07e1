@@ -1,5 +1,5 @@
 // 2
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define global.0 = int8\[18\] "For first import\\0A\\00"
 // * define global.1 = int8\[19\] "For second import\\0A\\00"
@@ -41,7 +41,7 @@ import "deps/foo.laye";
 // +   %0 = call ccc int32 @printf(ptr @global.0)
 // +   %1 = call ccc int32 @printf(ptr @global.1)
 // +   %2 = call ccc int32 @printf(ptr @global.2)
-// +   %3 = call ccc int32 @printf(ptr @g.4 = int8\ [18\] "For fifth import\\0A\\00"
+// +   %3 = call ccc int32 @printf(ptr @g.4 = int8\ï¿½[18\] "For fifth import\\0A\\00"
 // * define global.5 = int8\[18\] "For sixth impstdio2;
 // generates no namespace, imports `printf`
 import * from "deps/stdio.laye";

@@ -2,18 +2,18 @@ import * from "std.laye";
 import "libc.laye";
 
 expor// 69
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 foreign void integer_conversions() {
-ƒ  id g();
+ï¿½  id g();
 foreign void h()ibc::printf("Hello, laye!\n");
     while (argc  0>) {
         i9[*] arg = shift_args(&argc, &argv);
         libc::;
 foreign void i();
 foreign void j();
-foreigš void k();
-ÿÿÿÿÿÿimport // R %layecprintf( -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+foreigï¿½ void k();
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½import // R %layecprintf( -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
 
 foreign voi = 6;
     i64 g = 7;
