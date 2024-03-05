@@ -58,7 +58,7 @@ The simplest FCHK test needs two things in addition to the source code under tes
 Both of these things will exist within comments in the source code. FCHK will read through the comments to determine what to run and what to compare against. Here's a simple example for illustration:
 
 ```c
-// R %layec -S -emit-lyir -o %s.lyir %s && cat %s.lyir ; rm %s.lyir
+// R %layec -S -emit-lyir -o - %s
 
 // * define exported ccc main() -> int64 {
 // + entry:
@@ -69,9 +69,7 @@ int main() {
 }
 ```
 
-The first line is the run directive, denoted by the capital `R`. Everything following the `R` is the shell command that should be used to invoke this test, populating `stdout` with the actual content to test. In most cases, we'll be invoking the Laye compiler and generating LYIR output. This output goes to a file, not `stdout`, so we `cat` it so FCHK can see it. Removing the file afterward is a courtesy to the developer; a messy workspace is no fun!
-
-*NOTE: These kinds of commands are not easily portable across operating systems or shell environments. In the near future, outputing a LYIR module to `stdout` will be standardized within the compiler itself.*
+The first line is the run directive, denoted by the capital `R`. Everything following the `R` is the shell command that should be used to invoke this test, populating `stdout` with the actual content to test. In most cases, we'll be invoking the Laye compiler and generating LYIR output. To write the output to stdout rather than a file, pass `-` to the `-o` option.
 
 The contents of `stdout` are then checked line by line against the other two directives: `*` and `+`. When a `*` directive is encountered, FCHK searches for a line which matches it anywhere in the `stdout` contents. If no match is found, the test produces an error. When a `+` directive is encountered, FCHK checks the line after the previously matched line in the same manner. A `*` directive followed by a number of `+` directives indicates that an unbroken sequence of lines is expected to match exactly as indicated. Since a `*` directive searches anywhere in the `stdout` contents, they can be out of order from the actual output.
 
