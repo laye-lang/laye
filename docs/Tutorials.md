@@ -2,6 +2,9 @@ The tutorials will show Linux-style terminal commands. If you're on Windows, not
 - the argument to the `-o` flag should probably have `.exe` extension added.
 - running the output file won't *require* `./` since Windows terminals will also search the current working directory for executables by default.
 
+It is also assumed that Laye is installed as a package, or you've run the [install](Installation) steps from the source tree and have `laye` in your system path or otherwise accessible.
+If you want to run the compiler straight from the source tree for development purposes, you can replace calls to `laye` with either `./nob run -- ...` to ensure the compiler is always rebuilt, or `./out/laye1 ...` to invoke an already-built stage1 executable.
+
 ## Hello, hunter!
 
 The most important step when using a new programming language, or even just when starting a new project, is setting up the famous "Hello, world" program. In Laye, that looks like this:
