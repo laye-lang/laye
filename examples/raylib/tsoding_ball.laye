@@ -1,0 +1,65 @@
+import "raylib.laye";
+import * from "raylib.laye";
+
+import "libc.laye";
+
+int main() {
+    raylib::init_window(800, 600, "Tsoding Ball");
+
+    vector2 ball_position;
+
+    vector2 ball_velocity;
+    ball_velocity.x = 200;
+    ball_velocity.y = 200;
+
+    color background_color;
+    background_color.r = 20;
+    background_color.g = 20;
+    background_color.b = 20;
+    background_color.a = 255;
+
+    color color_red;
+    color_red.r = 225;
+    color_red.g = 10;
+    color_red.b = 0;
+    color_red.a = 255;
+
+    i32 w = raylib::get_screen_width();
+    i32 h = raylib::get_screen_height();
+
+    ball_position.x = w / 2;
+    ball_position.y = h / 2;
+
+    f32 ball_radius = 100;
+    f32 gravity = 1000;
+
+    while (not raylib::window_should_close()) {
+        raylib::begin_drawing();
+
+        raylib::clear_background(background_color);
+
+        f32 dt = raylib::get_frame_time();
+        ball_velocity.y = ball_velocity.y + gravity * dt;
+
+        f32 x = ball_position.x + ball_velocity.x * dt;
+        if (x - ball_radius < 0 or x + ball_radius > raylib::get_screen_width()) {
+            ball_velocity.x = -ball_velocity.x;
+        } else {
+            ball_position.x = x;
+        }
+
+        f32 y = ball_position.y + ball_velocity.y * dt;
+        if (y - ball_radius < 0 or y + ball_radius > raylib::get_screen_height()) {
+            ball_velocity.y = -ball_velocity.y;
+        } else {
+            ball_position.y = y;
+        }
+
+        raylib::draw_circle_v(ball_position, ball_radius, color_red);
+
+        raylib::end_drawing();
+    }
+    
+    raylib::close_window();
+    return 0;
+}

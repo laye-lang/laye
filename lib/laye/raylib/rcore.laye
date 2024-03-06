@@ -1,0 +1,84 @@
+import * from "raylib_types.laye";
+
+// Window-related functions
+export foreign "InitWindow" void init_window(i32 width, i32 height, i8[*] title);        // Initialize window and OpenGL context
+export foreign "CloseWindow" void close_window();                                     // Close window and unload OpenGL context
+export foreign "WindowShouldClose" bool window_should_close();                               // Check if application should close (KEY_ESCAPE pressed or windows close icon clicked)
+export foreign "IsWindowReady" bool is_window_ready();                                   // Check if window has been initialized successfully
+export foreign "IsWindowFullscreen" bool is_window_fullscreen();                              // Check if window is currently fullscreen
+export foreign "IsWindowHidden" bool is_window_hidden();                                  // Check if window is currently hidden (only PLATFORM_DESKTOP)
+export foreign "IsWindowMinimized" bool is_window_minimized();                               // Check if window is currently minimized (only PLATFORM_DESKTOP)
+export foreign "IsWindowMaximized" bool is_window_maximized();                               // Check if window is currently maximized (only PLATFORM_DESKTOP)
+export foreign "IsWindowFocused" bool is_window_focused();                                 // Check if window is currently focused (only PLATFORM_DESKTOP)
+export foreign "IsWindowResized" bool is_window_resized();                                 // Check if window has been resized last frame
+export foreign "IsWindowState" bool is_window_state(u32 flag);                               // Check if one specific window flag is enabled
+export foreign "SetWindowState" void set_window_state(u32 flags);                             // Set window configuration state using flags (only PLATFORM_DESKTOP)
+export foreign "ClearWindowState" void clear_window_state(u32 flags);                           // Clear window configuration state flags
+export foreign "ToggleFullscreen" void toggle_fullscreen();                                // Toggle window state: fullscreen/windowed (only PLATFORM_DESKTOP)
+export foreign "ToggleBorderlessWindowed" void toggle_borderless_windowed();                        // Toggle window state: borderless windowed (only PLATFORM_DESKTOP)
+export foreign "MaximizeWindow" void maximize_window();                                  // Set window state: maximized, if resizable (only PLATFORM_DESKTOP)
+export foreign "MinimizeWindow" void minimize_window();                                  // Set window state: minimized, if resizable (only PLATFORM_DESKTOP)
+export foreign "RestoreWindow" void restore_window();                                   // Set window state: not minimized/maximized (only PLATFORM_DESKTOP)
+export foreign "SetWindowIcon" void set_window_icon(image image);                            // Set icon for window (single image, RGBA 32bit, only PLATFORM_DESKTOP)
+export foreign "SetWindowIcons" void set_window_icons(image[*] images, i32 count);            // Set icon for window (multiple images, RGBA 32bit, only PLATFORM_DESKTOP)
+export foreign "SetWindowTitle" void set_window_title(i8[*] title);                           // Set title for window (only PLATFORM_DESKTOP and PLATFORM_WEB)
+export foreign "SetWindowPosition" void set_window_position(i32 x, i32 y);                       // Set window position on screen (only PLATFORM_DESKTOP)
+export foreign "SetWindowMonitor" void set_window_monitor(i32 monitor);                         // Set monitor for the current window
+export foreign "SetWindowMinSize" void set_window_min_size(i32 width, i32 height);               // Set window minimum dimensions (for FLAG_WINDOW_RESIZABLE)
+export foreign "SetWindowMaxSize" void set_window_max_size(i32 width, i32 height);               // Set window maximum dimensions (for FLAG_WINDOW_RESIZABLE)
+export foreign "SetWindowSize" void set_window_size(i32 width, i32 height);                  // Set window dimensions
+export foreign "SetWindowOpacity" void set_window_opacity(f32 opacity);                       // Set window opacity [0.0f..1.0f] (only PLATFORM_DESKTOP)
+export foreign "SetWindowFocused" void set_window_focused();                                // Set window focused (only PLATFORM_DESKTOP)
+export foreign "GetWindowHandle" u8* get_window_handle();                                // Get native window handle
+export foreign "GetScreenWidth" i32 get_screen_width();                                   // Get current screen width
+export foreign "GetScreenHeight" i32 get_screen_height();                                  // Get current screen height
+export foreign "GetRenderWidth" i32 get_render_width();                                   // Get current render width (it considers HiDPI)
+export foreign "GetRenderHeight" i32 get_render_height();                                  // Get current render height (it considers HiDPI)
+export foreign "GetMonitorCount" i32 get_monitor_count();                                  // Get number of connected monitors
+export foreign "GetCurrentMonitor" i32 get_current_monitor();                                // Get current connected monitor
+export foreign "GetMonitorPosition" vector2 get_monitor_position(i32 monitor);                    // Get specified monitor position
+export foreign "GetMonitorWidth" i32 get_monitor_width(i32 monitor);                           // Get specified monitor width (current video mode used by monitor)
+export foreign "GetMonitorHeight" i32 get_monitor_height(i32 monitor);                          // Get specified monitor height (current video mode used by monitor)
+export foreign "GetMonitorPhysicalWidth" i32 get_monitor_physical_width(i32 monitor);                   // Get specified monitor physical width in millimetres
+export foreign "GetMonitorPhysicalHeight" i32 get_monitor_physical_height(i32 monitor);                  // Get specified monitor physical height in millimetres
+export foreign "GetMonitorRefreshRate" i32 get_monitor_refresh_rate(i32 monitor);                     // Get specified monitor refresh rate
+export foreign "GetWindowPosition" vector2 get_window_position();                            // Get window position XY on monitor
+export foreign "GetWindowScaleDPI" vector2 get_window_scale_dpi();                            // Get window scale DPI factor
+export foreign "GetMonitorName" i8[*] get_monitor_name(i32 monitor);                          // Get the human-readable, UTF-8 encoded name of the specified monitor
+export foreign "SetClipboardText" void set_clipboard_text(i8[*] text);                          // Set clipboard text content
+export foreign "GetClipboardText" i8[*] get_clipboard_text();                               // Get clipboard text content
+export foreign "EnableEventWaiting" void enable_event_waiting();                              // Enable waiting for events on EndDrawing(), no automatic event polling
+export foreign "DisableEventWaiting" void disable_event_waiting();                             // Disable waiting for events on EndDrawing(), automatic events polling
+
+// Cursor-related functions
+export foreign "ShowCursor" void show_cursor();                                      // Shows cursor
+export foreign "HideCursor" void hide_cursor();                                      // Hides cursor
+export foreign "IsCursorHidden" bool is_cursor_hidden();                                  // Check if cursor is not visible
+export foreign "EnableCursor" void enable_cursor();                                    // Enables cursor (unlock cursor)
+export foreign "DisableCursor" void disable_cursor();                                   // Disables cursor (lock cursor)
+export foreign "IsCursorOnScreen" bool is_cursor_on_screen();                                // Check if cursor is on the screen
+
+// Drawing-related functions
+export foreign "ClearBackground" void clear_background(color color);                          // Set background color (framebuffer clear color)
+export foreign "BeginDrawing" void begin_drawing();                                    // Setup canvas (framebuffer) to start drawing
+export foreign "EndDrawing" void end_drawing();                                      // End canvas drawing and swap buffers (double buffering)
+export foreign "BeginMode2D" void begin_mode2d(camera2d camera);                          // Begin 2D mode with custom camera (2D)
+export foreign "EndMode2D" void end_mode2d();                                       // Ends 2D mode with custom camera
+export foreign "BeginMode3D" void begin_mode3d(camera3d camera);                          // Begin 3D mode with custom camera (3D)
+export foreign "EndMode3D" void end_mode3d();                                       // Ends 3D mode and returns to default 2D orthographic mode
+export foreign "BeginTextureMode" void begin_texture_mode(render_texture2d target);              // Begin drawing to render texture
+export foreign "EndTextureMode" void end_texture_mode();                                  // Ends drawing to render texture
+export foreign "BeginShaderMode" void begin_shader_mode(shader shader);                        // Begin custom shader drawing
+export foreign "EndShaderMode" void end_shader_mode();                                   // End custom shader drawing (use default shader)
+export foreign "BeginBlendMode" void begin_blend_mode(i32 mode);                              // Begin blending mode (alpha, additive, multiplied, subtract, custom)
+export foreign "EndBlendMode" void end_blend_mode();                                    // End blending mode (reset to default: alpha blending)
+export foreign "BeginScissorMode" void begin_scissor_mode(i32 x, i32 y, i32 width, i32 height); // Begin scissor mode (define screen area for following drawing)
+export foreign "EndScissorMode" void end_scissor_mode();                                  // End scissor mode
+export foreign "BeginVrStereoMode" void begin_vr_stereo_mode(vr_stereo_config config);              // Begin stereo rendering (requires VR simulator)
+export foreign "EndVrStereoMode" void end_vr_stereo_mode();                                 // End stereo rendering (requires VR simulator)
+
+// Timing-related functions
+export foreign "SetTargetFPS" void set_target_fps(i32 fps);                                 // Set target FPS (maximum)
+export foreign "GetFrameTime" f32 get_frame_time();                                   // Get time in seconds for last frame drawn (delta time)
+export foreign "GetTime" f64 get_time();                                       // Get elapsed time in seconds since InitWindow()
+export foreign "GetFPS" i32 get_fps();                                           // Get current FPS

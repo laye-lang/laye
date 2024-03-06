@@ -74,6 +74,7 @@ struct layec_value {
 
     union {
         int64_t int_value;
+        double float_value;
 
         struct {
             layec_builtin_kind kind;
@@ -647,11 +648,16 @@ layec_value* layec_instruction_ptradd_get_offset(layec_value* ptradd) {
     return ptradd->operand;
 }
 
-
 int64_t layec_value_integer_constant(layec_value* value) {
     assert(value != NULL);
     assert(value->kind == LAYEC_IR_INTEGER_CONSTANT);
     return value->int_value;
+}
+
+double layec_value_float_constant(layec_value* value) {
+    assert(value != NULL);
+    assert(value->kind == LAYEC_IR_FLOAT_CONSTANT);
+    return value->float_value;
 }
 
 const char* layec_value_kind_to_cstring(layec_value_kind kind) {
@@ -685,6 +691,12 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
         case LAYEC_IR_NEG: return "NEG";
         case LAYEC_IR_COPY: return "COPY";
         case LAYEC_IR_COMPL: return "COMPL";
+        case LAYEC_IR_FPTOUI: return "FPTOUI";
+        case LAYEC_IR_FPTOSI: return "FPTOSI";
+        case LAYEC_IR_UITOFP: return "UITOFP";
+        case LAYEC_IR_SITOFP: return "SITOFP";
+        case LAYEC_IR_FPTRUNC: return "FPTRUNC";
+        case LAYEC_IR_FPEXT: return "FPEXT";
         case LAYEC_IR_ADD: return "ADD";
         case LAYEC_IR_SUB: return "SUB";
         case LAYEC_IR_MUL: return "MUL";
@@ -698,16 +710,32 @@ const char* layec_value_kind_to_cstring(layec_value_kind kind) {
         case LAYEC_IR_AND: return "AND";
         case LAYEC_IR_OR: return "OR";
         case LAYEC_IR_XOR: return "XOR";
-        case LAYEC_IR_EQ: return "EQ";
-        case LAYEC_IR_NE: return "NE";
-        case LAYEC_IR_SLT: return "SLT";
-        case LAYEC_IR_SLE: return "SLE";
-        case LAYEC_IR_SGT: return "SGT";
-        case LAYEC_IR_SGE: return "SGE";
-        case LAYEC_IR_ULT: return "ULT";
-        case LAYEC_IR_ULE: return "ULE";
-        case LAYEC_IR_UGT: return "UGT";
-        case LAYEC_IR_UGE: return "UGE";
+        case LAYEC_IR_ICMP_EQ: return "ICMP_EQ";
+        case LAYEC_IR_ICMP_NE: return "ICMP_NE";
+        case LAYEC_IR_ICMP_SLT: return "ICMP_SLT";
+        case LAYEC_IR_ICMP_SLE: return "ICMP_SLE";
+        case LAYEC_IR_ICMP_SGT: return "ICMP_SGT";
+        case LAYEC_IR_ICMP_SGE: return "ICMP_SGE";
+        case LAYEC_IR_ICMP_ULT: return "ICMP_ULT";
+        case LAYEC_IR_ICMP_ULE: return "ICMP_ULE";
+        case LAYEC_IR_ICMP_UGT: return "ICMP_UGT";
+        case LAYEC_IR_ICMP_UGE: return "ICMP_UGE";
+        case LAYEC_IR_FCMP_FALSE: return "FCMP_FALSE";
+        case LAYEC_IR_FCMP_OEQ: return "FCMP_OEQ";
+        case LAYEC_IR_FCMP_OGT: return "FCMP_OGT";
+        case LAYEC_IR_FCMP_OGE: return "FCMP_OGE";
+        case LAYEC_IR_FCMP_OLT: return "FCMP_OLT";
+        case LAYEC_IR_FCMP_OLE: return "FCMP_OLE";
+        case LAYEC_IR_FCMP_ONE: return "FCMP_ONE";
+        case LAYEC_IR_FCMP_ORD: return "FCMP_ORD";
+        case LAYEC_IR_FCMP_UEQ: return "FCMP_UEQ";
+        case LAYEC_IR_FCMP_UGT: return "FCMP_UGT";
+        case LAYEC_IR_FCMP_UGE: return "FCMP_UGE";
+        case LAYEC_IR_FCMP_ULT: return "FCMP_ULT";
+        case LAYEC_IR_FCMP_ULE: return "FCMP_ULE";
+        case LAYEC_IR_FCMP_UNE: return "FCMP_UNE";
+        case LAYEC_IR_FCMP_UNO: return "FCMP_UNO";
+        case LAYEC_IR_FCMP_TRUE: return "FCMP_TRUE";
     }
 }
 
@@ -762,6 +790,41 @@ layec_type* layec_int_type(layec_context* context, int bit_width) {
     int_type->primitive_bit_width = bit_width;
     arr_push(context->types.int_types, int_type);
     return int_type;
+}
+
+static layec_type* layec_create_float_type(layec_context* context, int bit_width) {
+    layec_type* float_type = layec_type_create(context, LAYEC_TYPE_FLOAT);
+    assert(float_type != NULL);
+    float_type->primitive_bit_width = bit_width;
+    return float_type;
+}
+
+layec_type* layec_float_type(layec_context* context, int bit_width) {
+    assert(context != NULL);
+    assert(bit_width > 0);
+    assert(bit_width <= 128);
+
+    switch (bit_width) {
+        default: {
+            fprintf(stderr, "for bitwidth %d\n", bit_width);
+            assert(false && "unsupported bit width");
+            return NULL;
+        }
+
+        case 32: {
+            if (context->types.f32 == NULL) {
+                context->types.f32 = layec_create_float_type(context, bit_width);
+            }
+            return context->types.f32;
+        }
+
+        case 64: {
+            if (context->types.f64 == NULL) {
+                context->types.f64 = layec_create_float_type(context, bit_width);
+            }
+            return context->types.f64;
+        }
+    }
 }
 
 layec_type* layec_array_type(layec_context* context, int64_t length, layec_type* element_type) {
@@ -827,7 +890,8 @@ int layec_type_size_in_bits(layec_type* type) {
 
         case LAYEC_TYPE_POINTER: return type->context->target->size_of_pointer;
 
-        case LAYEC_TYPE_INTEGER: return type->primitive_bit_width;
+        case LAYEC_TYPE_INTEGER:
+        case LAYEC_TYPE_FLOAT: return type->primitive_bit_width;
 
         case LAYEC_TYPE_ARRAY: {
             return type->array.length * layec_type_align_in_bytes(type->array.element_type) * 8;
@@ -859,7 +923,8 @@ int layec_type_align_in_bits(layec_type* type) {
 
         case LAYEC_TYPE_POINTER: return type->context->target->align_of_pointer;
 
-        case LAYEC_TYPE_INTEGER: return type->primitive_bit_width;
+        case LAYEC_TYPE_INTEGER:
+        case LAYEC_TYPE_FLOAT: return type->primitive_bit_width;
     }
 }
 
@@ -1063,6 +1128,17 @@ layec_value* layec_int_constant(layec_context* context, layec_location location,
     assert(int_value != NULL);
     int_value->int_value = value;
     return int_value;
+}
+
+layec_value* layec_float_constant(layec_context* context, layec_location location, layec_type* type, double value) {
+    assert(context != NULL);
+    assert(type != NULL);
+    assert(layec_type_is_float(type));
+
+    layec_value* float_value = layec_value_create_in_context(context, location, LAYEC_IR_FLOAT_CONSTANT, type, SV_EMPTY);
+    assert(float_value != NULL);
+    float_value->float_value = value;
+    return float_value;
 }
 
 layec_value* layec_array_constant(layec_context* context, layec_location location, layec_type* type, void* data, int64_t length, bool is_string_literal) {
@@ -1527,56 +1603,132 @@ static layec_value* layec_build_binary(layec_builder* builder, layec_location lo
     return cmp;
 }
 
-layec_value* layec_build_eq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_EQ, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_eq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_EQ, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_NE, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_NE, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_slt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_SLT, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_slt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_SLT, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_ULT, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_ULT, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_sle(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_SLE, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_sle(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_SLE, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_ULE, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_ULE, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_sgt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_SGT, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_sgt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_SGT, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_UGT, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_UGT, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_SGE, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_SGE, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
-layec_value* layec_build_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
-    return layec_build_binary(builder, location, LAYEC_IR_UGE, lhs, rhs, layec_int_type(builder->context, 1));
+layec_value* layec_build_icmp_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_ICMP_UGE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_false(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_FALSE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_oeq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_OEQ, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ogt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_OGT, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_oge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_OGE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_olt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_OLT, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ole(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_OLE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_one(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_ONE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ord(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_ORD, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ueq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_UEQ, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_UGT, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_UGE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_ULT, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_ULE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_une(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_UNE, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_uno(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_UNO, lhs, rhs, layec_int_type(builder->context, 1));
+}
+
+layec_value* layec_build_fcmp_true(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FCMP_TRUE, lhs, rhs, layec_int_type(builder->context, 1));
 }
 
 layec_value* layec_build_add(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
     return layec_build_binary(builder, location, LAYEC_IR_ADD, lhs, rhs, lhs->type);
 }
 
+layec_value* layec_build_fadd(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FADD, lhs, rhs, lhs->type);
+}
+
 layec_value* layec_build_sub(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
     return layec_build_binary(builder, location, LAYEC_IR_SUB, lhs, rhs, lhs->type);
 }
 
+layec_value* layec_build_fsub(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FSUB, lhs, rhs, lhs->type);
+}
+
 layec_value* layec_build_mul(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
     return layec_build_binary(builder, location, LAYEC_IR_MUL, lhs, rhs, lhs->type);
+}
+
+layec_value* layec_build_fmul(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FMUL, lhs, rhs, lhs->type);
 }
 
 layec_value* layec_build_sdiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
@@ -1587,12 +1739,20 @@ layec_value* layec_build_udiv(layec_builder* builder, layec_location location, l
     return layec_build_binary(builder, location, LAYEC_IR_UDIV, lhs, rhs, lhs->type);
 }
 
+layec_value* layec_build_fdiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FDIV, lhs, rhs, lhs->type);
+}
+
 layec_value* layec_build_smod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
     return layec_build_binary(builder, location, LAYEC_IR_SMOD, lhs, rhs, lhs->type);
 }
 
 layec_value* layec_build_umod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
     return layec_build_binary(builder, location, LAYEC_IR_UMOD, lhs, rhs, lhs->type);
+}
+
+layec_value* layec_build_fmod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
+    return layec_build_binary(builder, location, LAYEC_IR_FMOD, lhs, rhs, lhs->type);
 }
 
 layec_value* layec_build_and(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs) {
@@ -1625,6 +1785,30 @@ layec_value* layec_build_neg(layec_builder* builder, layec_location location, la
 
 layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand) {
     return layec_build_unary(builder, location, LAYEC_IR_COMPL, operand, operand->type);
+}
+
+layec_value* layec_build_fptoui(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_FPTOUI, operand, to);
+}
+
+layec_value* layec_build_fptosi(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_FPTOSI, operand, to);
+}
+
+layec_value* layec_build_uitofp(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_UITOFP, operand, to);
+}
+
+layec_value* layec_build_sitofp(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_SITOFP, operand, to);
+}
+
+layec_value* layec_build_fpext(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_FPEXT, operand, to);
+}
+
+layec_value* layec_build_fptrunc(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to) {
+    return layec_build_unary(builder, location, LAYEC_IR_FPTRUNC, operand, to);
 }
 
 static layec_value* layec_build_builtin(layec_builder* builder, layec_location location, layec_builtin_kind kind) {
@@ -2075,71 +2259,183 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_EQ: {
-            lca_string_append_format(print_context->output, "%seq ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_EQ: {
+            lca_string_append_format(print_context->output, "%sicmp eq ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_NE: {
-            lca_string_append_format(print_context->output, "%sne ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_NE: {
+            lca_string_append_format(print_context->output, "%sicmp ne ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_SLT: {
-            lca_string_append_format(print_context->output, "%sslt ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_SLT: {
+            lca_string_append_format(print_context->output, "%sicmp slt ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_ULT: {
-            lca_string_append_format(print_context->output, "%sult ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_ULT: {
+            lca_string_append_format(print_context->output, "%sicmp ult ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_SLE: {
-            lca_string_append_format(print_context->output, "%ssle ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_SLE: {
+            lca_string_append_format(print_context->output, "%sicmp sle ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_ULE: {
-            lca_string_append_format(print_context->output, "%sule ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_ULE: {
+            lca_string_append_format(print_context->output, "%sicmp ule ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_SGT: {
-            lca_string_append_format(print_context->output, "%ssgt ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_SGT: {
+            lca_string_append_format(print_context->output, "%sicmp sgt ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_UGT: {
-            lca_string_append_format(print_context->output, "%sugt ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_UGT: {
+            lca_string_append_format(print_context->output, "%sicmp ugt ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_SGE: {
-            lca_string_append_format(print_context->output, "%ssge ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_SGE: {
+            lca_string_append_format(print_context->output, "%sicmp sge ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
         } break;
 
-        case LAYEC_IR_UGE: {
-            lca_string_append_format(print_context->output, "%suge ", COL(COL_KEYWORD));
+        case LAYEC_IR_ICMP_UGE: {
+            lca_string_append_format(print_context->output, "%sicmp uge ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_FALSE: {
+            lca_string_append_format(print_context->output, "%sfcmp false ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_OEQ: {
+            lca_string_append_format(print_context->output, "%sfcmp oeq ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_OGT: {
+            lca_string_append_format(print_context->output, "%sfcmp ogt ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_OGE: {
+            lca_string_append_format(print_context->output, "%sfcmp oge ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_OLT: {
+            lca_string_append_format(print_context->output, "%sfcmp olt ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_OLE: {
+            lca_string_append_format(print_context->output, "%sfcmp ole ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_ONE: {
+            lca_string_append_format(print_context->output, "%sfcmp one ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_ORD: {
+            lca_string_append_format(print_context->output, "%sfcmp ord ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_UEQ: {
+            lca_string_append_format(print_context->output, "%sfcmp ueq ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_UGT: {
+            lca_string_append_format(print_context->output, "%sfcmp ugt ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_UGE: {
+            lca_string_append_format(print_context->output, "%sfcmp uge ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_ULT: {
+            lca_string_append_format(print_context->output, "%sfcmp ult ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_ULE: {
+            lca_string_append_format(print_context->output, "%sfcmp ule ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_UNE: {
+            lca_string_append_format(print_context->output, "%sfcmp une ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_UNO: {
+            lca_string_append_format(print_context->output, "%sfcmp uno ", COL(COL_KEYWORD));
+            layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);
+        } break;
+
+        case LAYEC_IR_FCMP_TRUE: {
+            lca_string_append_format(print_context->output, "%sfcmp true ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->binary.lhs, print_context->output, true, use_color);
             lca_string_append_format(print_context->output, "%s, ", COL(RESET));
             layec_value_print_to_string(instruction->binary.rhs, print_context->output, false, use_color);

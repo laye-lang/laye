@@ -26,6 +26,8 @@ void layec_init_targets(lca_allocator allocator) {
             .size_of_int = 32,
             .size_of_long = 64,
             .size_of_long_long = 64,
+            .size_of_float = 32,
+            .size_of_double = 64,
 
             .align_of_bool = 8,
             .align_of_char = 8,
@@ -33,6 +35,8 @@ void layec_init_targets(lca_allocator allocator) {
             .align_of_int = 32,
             .align_of_long = 64,
             .align_of_long_long = 64,
+            .align_of_float = 32,
+            .align_of_double = 64,
 
             .char_is_signed = true,
         },

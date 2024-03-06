@@ -695,6 +695,16 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             }
             laye_next_token(p);
         } break;
+
+        case LAYE_TOKEN_FLOATSIZED: {
+            if (allocate) {
+                result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_FLOAT, p->token.location, LTY(p->context->laye_types.type));
+                assert(result.type.node != NULL);
+                assert(p->token.int_value > 0 && p->token.int_value <= 128);
+                result.type.node->type_primitive.bit_width = (int)p->token.int_value;
+            }
+            laye_next_token(p);
+        } break;
     }
 
     type_is_modifiable |= laye_parse_type_modifiable_modifiers(p, &result, allocate);

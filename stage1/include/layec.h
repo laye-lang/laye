@@ -33,6 +33,8 @@ typedef struct layec_target_info {
         int size_of_int;
         int size_of_long;
         int size_of_long_long;
+        int size_of_float;
+        int size_of_double;
 
         int align_of_bool;
         int align_of_char;
@@ -40,6 +42,8 @@ typedef struct layec_target_info {
         int align_of_int;
         int align_of_long;
         int align_of_long_long;
+        int align_of_float;
+        int align_of_double;
 
         bool char_is_signed;
     } c;
@@ -124,6 +128,8 @@ typedef struct layec_context {
         layec_type* ptr;
         layec_type* _void;
         dynarr(layec_type*) int_types;
+        layec_type* f32;
+        layec_type* f64;
     } types;
 
     struct {
@@ -275,6 +281,7 @@ typedef enum layec_value_kind {
 
     // Values
     LAYEC_IR_INTEGER_CONSTANT,
+    LAYEC_IR_FLOAT_CONSTANT,
     LAYEC_IR_ARRAY_CONSTANT,
     LAYEC_IR_VOID_CONSTANT,
     LAYEC_IR_POISON,
@@ -311,6 +318,12 @@ typedef enum layec_value_kind {
     LAYEC_IR_NEG,
     LAYEC_IR_COPY,
     LAYEC_IR_COMPL,
+    LAYEC_IR_FPTOUI,
+    LAYEC_IR_FPTOSI,
+    LAYEC_IR_UITOFP,
+    LAYEC_IR_SITOFP,
+    LAYEC_IR_FPTRUNC,
+    LAYEC_IR_FPEXT,
 
     // Binary instructions
     LAYEC_IR_ADD,
@@ -332,19 +345,37 @@ typedef enum layec_value_kind {
     LAYEC_IR_OR,
     LAYEC_IR_XOR,
 
-    // Comparison instructions
-    LAYEC_IR_EQ,
-    LAYEC_IR_NE,
+    // Integer comparison instructions
+    LAYEC_IR_ICMP_EQ,
+    LAYEC_IR_ICMP_NE,
     // Signed comparisons
-    LAYEC_IR_SLT,
-    LAYEC_IR_SLE,
-    LAYEC_IR_SGT,
-    LAYEC_IR_SGE,
+    LAYEC_IR_ICMP_SLT,
+    LAYEC_IR_ICMP_SLE,
+    LAYEC_IR_ICMP_SGT,
+    LAYEC_IR_ICMP_SGE,
     // Unsigned comparisons
-    LAYEC_IR_ULT,
-    LAYEC_IR_ULE,
-    LAYEC_IR_UGT,
-    LAYEC_IR_UGE,
+    LAYEC_IR_ICMP_ULT,
+    LAYEC_IR_ICMP_ULE,
+    LAYEC_IR_ICMP_UGT,
+    LAYEC_IR_ICMP_UGE,
+
+    // Float comparison instructions
+    LAYEC_IR_FCMP_FALSE,
+    LAYEC_IR_FCMP_OEQ,
+    LAYEC_IR_FCMP_OGT,
+    LAYEC_IR_FCMP_OGE,
+    LAYEC_IR_FCMP_OLT,
+    LAYEC_IR_FCMP_OLE,
+    LAYEC_IR_FCMP_ONE,
+    LAYEC_IR_FCMP_ORD,
+    LAYEC_IR_FCMP_UEQ,
+    LAYEC_IR_FCMP_UGT,
+    LAYEC_IR_FCMP_UGE,
+    LAYEC_IR_FCMP_ULT,
+    LAYEC_IR_FCMP_ULE,
+    LAYEC_IR_FCMP_UNE,
+    LAYEC_IR_FCMP_UNO,
+    LAYEC_IR_FCMP_TRUE,
 } layec_value_kind;
 
 // ========== Context ==========
@@ -429,6 +460,7 @@ layec_type_kind layec_type_get_kind(layec_type* type);
 layec_type* layec_void_type(layec_context* context);
 layec_type* layec_ptr_type(layec_context* context);
 layec_type* layec_int_type(layec_context* context, int bit_width);
+layec_type* layec_float_type(layec_context* context, int bit_width);
 layec_type* layec_array_type(layec_context* context, int64_t length, layec_type* element_type);
 layec_type* layec_function_type(
     layec_context* context,
@@ -473,6 +505,7 @@ bool layec_function_type_is_variadic(layec_type* function_type);
 const char* layec_value_kind_to_cstring(layec_value_kind kind);
 
 int64_t layec_value_integer_constant(layec_value* value);
+double layec_value_float_constant(layec_value* value);
 
 layec_value_kind layec_value_get_kind(layec_value* value);
 layec_context* layec_value_context(layec_value* value);
@@ -489,6 +522,7 @@ bool layec_value_is_instruction(layec_value* value);
 
 layec_value* layec_void_constant(layec_context* context);
 layec_value* layec_int_constant(layec_context* context, layec_location location, layec_type* type, int64_t value);
+layec_value* layec_float_constant(layec_context* context, layec_location location, layec_type* type, double value);
 layec_value* layec_array_constant(layec_context* context, layec_location location, layec_type* type, void* data, int64_t length, bool is_string_literal);
 
 bool layec_array_constant_is_string(layec_value* array_constant);
@@ -586,23 +620,44 @@ layec_value* layec_build_bitcast(layec_builder* builder, layec_location location
 layec_value* layec_build_sign_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 layec_value* layec_build_zero_extend(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
 layec_value* layec_build_truncate(layec_builder* builder, layec_location location, layec_value* value, layec_type* type);
-layec_value* layec_build_eq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_slt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_sle(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_sgt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
-layec_value* layec_build_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_eq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_ne(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_slt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_sle(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_sgt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_sge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_icmp_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_false(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_oeq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ogt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_oge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_olt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ole(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_one(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ord(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ueq(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ugt(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_uge(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ult(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_ule(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_une(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_uno(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fcmp_true(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_add(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fadd(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_sub(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fsub(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_mul(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fmul(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_sdiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_udiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fdiv(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_smod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_umod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
+layec_value* layec_build_fmod(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_and(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_or(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_xor(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
@@ -611,6 +666,12 @@ layec_value* layec_build_shr(layec_builder* builder, layec_location location, la
 layec_value* layec_build_sar(layec_builder* builder, layec_location location, layec_value* lhs, layec_value* rhs);
 layec_value* layec_build_neg(layec_builder* builder, layec_location location, layec_value* operand);
 layec_value* layec_build_compl(layec_builder* builder, layec_location location, layec_value* operand);
+layec_value* layec_build_fptoui(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
+layec_value* layec_build_fptosi(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
+layec_value* layec_build_uitofp(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
+layec_value* layec_build_sitofp(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
+layec_value* layec_build_fpext(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
+layec_value* layec_build_fptrunc(layec_builder* builder, layec_location location, layec_value* operand, layec_type* to);
 layec_value* layec_build_builtin_memset(layec_builder* builder, layec_location location, layec_value* address, layec_value* value, layec_value* count);
 layec_value* layec_build_builtin_memcpy(layec_builder* builder, layec_location location, layec_value* source_address, layec_value* dest_address, layec_value* count);
 layec_value* layec_build_ptradd(layec_builder* builder, layec_location location, layec_value* address, layec_value* offset_value);

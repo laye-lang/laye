@@ -42,8 +42,7 @@ static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, la
 // TODO(local): redeclaration of a name as an import namespace should be a semantic error. They can't participate in overload resolution,
 // so should just be disallowed for simplicity.
 
-static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_module, laye_nameref nameref, bool is_type_entity) {
-    assert(sema != NULL);
+static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref nameref, bool is_type_entity) {
     assert(from_module != NULL);
     assert(from_module->context != NULL);
 
@@ -122,12 +121,56 @@ static laye_node* laye_sema_lookup_entity(laye_sema* sema, laye_module* from_mod
     return found_declaration;
 }
 
-static laye_node* laye_sema_lookup_value_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
-    return laye_sema_lookup_entity(sema, from_module, nameref, false);
+static laye_node* laye_sema_lookup_value_declaration(laye_module* from_module, laye_nameref nameref) {
+    return laye_sema_lookup_entity(from_module, nameref, false);
 }
 
-static laye_node* laye_sema_lookup_type_declaration(laye_sema* sema, laye_module* from_module, laye_nameref nameref) {
-    return laye_sema_lookup_entity(sema, from_module, nameref, true);
+static laye_node* laye_sema_lookup_type_declaration(laye_module* from_module, laye_nameref nameref) {
+    return laye_sema_lookup_entity(from_module, nameref, true);
+}
+
+static void laye_generate_dependencies_for_node(layec_dependency_graph* graph, laye_node* dep_parent, laye_node* node) {
+    assert(graph != NULL);
+    assert(node != NULL);
+    assert(node->module != NULL);
+
+    switch (node->kind) {
+        default: {
+            fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(node->kind));
+            assert(false && "unimplemented dependency generation");
+        } break;
+
+        case LAYE_NODE_DECL_STRUCT: {
+            for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++) {
+                laye_node* field_decl = node->decl_struct.field_declarations[i];
+                laye_generate_dependencies_for_node(graph, dep_parent, field_decl->declared_type.node);
+            }
+        } break;
+
+        case LAYE_NODE_TYPE_NORETURN:
+        case LAYE_NODE_TYPE_VOID:
+        case LAYE_NODE_TYPE_INT:
+        case LAYE_NODE_TYPE_FLOAT:
+        case LAYE_NODE_TYPE_BOOL: {
+        } break;
+
+        case LAYE_NODE_TYPE_ARRAY:
+        case LAYE_NODE_TYPE_POINTER:
+        case LAYE_NODE_TYPE_BUFFER:
+        case LAYE_NODE_TYPE_SLICE: {
+            laye_generate_dependencies_for_node(graph, dep_parent, node->type_container.element_type.node);
+        } break;
+
+        case LAYE_NODE_TYPE_NAMEREF: {
+            laye_node* referenced_decl_node = node->nameref.referenced_declaration;
+
+            if (referenced_decl_node == NULL) {
+                referenced_decl_node = laye_sema_lookup_type_declaration(node->module, node->nameref);
+            }
+
+            layec_depgraph_add_dependency(graph, dep_parent, referenced_decl_node);
+        } break;
+    }
 }
 
 static void laye_generate_dependencies_for_module(layec_dependency_graph* graph, laye_module* module) {
@@ -157,11 +200,17 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
             case LAYE_NODE_DECL_FUNCTION: {
                 // TODO(local): generate dependencies
                 layec_depgraph_ensure_tracked(graph, top_level_node);
+
+                laye_generate_dependencies_for_node(graph, top_level_node, top_level_node->decl_function.return_type.node);
+                for (int64_t i = 0, count = arr_count(top_level_node->decl_function.parameter_declarations); i < count; i++) {
+                    laye_generate_dependencies_for_node(graph, top_level_node, top_level_node->decl_function.parameter_declarations[i]->declared_type.node);
+                }
             } break;
 
             case LAYE_NODE_DECL_STRUCT: {
                 // TODO(local): generate dependencies
                 layec_depgraph_ensure_tracked(graph, top_level_node);
+                laye_generate_dependencies_for_node(graph, top_level_node, top_level_node);
             } break;
         }
     }
@@ -693,6 +742,10 @@ void laye_analyse(layec_context* context) {
     assert(order_result.status == LAYEC_DEP_OK);
     dynarr(laye_node*) ordered_nodes = (dynarr(laye_node*))order_result.ordered_entities;
 
+    // for (int64_t i = 0, count = arr_count(ordered_nodes); i < count; i++) {
+    //     fprintf(stderr, ">>  %s :: %.*s\n", laye_node_kind_to_cstring(ordered_nodes[i]->kind), STR_EXPAND(ordered_nodes[i]->declared_name));
+    // }
+
     for (int64_t i = 0, count = arr_count(ordered_nodes); i < count; i++) {
         laye_node* node = ordered_nodes[i];
         assert(node != NULL);
@@ -836,9 +889,11 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
             laye_sema_analyse_type(sema, &node->declared_type);
             assert(node->declared_type.node != NULL);
             assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
+            node->sema_state = LAYEC_SEMA_OK;
         } break;
     }
 
+    assert(node->declared_type.node != NULL);
     *node_ref = node;
 }
 
@@ -1530,7 +1585,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             laye_node* referenced_decl_node = node->nameref.referenced_declaration;
 
             if (referenced_decl_node == NULL) {
-                referenced_decl_node = laye_sema_lookup_value_declaration(sema, node->module, node->nameref);
+                referenced_decl_node = laye_sema_lookup_value_declaration(node->module, node->nameref);
                 if (referenced_decl_node == NULL) {
                     node->sema_state = LAYEC_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
@@ -1861,11 +1916,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     laye_type rhs_type = node->binary.rhs->type;
                     assert(rhs_type.node != NULL);
 
-                    if (laye_type_is_int(lhs_type) && laye_type_is_int(rhs_type)) {
-                        if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
-                            goto cannot_compare_types;
-                        }
-                    } else if (laye_type_is_float(lhs_type) && laye_type_is_float(rhs_type)) {
+                    if (laye_type_is_numeric(lhs_type) && laye_type_is_numeric(rhs_type)) {
                         if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
                             goto cannot_compare_types;
                         }
@@ -1940,7 +1991,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             laye_node* referenced_decl_node = node->nameref.referenced_declaration;
 
             if (referenced_decl_node == NULL) {
-                referenced_decl_node = laye_sema_lookup_type_declaration(sema, node->module, node->nameref);
+                referenced_decl_node = laye_sema_lookup_type_declaration(node->module, node->nameref);
                 if (referenced_decl_node == NULL) {
                     node->sema_state = LAYEC_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
@@ -1949,6 +2000,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             assert(referenced_decl_node != NULL);
+            assert(referenced_decl_node->sema_state == LAYEC_SEMA_OK || referenced_decl_node->sema_state == LAYEC_SEMA_ERRORED);
             assert(laye_node_is_decl(referenced_decl_node));
             node->nameref.referenced_declaration = referenced_decl_node;
             assert(referenced_decl_node->declared_type.node != NULL);
@@ -2293,7 +2345,13 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
 
     layec_evaluated_constant eval_result = {0};
     if (laye_expr_evaluate(node, &eval_result, false)) {
-        if (eval_result.kind == LAYEC_EVAL_INT) {
+        if (eval_result.kind == LAYEC_EVAL_INT && laye_type_is_numeric(to)) {
+            if (laye_type_is_float(to)) {
+                eval_result.float_value = eval_result.int_value;
+                eval_result.kind = LAYEC_EVAL_FLOAT;
+                goto eval_float;
+            }
+
             int sig_bits = layec_get_significant_bits(eval_result.int_value);
             if (sig_bits <= to_size) {
                 if (perform_conversion) {
@@ -2303,11 +2361,47 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
 
                 return score;
             }
+        } else if (eval_result.kind == LAYEC_EVAL_FLOAT && laye_type_is_float(to)) {
+        eval_float:;
+            assert(laye_type_is_float(to)); // because of the goto
+            if (perform_conversion) {
+                laye_sema_insert_implicit_cast(sema, node_ref, to);
+                *node_ref = laye_create_constant_node(sema, *node_ref, eval_result);
+            }
+            return score;
         } else if (eval_result.kind == LAYEC_EVAL_STRING) {
         }
     }
 
     if (laye_type_is_int(from) && laye_type_is_int(to)) {
+        int from_size = laye_type_size_in_bits(from);
+
+        if (from_size <= to_size) {
+            if (perform_conversion) {
+                laye_sema_insert_implicit_cast(sema, node_ref, to);
+            }
+
+            return 1 + score;
+        }
+
+        return LAYE_CONVERT_IMPOSSIBLE;
+    }
+
+    if (laye_type_is_float(from) && laye_type_is_float(to)) {
+        int from_size = laye_type_size_in_bits(from);
+
+        if (from_size <= to_size) {
+            if (perform_conversion) {
+                laye_sema_insert_implicit_cast(sema, node_ref, to);
+            }
+
+            return 1 + score;
+        }
+
+        return LAYE_CONVERT_IMPOSSIBLE;
+    }
+
+    if (laye_type_is_int(from) && laye_type_is_float(to)) {
         int from_size = laye_type_size_in_bits(from);
 
         if (from_size <= to_size) {
@@ -2372,7 +2466,20 @@ static void laye_sema_convert_to_c_varargs_or_error(laye_sema* sema, laye_node**
             assert(ffi_int_type.node != NULL);
             ffi_int_type.node->type_primitive.is_signed = laye_type_is_signed_int((*node)->type);
             ffi_int_type.node->type_primitive.bit_width = sema->context->target->c.size_of_int;
+            laye_sema_analyse_type(sema, &ffi_int_type);
             laye_sema_insert_implicit_cast(sema, node, ffi_int_type);
+            laye_sema_analyse_node(sema, node, NOTY);
+            return;
+        }
+    }
+
+    if (laye_type_is_float((*node)->type)) {
+        if (type_size < sema->context->target->c.size_of_double) {
+            laye_type ffi_double_type = LTY(laye_node_create((*node)->module, LAYE_NODE_TYPE_FLOAT, (*node)->location, LTY(sema->context->laye_types.type)));
+            assert(ffi_double_type.node != NULL);
+            ffi_double_type.node->type_primitive.bit_width = sema->context->target->c.size_of_double;
+            laye_sema_analyse_type(sema, &ffi_double_type);
+            laye_sema_insert_implicit_cast(sema, node, ffi_double_type);
             laye_sema_analyse_node(sema, node, NOTY);
             return;
         }

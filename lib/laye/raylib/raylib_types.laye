@@ -1,0 +1,90 @@
+export struct camera2d {
+    vector2 mut offset;
+    vector2 mut target;
+    f32 mut rotation;
+    f32 mut zoom;
+}
+
+export struct camera3d {
+    vector3 mut position;
+    vector3 mut target;
+    vector3 mut up;
+    f32 mut fovy
+    i32 mut projection;
+}
+
+export struct color {
+    u8 mut r;
+    u8 mut g;
+    u8 mut b;
+    u8 mut a;
+}
+
+export struct image {
+    u8 mut[*] mut data;
+    i32 mut width;
+    i32 mut height;
+    i32 mut mipmaps;
+    i32 mut format;
+}
+
+export struct matrix {
+    f32 m0; f32 m4; f32 m8 ; f32 m12; // Matrix first row (4 components)
+    f32 m1; f32 m5; f32 m9 ; f32 m13; // Matrix second row (4 components)
+    f32 m2; f32 m6; f32 m10; f32 m14; // Matrix third row (4 components)
+    f32 m3; f32 m7; f32 m11; f32 m15; // Matrix fourth row (4 components)
+}
+
+export struct render_texture {
+    u32 mut id;
+    texture mut texture;
+    texture mut depth;
+}
+
+export struct render_texture2d {
+    u32 mut id;
+    texture mut texture;
+    texture mut depth;
+}
+
+export struct shader {
+    u32 id;
+    i32[*] locations;
+}
+
+export struct texture {
+    u32 mut id;
+    i32 mut width;
+    i32 mut height;
+    i32 mut mipmaps;
+    i32 mut format;
+}
+
+export struct vector2 {
+    f32 mut x;
+    f32 mut y;
+}
+
+export struct vector3 {
+    f32 mut x;
+    f32 mut y;
+    f32 mut z;
+}
+
+export struct vector4 {
+    f32 mut x;
+    f32 mut y;
+    f32 mut z;
+    f32 mut w;
+}
+
+export struct vr_stereo_config {
+    matrix mut[2] mut projection;
+    matrix mut[2] mut view_offset;
+    f32 mut[2] mut left_lens_center;
+    f32 mut[2] mut right_lens_center;
+    f32 mut[2] mut left_screen_center;
+    f32 mut[2] mut right_screen_center;
+    f32 mut[2] mut scale;
+    f32 mut[2] mut scale_in;
+}
