@@ -9,7 +9,7 @@
 // +   store %1, int1 1
 // +   %2 = load int1, %1
 // +   %3 = load int1, %0
-// +   %4 = ne int1 %2, %3
+// +   %4 = icmp ne int1 %2, %3
 // +   branch %4, %_bb1, %_bb2
 // + _bb1:
 // +   return int64 3

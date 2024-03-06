@@ -70,7 +70,7 @@ int many(int a, int b, int c, int d, int e, int f, int g, int h) {
 // +   branch %_bb1
 // + _bb1:
 // +   %5 = load int64, %3
-// +   %6 = sgt int64 %5, 0
+// +   %6 = icmp sgt int64 %5, 0
 // +   branch %6, %_bb2, %_bb3
 // + _bb2:
 // +   %7 = load int64, %4

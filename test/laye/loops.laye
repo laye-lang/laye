@@ -36,7 +36,7 @@ noreturn forever_cfor() {
 // +   branch %_bb1
 // + _bb1:
 // +   %1 = load int64, %0
-// +   %2 = slt int64 %1, 10
+// +   %2 = icmp slt int64 %1, 10
 // +   branch %2, %_bb2, %_bb3
 // + _bb2:
 // +   %3 = load int64, %0
@@ -64,7 +64,7 @@ int condition() {
 // +   branch %_bb1
 // + _bb1:
 // +   %2 = load int64, %1
-// +   %3 = slt int64 %2, 10
+// +   %3 = icmp slt int64 %2, 10
 // +   branch %3, %_bb2, %_bb4
 // + _bb2:
 // +   %4 = load int64, %0
@@ -99,7 +99,7 @@ int noinit() {
 // +   branch %_bb1
 // + _bb1:
 // +   %2 = load int64, %1
-// +   %3 = slt int64 %2, 10
+// +   %3 = icmp slt int64 %2, 10
 // +   branch %3, %_bb2, %_bb3
 // + _bb2:
 // +   %4 = load int64, %0
@@ -152,7 +152,7 @@ noreturn nocondition() {
 // +   branch %_bb1
 // + _bb1:
 // +   %2 = load int64, %1
-// +   %3 = slt int64 %2, 10
+// +   %3 = icmp slt int64 %2, 10
 // +   branch %3, %_bb2, %_bb4
 // + _bb2:
 // +   %4 = load int64, %0

@@ -330,8 +330,8 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
         case LAYEC_IR_PTRADD: {
             lca_string_append_format(codegen->output, "getelementptr inbounds i8, ");
             llvm_print_value(codegen, layec_instruction_address(instruction), true);
-            lca_string_append_format(codegen->output, ", i32 ");
-            llvm_print_value(codegen, layec_instruction_operand(instruction), false);
+            lca_string_append_format(codegen->output, ", ");
+            llvm_print_value(codegen, layec_instruction_operand(instruction), true);
         } break;
 
         case LAYEC_IR_BUILTIN: {
