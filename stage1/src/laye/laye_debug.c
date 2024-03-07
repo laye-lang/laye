@@ -122,12 +122,12 @@ string laye_module_debug_print(laye_module* module) {
     string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(layec_context_get_source(module->context, module->sourceid).name), COL(RESET));
     string_append_format(print_context.output, "%s; %016llX%s\n", COL(COL_COMMENT), (size_t)module, COL(RESET));
     if (module->imports != NULL) {
-        string_append_format(print_context.output, "%s; Imports:\n", COL(COL_COMMENT));
-        laye_symbol_print_to_string(module->imports, print_context.output, 1);
+        //string_append_format(print_context.output, "%s; Imports:\n", COL(COL_COMMENT));
+        //laye_symbol_print_to_string(module->imports, print_context.output, 1);
     }
     if (module->exports != NULL) {
-        string_append_format(print_context.output, "%s; Exports:\n", COL(COL_COMMENT));
-        laye_symbol_print_to_string(module->exports, print_context.output, 1);
+        //string_append_format(print_context.output, "%s; Exports:\n", COL(COL_COMMENT));
+        //laye_symbol_print_to_string(module->exports, print_context.output, 1);
     }
     string_append_format(print_context.output, "%s", COL(RESET));
 

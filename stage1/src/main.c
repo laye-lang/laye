@@ -413,7 +413,6 @@ int main(int argc, char** argv) {
 
         layec_irpass_validate(ir_module);
         layec_irpass_fix_abi(ir_module);
-        layec_irpass_validate(ir_module);
     }
 
     if (context->has_reported_errors) {

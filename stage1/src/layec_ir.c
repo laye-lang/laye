@@ -181,6 +181,46 @@ struct layec_builder {
     int64_t insert_index;
 };
 
+static void layec_value_add_user(layec_value* value, layec_value* user) {
+    assert(value != NULL);
+    assert(user != NULL);
+
+    for (int64_t i = 0, count = arr_count(value->users); i < count; i++) {
+        if (value->users[i] == user) {
+            return;
+        }
+    }
+
+    arr_push(value->users, user);
+}
+
+static void layec_value_remove_user(layec_value* value, layec_value* user) {
+    assert(value != NULL);
+    assert(user != NULL);
+
+    for (int64_t i = 0, count = arr_count(value->users); i < count; i++) {
+        if (value->users[i] == user) {
+            if (i != count - 1) {
+                value->users[i] = value->users[count - 1];
+            }
+
+            arr_pop(value->users);
+            return;
+        }
+    }
+}
+
+int64_t layec_value_get_user_count(layec_value* value) {
+    assert(value != NULL);
+    return arr_count(value->users);
+}
+
+layec_value* layec_value_get_user_at_index(layec_value* value, int64_t user_index) {
+    assert(value != NULL);
+    assert(user_index >= 0 && user_index < arr_count(value->users));
+    return value->users[user_index];
+}
+
 int64_t layec_context_get_struct_type_count(layec_context* context) {
     assert(context != NULL);
     return arr_count(context->_all_struct_types);
@@ -617,6 +657,12 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
     layec_value* argument = call->call.arguments[argument_index];
     assert(argument != NULL);
     return argument;
+}
+
+void layec_instruction_call_set_arguments(layec_value* call, dynarr(layec_value*) arguments) {
+    assert(call != NULL);
+    assert(call->kind == LAYEC_IR_CALL);
+    call->call.arguments = arguments;
 }
 
 int64_t layec_instruction_builtin_argument_count(layec_value* builtin) {

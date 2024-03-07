@@ -46,8 +46,12 @@ static void layec_validate_function(layec_value* function);
 static void layec_validate_block(layec_value* block);
 
 void layec_irpass_validate(layec_module* module) {
+    assert(module != NULL);
+
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         layec_value* function = layec_module_get_function_at_index(module, i);
+        assert(function != NULL);
+        
         layec_validate_function(function);
     }
 }

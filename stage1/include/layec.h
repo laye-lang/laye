@@ -547,6 +547,9 @@ bool layec_function_type_is_variadic(layec_type* function_type);
 
 const char* layec_value_kind_to_cstring(layec_value_kind kind);
 
+int64_t layec_value_get_user_count(layec_value* value);
+layec_value* layec_value_get_user_at_index(layec_value* value, int64_t user_index);
+
 int64_t layec_value_integer_constant(layec_value* value);
 double layec_value_float_constant(layec_value* value);
 
@@ -617,6 +620,7 @@ layec_value* layec_instruction_branch_get_fail(layec_value* instruction);
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
 layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int64_t argument_index);
+void layec_instruction_call_set_arguments(layec_value* call, dynarr(layec_value*) arguments);
 int64_t layec_instruction_builtin_argument_count(layec_value* builtin);
 layec_value* layec_instruction_builtin_get_argument_at_index(layec_value* builtin, int64_t argument_index);
 

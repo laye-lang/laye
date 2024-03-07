@@ -44,4 +44,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 void layec_irpass_fix_abi(layec_module* module) {
     assert(module != NULL);
+    // TODO(local): implement this shit
+    layec_irpass_validate(module);
 }
