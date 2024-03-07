@@ -459,6 +459,13 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
+        case LAYEC_IR_BITCAST: {
+            lca_string_append_format(codegen->output, "bitcast ");
+            llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
+            lca_string_append_format(codegen->output, " to ");
+            llvm_print_type(codegen, layec_value_get_type(instruction));
+        } break;
+
         case LAYEC_IR_NEG: {
             layec_value* operand = layec_instruction_get_operand(instruction);
             if (layec_type_is_float(layec_value_get_type(operand))) {

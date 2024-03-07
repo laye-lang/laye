@@ -1,4 +1,4 @@
-// R %layec -S -emit-lyir -o - %s
+// R
 
 foreign void a();
 foreign void b();

@@ -1,1 +1,2 @@
+// R
 export foreign callconv(cdecl) void exit(i32 code);

@@ -1,6 +1,123 @@
 // 69
 // R %layec -S -emit-lyir -o - %s
 
+// * define layecc integer_conversions() {
+// + entry:
+// +   %0 = alloca int8
+// +   store %0, int8 1
+// +   %1 = alloca int16
+// +   store %1, int16 2
+// +   %2 = alloca int32
+// +   store %2, int32 3
+// +   %3 = alloca int64
+// +   store %3, int64 4
+// +   %4 = alloca int8
+// +   %5 = load int8, %0
+// +   %6 = add int8 %5, 1
+// +   store %4, int8 %6
+// +   %7 = alloca int8
+// +   %8 = load int8, %0
+// +   %9 = mul int8 2, %8
+// +   store %7, int8 %9
+// +   %10 = alloca int16
+// +   %11 = load int8, %0
+// +   %12 = sext int16, int8 %11
+// +   %13 = load int16, %1
+// +   %14 = sub int16 5, %13
+// +   %15 = add int16 %12, %14
+// +   store %10, int16 %15
+// +   %16 = alloca int16
+// +   %17 = load int16, %1
+// +   %18 = mul int16 6, %17
+// +   store %16, int16 %18
+// +   %19 = alloca int16
+// +   %20 = load int16, %1
+// +   %21 = load int8, %0
+// +   %22 = sext int16, int8 %21
+// +   %23 = sub int16 %20, %22
+// +   store %19, int16 %23
+// +   %24 = alloca int16
+// +   %25 = load int8, %4
+// +   %26 = sext int16, int8 %25
+// +   %27 = load int8, %7
+// +   %28 = sext int16, int8 %27
+// +   %29 = load int16, %10
+// +   %30 = sdiv int16 %28, %29
+// +   %31 = mul int16 %26, %30
+// +   store %24, int16 %31
+// +   %32 = alloca int32
+// +   %33 = load int8, %0
+// +   %34 = mul int8 10, %33
+// +   %35 = sext int16, int8 %34
+// +   %36 = load int16, %1
+// +   %37 = sdiv int16 %36, 2
+// +   %38 = add int16 %35, %37
+// +   %39 = sext int32, int16 %38
+// +   store %32, int32 %39
+// +   %40 = alloca int32
+// +   %41 = load int32, %32
+// +   %42 = sdiv int32 %41, 2
+// +   store %40, int32 %42
+// +   %43 = alloca int32
+// +   %44 = load int32, %32
+// +   %45 = load int16, %1
+// +   %46 = load int8, %0
+// +   %47 = sext int16, int8 %46
+// +   %48 = mul int16 %45, %47
+// +   %49 = sext int32, int16 %48
+// +   %50 = add int32 %44, %49
+// +   %51 = smod int32 %50, 5
+// +   store %43, int32 %51
+// +   %52 = alloca int64
+// +   %53 = load int64, %3
+// +   %54 = mul int64 3, %53
+// +   %55 = add int64 2, %54
+// +   %56 = add int64 1, %55
+// +   store %52, int64 %56
+// +   %57 = alloca int64
+// +   %58 = load int64, %52
+// +   %59 = load int32, %2
+// +   %60 = load int8, %0
+// +   %61 = sext int16, int8 %60
+// +   %62 = load int16, %1
+// +   %63 = add int16 %61, %62
+// +   %64 = sext int32, int16 %63
+// +   %65 = mul int32 %59, %64
+// +   %66 = sext int64, int32 %65
+// +   %67 = add int64 %58, %66
+// +   store %57, int64 %67
+// +   %68 = alloca int64
+// +   %69 = load int8, %4
+// +   %70 = load int8, %7
+// +   %71 = mul int8 %69, %70
+// +   %72 = sext int32, int8 %71
+// +   %73 = load int16, %16
+// +   %74 = sext int32, int16 %73
+// +   %75 = load int16, %10
+// +   %76 = add int16 %75, 2
+// +   %77 = sext int32, int16 %76
+// +   %78 = load int32, %43
+// +   %79 = add int32 %77, %78
+// +   %80 = sub int32 %74, %79
+// +   %81 = load int32, %40
+// +   %82 = smod int32 %80, %81
+// +   %83 = add int32 %72, %82
+// +   %84 = sext int64, int32 %83
+// +   store %68, int64 %84
+// +   %85 = alloca int64
+// +   %86 = load int8, %4
+// +   %87 = sext int32, int8 %86
+// +   %88 = load int16, %10
+// +   %89 = sext int32, int16 %88
+// +   %90 = load int32, %32
+// +   %91 = load int32, %40
+// +   %92 = add int32 %90, %91
+// +   %93 = add int32 %89, %92
+// +   %94 = add int32 %87, %93
+// +   %95 = sext int64, int32 %94
+// +   store %85, int64 %95
+// +   return
+// + }
 foreign void integer_conversions() {
     i8 a = 1;
     i16 b = 2;
@@ -26,6 +143,82 @@ foreign void integer_conversions() {
     int q = e + g + k + l;
 }
 
+// * define layecc integer_signedness() {
+// + entry:
+// +   %0 = alloca int8
+// +   store %0, int8 1
+// +   %1 = alloca int8
+// +   store %1, int8 2
+// +   %2 = alloca int16
+// +   store %2, int16 3
+// +   %3 = alloca int16
+// +   store %3, int16 4
+// +   %4 = alloca int32
+// +   store %4, int32 5
+// +   %5 = alloca int32
+// +   store %5, int32 6
+// +   %6 = alloca int64
+// +   store %6, int64 7
+// +   %7 = alloca int64
+// +   store %7, int64 8
+// +   %8 = alloca int16
+// +   %9 = load int8, %1
+// +   %10 = mul int8 %9, 2
+// +   %11 = zext int16, int8 %10
+// +   store %8, int16 %11
+// +   %12 = alloca int32
+// +   %13 = load int8, %1
+// +   %14 = zext int16, int8 %13
+// +   %15 = load int16, %3
+// +   %16 = add int16 %14, %15
+// +   %17 = sub int16 5, %16
+// +   %18 = zext int32, int16 %17
+// +   store %12, int32 %18
+// +   %19 = alloca int32
+// +   %20 = load int16, %8
+// +   %21 = load int8, %0
+// +   %22 = bitcast int8, int8 %21
+// +   %23 = load int8, %1
+// +   %24 = udiv int8 6, %23
+// +   %25 = mul int8 %22, %24
+// +   %26 = zext int16, int8 %25
+// +   %27 = add int16 %20, %26
+// +   %28 = sext int32, int16 %27
+// +   store %19, int32 %28
+// +   %29 = alloca int64
+// +   %30 = load int32, %5
+// +   %31 = mul int32 %30, 6
+// +   %32 = zext int64, int32 %31
+// +   %33 = load int8, %1
+// +   %34 = zext int16, int8 %33
+// +   %35 = load int16, %3
+// +   %36 = mul int16 2, %35
+// +   %37 = mul int16 %34, %36
+// +   %38 = zext int64, int16 %37
+// +   %39 = load int64, %7
+// +   %40 = udiv int64 %38, %39
+// +   %41 = add int64 %32, %40
+// +   store %29, int64 %41
+// +   %42 = alloca int64
+// +   %43 = load int16, %8
+// +   %44 = sext int32, int16 %43
+// +   %45 = load int32, %12
+// +   %46 = bitcast int32, int32 %45
+// +   %47 = load int32, %19
+// +   %48 = add int32 %46, %47
+// +   %49 = add int32 %44, %48
+// +   %50 = sext int64, int32 %49
+// +   store %42, int64 %50
+// +   %51 = alloca int64
+// +   %52 = load int64, %29
+// +   %53 = load int64, %7
+// +   %54 = mul int64 %52, %53
+// +   %55 = load int32, %5
+// +   %56 = zext int64, int32 %55
+// +   %57 = add int64 %54, %56
+// +   store %51, int64 %57
+// +   return
+// + }
 foreign void integer_signedness() {
     i8 a = 1;
     u8 b = 2;

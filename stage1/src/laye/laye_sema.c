@@ -2547,7 +2547,7 @@ static bool laye_sema_convert_to_common_type(laye_sema* sema, laye_node** a, lay
     int a2b_score = laye_sema_try_convert(sema, a, (*b)->type);
     int b2a_score = laye_sema_try_convert(sema, b, (*a)->type);
 
-    if (a2b_score >= 0 && a2b_score <= b2a_score) {
+    if (a2b_score >= 0 && (a2b_score <= b2a_score || b2a_score < 0)){
         return laye_sema_convert(sema, a, (*b)->type);
     }
 

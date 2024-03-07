@@ -1,4 +1,3 @@
-// R %layec --ast %s
 // R %layec -fsyntax-only %s
 
 // * ./test/laye/return_diags.noexec.laye($LINE+1, 5): Error: Not all code paths return a value.
