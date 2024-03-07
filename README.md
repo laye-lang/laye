@@ -54,9 +54,7 @@ Laye has a Visual Studio Code extension for syntax hilighting. Find it [here](ht
 
 ## License
 
-The source code of this repository is dual-licensed: either the MIT license or in the public domain. You can choose whichever suits you best. See the [license](LICENSE.md) file for the high level details on each.
-
-Note that the license does not apply to the Laye name or its branding, just the source code provided by this repository. Specifically, the name Laye and its icons or branding elements are not in the public domain nor can they be used as your own.
+The source code of this repository is dual-licensed: either the MIT license or in the public domain. You can choose whichever suits you best. See the [license](LICENSE.md) file for the high level details on each. The license applies only to source files which contain a copy the license information within them; this means, for example, that the "Laye" name is not in the public domain, only the source files of this implementation of its compiler.
 
 ## Contributing
 
