@@ -174,6 +174,42 @@ static int emit_lyir(compiler_state* state) {
     return 0;
 }
 
+static int emit_c(compiler_state* state) {
+#if false
+    for (int64_t i = 0, count = arr_count(state->llvm_modules); i < count; i++) {
+        bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
+        bool is_output_file_stdout = state->is_output_file_stdout;
+
+        string llvm_module = state->llvm_modules[i];
+
+        string_view intermediate_file_name = {0};
+        if (is_only_file && state->output_file.count != 0) {
+            intermediate_file_name = state->output_file;
+        } else {
+            layec_module* ir_module = state->context->ir_modules[i];
+            assert(ir_module != NULL);
+            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0]));
+            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ll");
+        }
+
+        if (is_output_file_stdout) {
+            assert(is_only_file);
+            fprintf(stdout, "%.*s", STR_EXPAND(llvm_module));
+        } else {
+            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), llvm_module.data, (size_t)llvm_module.count)) {
+                return 1;
+            }
+        }
+
+        if (is_only_file) {
+            break;
+        }
+    }
+#endif
+
+    return 0;
+}
+
 static int emit_llvm(compiler_state* state) {
     for (int64_t i = 0, count = arr_count(state->llvm_modules); i < count; i++) {
         bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
@@ -335,6 +371,8 @@ int main(int argc, char** argv) {
         layec_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
+        layec_irpass_validate(ir_module);
+        layec_irpass_fix_abi(ir_module);
         layec_irpass_validate(ir_module);
     }
 

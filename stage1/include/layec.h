@@ -428,6 +428,9 @@ int layec_get_significant_bits(int64_t value);
 // ========== IR ==========
 
 void layec_irpass_validate(layec_module* module);
+void layec_irpass_fix_abi(layec_module* module);
+
+string layec_codegen_c(layec_module* module);
 string layec_codegen_llvm(layec_module* module);
 
 // Context API
@@ -556,20 +559,20 @@ bool layec_block_is_terminated(layec_value* block);
 
 layec_builtin_kind layec_instruction_builtin_kind(layec_value* instruction);
 
-bool layec_global_is_string(layec_value* global);
+bool layec_instruction_global_is_string(layec_value* global);
 
 bool layec_instruction_return_has_value(layec_value* _return);
 layec_value* layec_instruction_return_value(layec_value* _return);
 
-layec_type* layec_instruction_alloca_type(layec_value* alloca);
+layec_type* layec_instruction_get_alloca_type(layec_value* alloca);
 
-layec_value* layec_instruction_address(layec_value* instruction);
-layec_value* layec_instruction_operand(layec_value* instruction);
-layec_value* layec_binary_lhs(layec_value* instruction);
-layec_value* layec_binary_rhs(layec_value* instruction);
-layec_value* layec_instruction_value(layec_value* instruction);
-layec_value* layec_branch_pass(layec_value* instruction);
-layec_value* layec_branch_fail(layec_value* instruction);
+layec_value* layec_instruction_get_address(layec_value* instruction);
+layec_value* layec_instruction_get_operand(layec_value* instruction);
+layec_value* layec_instruction_binary_get_lhs(layec_value* instruction);
+layec_value* layec_instruction_get_binary_rhs(layec_value* instruction);
+layec_value* layec_instruction_get_value(layec_value* instruction);
+layec_value* layec_instruction_branch_get_pass(layec_value* instruction);
+layec_value* layec_instruction_branch_get_fail(layec_value* instruction);
 
 layec_value* layec_instruction_callee(layec_value* call);
 int64_t layec_instruction_call_argument_count(layec_value* call);
@@ -577,10 +580,10 @@ layec_value* layec_instruction_call_get_argument_at_index(layec_value* call, int
 int64_t layec_instruction_builtin_argument_count(layec_value* builtin);
 layec_value* layec_instruction_builtin_get_argument_at_index(layec_value* builtin, int64_t argument_index);
 
-void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block);
-int64_t layec_phi_incoming_value_count(layec_value* phi);
-layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index);
-layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index);
+void layec_instruction_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block);
+int64_t layec_instruction_phi_incoming_value_count(layec_value* phi);
+layec_value* layec_instruction_phi_incoming_value_at_index(layec_value* phi, int64_t index);
+layec_value* layec_instruction_phi_incoming_block_at_index(layec_value* phi, int64_t index);
 
 layec_value* layec_instruction_ptradd_get_address(layec_value* ptradd);
 layec_value* layec_instruction_ptradd_get_offset(layec_value* ptradd);

@@ -488,13 +488,13 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
                 if (is_expr) {
                     assert(phi_value != NULL);
-                    layec_phi_add_incoming_value(phi_value, pass_value, from_block);
+                    layec_instruction_phi_add_incoming_value(phi_value, pass_value, from_block);
                 }
             }
 
             if (is_expr) {
                 assert(phi_value != NULL);
-                assert(layec_phi_incoming_value_count(phi_value) == arr_count(pass_blocks));
+                assert(layec_instruction_phi_incoming_value_count(phi_value) == arr_count(pass_blocks));
             }
 
             if (fail_block != NULL) {
@@ -514,8 +514,8 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
                 if (is_expr) {
                     assert(phi_value != NULL);
-                    layec_phi_add_incoming_value(phi_value, fail_value, from_block);
-                    assert(layec_phi_incoming_value_count(phi_value) == arr_count(pass_blocks) + 1);
+                    layec_instruction_phi_add_incoming_value(phi_value, fail_value, from_block);
+                    assert(layec_instruction_phi_incoming_value_count(phi_value) == arr_count(pass_blocks) + 1);
                 }
             }
 
@@ -1153,8 +1153,8 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
                 layec_builder_position_at_end(builder, merge_block);
                 layec_value* phi = layec_build_phi(builder, node->location, bool_type);
-                layec_phi_add_incoming_value(phi, lhs_value, lhs_block);
-                layec_phi_add_incoming_value(phi, rhs_value, rhs_block);
+                layec_instruction_phi_add_incoming_value(phi, lhs_value, lhs_block);
+                layec_instruction_phi_add_incoming_value(phi, rhs_value, rhs_block);
 
                 return phi;
             }

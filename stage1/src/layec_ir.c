@@ -487,7 +487,7 @@ layec_builtin_kind layec_instruction_builtin_kind(layec_value* instruction) {
     return instruction->builtin.kind;
 }
 
-bool layec_global_is_string(layec_value* global) {
+bool layec_instruction_global_is_string(layec_value* global) {
     assert(global != NULL);
     assert(global->value != NULL);
     assert(global->value->kind == LAYEC_IR_ARRAY_CONSTANT);
@@ -507,49 +507,49 @@ layec_value* layec_instruction_return_value(layec_value* _return) {
     return _return->return_value;
 }
 
-layec_type* layec_instruction_alloca_type(layec_value* alloca) {
+layec_type* layec_instruction_get_alloca_type(layec_value* alloca) {
     assert(alloca != NULL);
     assert(alloca->alloca.element_type != NULL);
     return alloca->alloca.element_type;
 }
 
-layec_value* layec_instruction_address(layec_value* instruction) {
+layec_value* layec_instruction_get_address(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->address != NULL);
     return instruction->address;
 }
 
-layec_value* layec_instruction_operand(layec_value* instruction) {
+layec_value* layec_instruction_get_operand(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->operand != NULL);
     return instruction->operand;
 }
 
-layec_value* layec_binary_lhs(layec_value* instruction) {
+layec_value* layec_instruction_binary_get_lhs(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->binary.lhs != NULL);
     return instruction->binary.lhs;
 }
 
-layec_value* layec_binary_rhs(layec_value* instruction) {
+layec_value* layec_instruction_get_binary_rhs(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->binary.rhs != NULL);
     return instruction->binary.rhs;
 }
 
-layec_value* layec_instruction_value(layec_value* instruction) {
+layec_value* layec_instruction_get_value(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->value != NULL);
     return instruction->value;
 }
 
-layec_value* layec_branch_pass(layec_value* instruction) {
+layec_value* layec_instruction_branch_get_pass(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->branch.pass != NULL);
     return instruction->branch.pass;
 }
 
-layec_value* layec_branch_fail(layec_value* instruction) {
+layec_value* layec_instruction_branch_get_fail(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->branch.fail != NULL);
     return instruction->branch.fail;
@@ -596,7 +596,7 @@ layec_value* layec_instruction_builtin_get_argument_at_index(layec_value* builti
     return argument;
 }
 
-void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block) {
+void layec_instruction_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_value* block) {
     assert(phi != NULL);
     assert(phi->kind == LAYEC_IR_PHI);
     assert(value != NULL);
@@ -611,13 +611,13 @@ void layec_phi_add_incoming_value(layec_value* phi, layec_value* value, layec_va
     arr_push(phi->incoming_values, incoming_value);
 }
 
-int64_t layec_phi_incoming_value_count(layec_value* phi) {
+int64_t layec_instruction_phi_incoming_value_count(layec_value* phi) {
     assert(phi != NULL);
     assert(phi->kind == LAYEC_IR_PHI);
     return arr_count(phi->incoming_values);
 }
 
-layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index) {
+layec_value* layec_instruction_phi_incoming_value_at_index(layec_value* phi, int64_t index) {
     assert(phi != NULL);
     assert(phi->kind == LAYEC_IR_PHI);
     layec_value* value = phi->incoming_values[index].value;
@@ -625,7 +625,7 @@ layec_value* layec_phi_incoming_value_at_index(layec_value* phi, int64_t index) 
     return value;
 }
 
-layec_value* layec_phi_incoming_block_at_index(layec_value* phi, int64_t index) {
+layec_value* layec_instruction_phi_incoming_block_at_index(layec_value* phi, int64_t index) {
     assert(phi != NULL);
     assert(phi->kind == LAYEC_IR_PHI);
     layec_value* block = phi->incoming_values[index].block;
@@ -2031,12 +2031,12 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             lca_string_append_format(print_context->output, "%sphi ", COL(COL_KEYWORD));
             layec_type_print_to_string(instruction->type, print_context->output, use_color);
 
-            for (int64_t i = 0, count = layec_phi_incoming_value_count(instruction); i < count; i++) {
+            for (int64_t i = 0, count = layec_instruction_phi_incoming_value_count(instruction); i < count; i++) {
                 if (i > 0) lca_string_append_format(print_context->output, "%s,", COL(RESET));
                 lca_string_append_format(print_context->output, "%s [ ", COL(RESET));
-                layec_value_print_to_string(layec_phi_incoming_value_at_index(instruction, i), print_context->output, false, use_color);
+                layec_value_print_to_string(layec_instruction_phi_incoming_value_at_index(instruction, i), print_context->output, false, use_color);
                 lca_string_append_format(print_context->output, "%s, ", COL(RESET));
-                layec_value_print_to_string(layec_phi_incoming_block_at_index(instruction, i), print_context->output, false, use_color);
+                layec_value_print_to_string(layec_instruction_phi_incoming_block_at_index(instruction, i), print_context->output, false, use_color);
                 lca_string_append_format(print_context->output, "%s ]", COL(RESET));
             }
         } break;
