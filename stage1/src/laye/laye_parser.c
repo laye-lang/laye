@@ -2725,9 +2725,9 @@ static int64_t digit_value_in_any_radix(int c) {
     if (c >= '0' && c <= '9')
         return c - '0';
     else if (c >= 'a' && c <= 'z')
-        return c - 'a';
+        return c - 'a' + 10;
     else if (c >= 'A' && c <= 'Z')
-        return c - 'A';
+        return c - 'A' + 10;
     else return -1;
 }
 
@@ -3031,6 +3031,24 @@ restart_token:;
                         case '0': {
                             arr_push(string_data, '\0');
                             laye_char_advance(p);
+                        } break;
+
+                        case 'x': {
+                            laye_char_advance(p);
+
+                            int value = 0;
+                            for (int i = 0; i < 2; i++) {
+                                if (p->lexer_position >= p->source.text.count || p->current_char == '"' || !is_digit_char(p->current_char, 16)) {
+                                    layec_write_error(p->context, token.location, "The \\x escape sequence requires exactly two hexadecimal digits.");
+                                    break;
+                                }
+
+                                int digit_value = (int)digit_value_in_any_radix(p->current_char);
+                                value = (value << 4) | (digit_value & 0xF);
+                                laye_char_advance(p);
+                            }
+
+                            arr_push(string_data, (char)(value & 0xFF));
                         } break;
                     }
                 } else {
