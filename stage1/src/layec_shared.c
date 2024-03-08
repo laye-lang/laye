@@ -42,6 +42,19 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "layec.h"
 
+layec_location layec_location_combine(layec_location a, layec_location b) {
+    assert(a.sourceid == b.sourceid);
+
+    int64_t start_offset = a.offset < b.offset ? a.offset : b.offset;
+    int64_t end_offset = (a.offset + a.length) > (b.offset + b.length) ? (a.offset + a.length) : (b.offset + b.length);
+
+    return (layec_location){
+        .sourceid = a.sourceid,
+        .offset = start_offset,
+        .length = (end_offset - start_offset),
+    };
+}
+
 const char* layec_status_to_cstring(layec_status status) {
     switch (status) {
         default: assert(false && "unreachable layec_status case");

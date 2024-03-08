@@ -233,7 +233,7 @@ const char* laye_node_kind_to_cstring(laye_node_kind kind) {
 
 static void laye_next_token(laye_parser* p);
 static laye_node* laye_parse_top_level_node(laye_parser* p);
-static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, bool allocate);
+static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, layec_location* location, bool allocate);
 
 laye_module* laye_parse(layec_context* context, layec_sourceid sourceid) {
     assert(context != NULL);
@@ -1250,7 +1250,7 @@ static laye_parse_result laye_parse_test_declaration(laye_parser* p) {
     if (!laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &test_node->decl_test.description)) {
         if (laye_parser_at(p, LAYE_TOKEN_IDENT)) {
             test_node->decl_test.is_named = true;
-            test_node->decl_test.nameref = laye_parse_nameref(p, &result, true);
+            test_node->decl_test.nameref = laye_parse_nameref(p, &result, NULL, true);
         } else {
             arr_push(result.diags, layec_error(p->context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
         }
@@ -1662,6 +1662,7 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
     laye_node* if_condition = NULL;
     laye_node* if_body = NULL;
 
+    layec_location total_location = p->token.location;
     laye_parse_result result = {
         .success = true,
     };
@@ -1671,7 +1672,8 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
     assert(if_condition != NULL);
     assert(if_body != NULL);
 
-    laye_node* if_result = laye_node_create(p->module, LAYE_NODE_IF, if_location, LTY(p->context->laye_types._void));
+    total_location = layec_location_combine(total_location, if_body->location);
+    laye_node* if_result = laye_node_create(p->module, LAYE_NODE_IF, total_location, LTY(p->context->laye_types._void));
     assert(if_result != NULL);
 
     arr_push(if_result->_if.conditions, if_condition);
@@ -1691,6 +1693,8 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
 
             arr_push(if_result->_if.conditions, elseif_condition);
             arr_push(if_result->_if.passes, elseif_body);
+
+            total_location = layec_location_combine(total_location, elseif_body->location);
         } else {
             laye_node* else_body = NULL;
             // we're doing this check to generate errors earlier, it's not technically necessary
@@ -1709,14 +1713,17 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
             }
 
             if_result->_if.fail = else_body;
+            total_location = layec_location_combine(total_location, else_body->location);
         }
     }
 
+    if_result->location = total_location;
     result.node = if_result;
+
     return result;
 }
 
-static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, bool allocate) {
+static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, layec_location* location, bool allocate) {
     assert(p != NULL);
     assert(p->scope != NULL);
     assert(p->scope->module != NULL);
@@ -1726,6 +1733,13 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
     };
 
     layec_location last_name_location = p->token.location;
+    if (location != NULL) {
+        if (location->offset == 0 && location->length == 0) {
+            *location = last_name_location;
+        } else {
+            *location = layec_location_combine(*location, last_name_location);
+        }
+    }
 
     if (allocate) {
         arr_push(nameref.pieces, p->token);
@@ -1743,6 +1757,10 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
         }
 
         last_name_location = next_piece.location;
+        if (location != NULL) {
+            *location = layec_location_combine(*location, last_name_location);
+        }
+
         if (allocate) {
             arr_push(nameref.pieces, next_piece);
         }
@@ -1788,6 +1806,8 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             cast_node->cast.operand = result.node;
 
             result.node = cast_node;
+            cast_node->location = layec_location_combine(cast_node->location, cast_node->cast.operand->location);
+
             return result;
         }
 
@@ -1801,6 +1821,7 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             laye_token close_token = {0};
             if (laye_parser_consume(p, ')', &close_token)) {
                 start_location.length = close_token.location.offset + close_token.location.length - start_location.offset;
+                expr_result.node->location = start_location;
             } else {
                 expr_result = laye_parse_result_combine(
                     expr_result,
@@ -1831,7 +1852,8 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand_result.node->location, operand_result.node->type);
             assert(expr != NULL);
             expr->unary.operand = operand_result.node;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
+            expr->location = layec_location_combine(operator_token.location, expr->location);
 
             return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
         } break;
@@ -1851,7 +1873,8 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand_result.node->location, LTY(reftype));
             assert(expr != NULL);
             expr->unary.operand = operand_result.node;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
+            expr->location = layec_location_combine(operator_token.location, expr->location);
 
             return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
         } break;
@@ -1877,7 +1900,8 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             assert(expr != NULL);
             laye_expr_set_lvalue(expr, true);
             expr->unary.operand = operand_result.node;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
+            expr->location = layec_location_combine(operator_token.location, expr->location);
 
             return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
         } break;
@@ -1893,7 +1917,8 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             laye_node* expr = laye_node_create(p->module, LAYE_NODE_UNARY, operand_result.node->location, LTY(p->context->laye_types._bool));
             assert(expr != NULL);
             expr->unary.operand = operand_result.node;
-            expr->unary.operator= operator_token;
+            expr->unary.operator = operator_token;
+            expr->location = layec_location_combine(operator_token.location, expr->location);
 
             return laye_parse_result_combine(operand_result, laye_parse_result_success(expr));
         } break;
@@ -1910,7 +1935,7 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             assert(nameref_expr != NULL);
 
             laye_parse_result nameref_result = laye_parse_result_success(nameref_expr);
-            nameref_expr->nameref = laye_parse_nameref(p, &nameref_result, true);
+            nameref_expr->nameref = laye_parse_nameref(p, &nameref_result, &nameref_expr->location, true);
 
             return laye_parse_result_combine(nameref_result, laye_parse_primary_expression_continue(p, nameref_expr));
         }
@@ -2487,7 +2512,7 @@ static laye_parse_result laye_parse_binary_expression(laye_parser* p, laye_node*
             assert(rhs_result.node != NULL);
         }
 
-        laye_node* binary_expr = laye_node_create(p->module, LAYE_NODE_BINARY, operator_token.location, LTY(p->context->laye_types.unknown));
+        laye_node* binary_expr = laye_node_create(p->module, LAYE_NODE_BINARY, layec_location_combine(lhs->location, rhs_result.node->location), LTY(p->context->laye_types.unknown));
         assert(binary_expr != NULL);
         binary_expr->binary.operator= operator_token;
         binary_expr->binary.lhs = result.node;

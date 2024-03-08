@@ -420,6 +420,8 @@ typedef enum layec_value_kind {
 
 // ========== Context ==========
 
+layec_location layec_location_combine(layec_location a, layec_location b);
+
 void layec_init_targets(lca_allocator allocator);
 
 layec_context* layec_context_create(lca_allocator allocator);
