@@ -1,0 +1,42 @@
+// R %layec -S -emit-lyir -o - %s
+
+// NOTE: You can use the assert funcionality regardless of what you've imported.
+// The compiler knows which functions should exist and what their signature is, so
+// forward declarations are automatically inserted for the assert to reference.
+
+// ./test/laye/assert.laye[509]: Assertion Failed: <
+// a is most certainly not greater than b
+
+// * declare reexported ccc __laye_assert_fail(ptr %0, ptr %1, int64 %2, int64 %3, int64 %4, ptr %5)
+
+// * define exported ccc main() {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 10
+// +   %1 = alloca int64
+// +   store %1, int64 20
+// +   %2 = load int64, %0
+// +   %3 = load int64, %1
+// +   %4 = icmp slt int64 %2, %3
+// +   branch %4, %_bb2, %_bb1
+// + _bb1:
+// +   call ccc void @__laye_assert_fail(ptr @global.1, ptr @global.2, int64 439, int64 0, int64 0, ptr @global.0)
+// +   unreachable
+// + _bb2:
+// +   %5 = load int64, %1
+// +   %6 = load int64, %0
+// +   %7 = icmp slt int64 %5, %6
+// +   branch %7, %_bb4, %_bb3
+// + _bb3:
+// +   call ccc void @__laye_assert_fail(ptr @global.4, ptr @global.5, int64 509, int64 0, int64 0, ptr @global.3)
+// +   unreachable
+// + _bb4:
+// +   return
+// + }
+void main() {
+    int a = 10;
+    int b = 20;
+    
+    assert a < b, "a should be less than b, this should not trigger";
+    assert b < a, "a is most certainly not greater than b";
+}
