@@ -400,6 +400,7 @@ layec_value* layec_module_get_function_at_index(layec_module* module, int64_t fu
     return module->functions[function_index];
 }
 
+// TODO(local): look up existing strings somewhere, somehow
 layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_location location, string_view string_value) {
     assert(module != NULL);
     assert(module->context != NULL);

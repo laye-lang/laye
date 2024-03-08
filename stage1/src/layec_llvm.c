@@ -864,7 +864,10 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
         } break;
 
         case LAYEC_IR_INTEGER_CONSTANT: {
-            lca_string_append_format(codegen->output, "%lld", layec_value_integer_constant(value));
+            int64_t ival = layec_value_integer_constant(value);
+            if (layec_type_is_ptr(layec_value_get_type(value)) && ival == 0)
+                lca_string_append_format(codegen->output, "null");
+            else lca_string_append_format(codegen->output, "%lld", ival);
         } break;
 
         case LAYEC_IR_FLOAT_CONSTANT: {

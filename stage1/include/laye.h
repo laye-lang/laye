@@ -687,12 +687,17 @@ struct laye_node {
         } decl_template_value;
 
         struct {
+            bool is_named;
+            // the name of a declaration under test, if one was provided.
+            laye_nameref nameref;
             // the brief description of this test, if one was provided.
-            string description;
+            laye_token description;
             // the body of this test. the body of a test is always
             // a compound statement, even during parse, and is a syntax error otherwise.
             // it will still be provided even if of the wrong type for debug purposes.
             laye_node* body;
+
+            laye_node* referenced_decl_node;
         } decl_test;
 
         struct {

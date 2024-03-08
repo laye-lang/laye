@@ -1,0 +1,14 @@
+// 1
+// q %layec -S -emit-lyir -o - %s
+
+// NOTE: You can use the assert funcionality regardless of what you've imported.
+// The compiler knows which functions should exist and what their signature is, so
+// forward declarations are automatically inserted for the assert to reference.
+
+void main() {
+    int a = 10;
+    int b = 20;
+    
+    assert a < b, "a should be less than b, this should not trigger";
+    assert b < a, "a is most certainly not greater than b";
+}

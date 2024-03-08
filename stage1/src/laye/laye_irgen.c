@@ -43,9 +43,24 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
+typedef enum laye_builtin_runtime_function {
+    LAYE_RUNTIME_ASSERT_FUNCTION,
+} laye_builtin_runtime_function;
+
+typedef enum laye_irvalue_kv_kind {
+    LAYE_IRKV_NODE,
+    LAYE_IRKV_BUILTIN,
+} laye_irvalue_kv_kind;
+
 typedef struct laye_irvalue_kv {
+    laye_irvalue_kv_kind kind;
+
     laye_module* module;
-    laye_node* node;
+    union {
+        laye_node* node;
+        laye_builtin_runtime_function builtin;
+    };
+
     layec_value* value;
 } laye_irvalue_kv;
 
@@ -54,14 +69,15 @@ typedef struct laye_irgen {
 } laye_irgen;
 
 // NOTE(local): this pointer can and will move, it should never be stored
-static laye_irvalue_kv* laye_irgen_irvalue_kv_get(laye_irgen* irgen, laye_module* module, laye_node* node) {
+static laye_irvalue_kv* laye_irgen_irvalue_kv_get_for_node(laye_irgen* irgen, laye_module* module, laye_node* node) {
     for (int64_t i = 0, count = arr_count(irgen->ir_values); i < count; i++) {
         laye_irvalue_kv* kv = &irgen->ir_values[i];
-        if (kv->module == module && kv->node == node)
+        if (kv->kind == LAYE_IRKV_NODE && kv->module == module && kv->node == node)
             return kv;
     }
 
     laye_irvalue_kv kv = {
+        .kind = LAYE_IRKV_NODE,
         .module = module,
         .node = node,
     };
@@ -70,13 +86,39 @@ static laye_irvalue_kv* laye_irgen_irvalue_kv_get(laye_irgen* irgen, laye_module
     return arr_back(irgen->ir_values);
 }
 
+static laye_irvalue_kv* laye_irgen_irvalue_kv_get_for_builtin(laye_irgen* irgen, laye_module* module, laye_builtin_runtime_function builtin) {
+    for (int64_t i = 0, count = arr_count(irgen->ir_values); i < count; i++) {
+        laye_irvalue_kv* kv = &irgen->ir_values[i];
+        if (kv->kind == LAYE_IRKV_BUILTIN && kv->module == module && kv->builtin == builtin)
+            return kv;
+    }
+
+    laye_irvalue_kv kv = {
+        .kind = LAYE_IRKV_BUILTIN,
+        .module = module,
+        .builtin = builtin,
+    };
+
+    arr_push(irgen->ir_values, kv);
+    return arr_back(irgen->ir_values);
+}
+
 static layec_value* laye_irgen_ir_value_get(laye_irgen* irgen, laye_module* module, laye_node* node) {
-    return laye_irgen_irvalue_kv_get(irgen, module, node)->value;
+    return laye_irgen_irvalue_kv_get_for_node(irgen, module, node)->value;
+}
+
+static layec_value* laye_irgen_ir_value_get_builtin(laye_irgen* irgen, laye_module* module, laye_builtin_runtime_function builtin) {
+    return laye_irgen_irvalue_kv_get_for_builtin(irgen, module, builtin)->value;
 }
 
 static void laye_irgen_ir_value_set(laye_irgen* irgen, laye_module* module, laye_node* node, layec_value* value) {
     assert(value != NULL);
-    laye_irgen_irvalue_kv_get(irgen, module, node)->value = value;
+    laye_irgen_irvalue_kv_get_for_node(irgen, module, node)->value = value;
+}
+
+static void laye_irgen_ir_value_set_builtin(laye_irgen* irgen, laye_module* module, laye_builtin_runtime_function builtin, layec_value* value) {
+    assert(value != NULL);
+    laye_irgen_irvalue_kv_get_for_builtin(irgen, module, builtin)->value = value;
 }
 
 static layec_type* laye_convert_type(laye_type type);
@@ -172,6 +214,37 @@ static void laye_irgen_generate_imported_function_declarations(laye_irgen* irgen
             //assert(node->ir_value != NULL);
         }
     }
+}
+
+static layec_value* laye_irgen_get_runtime_assert_function(laye_irgen* irgen, laye_module* module) {
+    assert(irgen != NULL);
+    assert(module != NULL);
+
+    laye_irvalue_kv* kv = laye_irgen_irvalue_kv_get_for_builtin(irgen, module, LAYE_RUNTIME_ASSERT_FUNCTION);
+    if (kv->value == NULL) {
+        layec_context* context = module->context;
+
+        dynarr(layec_type*) parameter_types = NULL;
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types.i8_buffer)));
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types.i8_buffer)));
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types._int)));
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types._int)));
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types._int)));
+        arr_push(parameter_types, laye_convert_type(LTY(context->laye_types.i8_buffer)));
+
+        layec_type* function_type = layec_function_type(context, layec_void_type(context), parameter_types, LAYEC_CCC, false);
+        kv->value = layec_module_create_function(
+            module->ir_module,
+            (layec_location){0},
+            SV_CONSTANT("__laye_assert_fail"),
+            function_type,
+            NULL,
+            LAYEC_LINK_REEXPORTED
+        );
+    }
+
+    assert(kv->value != NULL);
+    return kv->value;
 }
 
 void laye_generate_ir(layec_context* context) {
@@ -432,6 +505,57 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
             laye_irgen_ir_value_set(irgen, node->module, node, alloca);
             //node->ir_value = alloca;
             return layec_void_constant(context);
+        }
+
+        case LAYE_NODE_ASSERT: {
+            // TODO(local): generate slightly different code for tests, eventually
+            assert(node->_assert.condition != NULL);
+            layec_value* condition = laye_generate_node(irgen, builder, node->_assert.condition);
+
+            layec_value* message_global_string = NULL;
+            if (node->_assert.message.kind == LAYE_TOKEN_LITSTRING) {
+                message_global_string = layec_module_create_global_string_ptr(module, node->_assert.message.location, node->_assert.message.string_value);
+            } else {
+                message_global_string = layec_int_constant(context, node->location, layec_ptr_type(context), 0);
+            }
+
+            assert(message_global_string != NULL);
+            assert(layec_type_is_ptr(layec_value_get_type(message_global_string)));
+
+            layec_value* assert_fail_block = layec_function_append_block(function, SV_EMPTY);
+            layec_value* assert_after_block = layec_function_append_block(function, SV_EMPTY);
+
+            layec_build_branch_conditional(builder, node->_assert.condition->location, condition, assert_after_block, assert_fail_block);
+
+            layec_builder_position_at_end(builder, assert_fail_block);
+
+            layec_value* runtime_assert_function = laye_irgen_get_runtime_assert_function(irgen, node->module);
+            assert(runtime_assert_function != NULL);
+
+            layec_source source = layec_context_get_source(context, node->location.sourceid);
+
+            layec_location condition_location = node->_assert.condition->location;
+            string_view condition_source_text = string_slice(source.text, condition_location.offset, condition_location.length);
+            layec_value* condition_global_string = layec_module_create_global_string_ptr(module, condition_location, condition_source_text);
+
+            layec_value* file_name_global_string = layec_module_create_global_string_ptr(module, condition_location, string_as_view(source.name));
+
+            dynarr(layec_value*) arguments = NULL;
+            arr_push(arguments, condition_global_string);
+            arr_push(arguments, file_name_global_string);
+            arr_push(arguments, (layec_int_constant(context, node->location, laye_convert_type(LTY(context->laye_types._int)), node->location.offset)));
+            arr_push(arguments, (layec_int_constant(context, node->location, laye_convert_type(LTY(context->laye_types._int)), 0)));
+            arr_push(arguments, (layec_int_constant(context, node->location, laye_convert_type(LTY(context->laye_types._int)), 0)));
+            arr_push(arguments, message_global_string);
+
+            layec_type* runtime_assert_function_type = layec_value_get_type(runtime_assert_function);
+            assert(layec_function_type_parameter_count(runtime_assert_function_type) == arr_count(arguments));
+
+            layec_build_call(builder, node->location, runtime_assert_function, runtime_assert_function_type, arguments, SV_EMPTY);
+            layec_value* unreachable_value = layec_build_unreachable(builder, node->location);
+
+            layec_builder_position_at_end(builder, assert_after_block);
+            return unreachable_value;
         }
 
         case LAYE_NODE_IF: {

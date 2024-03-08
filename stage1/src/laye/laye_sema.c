@@ -195,6 +195,7 @@ static void laye_generate_dependencies_for_node(layec_dependency_graph* graph, l
         } break;
 
         case LAYE_NODE_TYPE_ARRAY:
+        case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER:
         case LAYE_NODE_TYPE_SLICE: {
@@ -232,6 +233,7 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
             } break;
 
             case LAYE_NODE_DECL_BINDING: {
+                layec_depgraph_ensure_tracked(graph, top_level_node);
             } break;
 
             case LAYE_NODE_DECL_IMPORT: {
@@ -251,6 +253,10 @@ static void laye_generate_dependencies_for_module(layec_dependency_graph* graph,
                 // TODO(local): generate dependencies
                 layec_depgraph_ensure_tracked(graph, top_level_node);
                 laye_generate_dependencies_for_node(graph, top_level_node, top_level_node);
+            } break;
+
+            case LAYE_NODE_DECL_TEST: {
+                layec_depgraph_ensure_tracked(graph, top_level_node);
             } break;
         }
     }
@@ -931,6 +937,11 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
             assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
             node->sema_state = LAYEC_SEMA_OK;
         } break;
+
+        case LAYE_NODE_DECL_BINDING:
+        case LAYE_NODE_DECL_TEST: {
+            return;
+        } break;
     }
 
     assert(node->declared_type.node != NULL);
@@ -1072,6 +1083,36 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 // TODO: Analyse default value
                 // node->decl_function_parameter.default_value
             }
+        } break;
+
+        case LAYE_NODE_DECL_TEST: {
+            //assert(!sema->is_in_test);
+            //sema->is_in_test = true;
+
+            if (node->decl_test.is_named) {
+                assert(arr_count(node->decl_test.nameref.pieces) > 0);
+                node->decl_test.referenced_decl_node = laye_sema_lookup_value_declaration(node->module, node->decl_test.nameref);
+                if (node->decl_test.referenced_decl_node == NULL) {
+                    node->sema_state = LAYEC_SEMA_ERRORED;
+                }
+            }
+
+            assert(node->decl_test.body != NULL);
+            if (!laye_sema_analyse_node_and_discard(sema, &node->decl_test.body)) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+            }
+
+            //sema->is_in_test = false;
+        } break;
+
+        case LAYE_NODE_ASSERT: {
+            assert(node->_assert.condition != NULL);
+            if (!laye_sema_analyse_node(sema, &node->_assert.condition, LTY(sema->context->laye_types._bool))) {
+                node->sema_state = LAYEC_SEMA_ERRORED;
+                break;
+            }
+
+            laye_sema_convert_or_error(sema, &node->_assert.condition, LTY(sema->context->laye_types._bool));
         } break;
 
         case LAYE_NODE_IF: {

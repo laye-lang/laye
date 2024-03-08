@@ -1232,6 +1232,44 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(la
     return result;
 }
 
+static laye_parse_result laye_parse_test_declaration(laye_parser* p) {
+    assert(p != NULL);
+    assert(p->context != NULL);
+    assert(p->module != NULL);
+    assert(p->token.kind == LAYE_TOKEN_TEST);
+
+    laye_parse_result result = {
+        .success = true,
+    };
+
+    laye_node* test_node = laye_node_create(p->module, LAYE_NODE_DECL_TEST, p->token.location, LTY(p->context->laye_types._void));
+    assert(test_node != NULL);
+    laye_next_token(p);
+
+    // the name is optional, and can be one of these two things.
+    if (!laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &test_node->decl_test.description)) {
+        if (laye_parser_at(p, LAYE_TOKEN_IDENT)) {
+            test_node->decl_test.is_named = true;
+            test_node->decl_test.nameref = laye_parse_nameref(p, &result, true);
+        } else {
+            arr_push(result.diags, layec_error(p->context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
+        }
+    }
+
+    if (!laye_parser_at(p, '{')) {
+        arr_push(result.diags, layec_error(p->context, p->token.location, "Expected a test body, starting with a '{'."));
+        goto return_test_decl;
+    }
+
+    result = laye_parse_result_combine(result, laye_parse_compound_expression(p));
+    assert(result.node != NULL);
+    test_node->decl_test.body = result.node;
+
+return_test_decl:;
+    result.node = test_node;
+    return result;
+}
+
 static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_type declared_type, laye_token name_token, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1403,6 +1441,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return (laye_parse_result){0};
 
+        case LAYE_TOKEN_ASSERT:
         case LAYE_TOKEN_IF:
         case LAYE_TOKEN_FOR:
         case LAYE_TOKEN_WHILE:
@@ -1413,7 +1452,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         case LAYE_TOKEN_XYZZY: {
             if (arr_count(attributes) != 0) {
                 result.success = false;
-                arr_push(result.diags, layec_error(p->context, p->token.location, "Cannot apply attributes to non-declarations."));
+                arr_push(result.diags, layec_error(p->context, p->token.location, "Cannot apply attributes to statements."));
                 arr_free(attributes);
             }
 
@@ -1426,6 +1465,16 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
 
         case LAYE_TOKEN_STRUCT: {
             return laye_parse_result_combine(result, laye_parse_struct_declaration(p, attributes));
+        }
+
+        case LAYE_TOKEN_TEST: {
+            if (arr_count(attributes) != 0) {
+                result.success = false;
+                arr_push(result.diags, layec_error(p->context, p->token.location, "Cannot apply attributes to test declarations."));
+                arr_free(attributes);
+            }
+
+            return laye_parse_result_combine(result, laye_parse_test_declaration(p));
         }
 
         default: {
@@ -1688,6 +1737,7 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
 
         laye_token next_piece = {0};
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &next_piece)) {
+            result->success = false;
             arr_push(result->diags, layec_error(p->context, p->token.location, "Expected identifier."));
             break;
         }
@@ -2171,6 +2221,27 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (result.node != compound_only) {
                 compound_only->compound.is_expr = true;
             }
+        } break;
+
+        case LAYE_TOKEN_ASSERT: {
+            laye_node* assert_node = laye_node_create(p->module, LAYE_NODE_ASSERT, p->token.location, LTY(p->context->laye_types._void));
+            assert(assert_node != NULL);
+
+            result = laye_parse_result_combine(result, laye_parse_result_success(assert_node));
+            laye_next_token(p);
+
+            result = laye_parse_result_combine(result, laye_parse_expression(p));
+            assert(result.node != NULL);
+            assert_node->_assert.condition = result.node;
+
+            if (laye_parser_consume(p, ',', NULL)) {
+                if (!laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &assert_node->_assert.message)) {
+                    arr_push(result.diags, layec_error(p->context, p->token.location, "Expected string literal for assert message."));
+                }
+            }
+
+            result.node = assert_node;
+            if (consume_semi) laye_expect_semi(p, &result);
         } break;
 
         case LAYE_TOKEN_IF: {

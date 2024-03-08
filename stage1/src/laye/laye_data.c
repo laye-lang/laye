@@ -279,6 +279,11 @@ void laye_node_destroy(laye_node* node) {
             arr_free(node->decl_enum.variants);
         } break;
 
+        case LAYE_NODE_DECL_TEST: {
+            arr_free(node->decl_test.nameref.pieces);
+            arr_free(node->decl_test.nameref.template_arguments);
+        } break;
+
         case LAYE_NODE_IF: {
             arr_free(node->_if.conditions);
             arr_free(node->_if.passes);
