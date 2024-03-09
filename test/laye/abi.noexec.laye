@@ -1,0 +1,13 @@
+struct color {
+    i8 r;
+    i8 g;
+    i8 b;
+    i8 a;
+}
+
+foreign callconv(cdecl) void f(color c);
+
+void main() {
+    color c;
+    f(c);
+}
