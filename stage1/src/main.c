@@ -471,6 +471,7 @@ int main(int argc, char** argv) {
         &clang_ll_cmd,
         "clang",
         "-Wno-override-module",
+        "-O3",
         "-o",
         lca_string_view_to_cstring(temp_allocator, state.output_file)
     );
