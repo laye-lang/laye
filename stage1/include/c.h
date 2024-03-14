@@ -43,9 +43,66 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "layec.h"
 
-#define C_TOKEN_KINDS(X) \
-    X(EOF)               \
-    X(IDENT)
+#define C_TOKEN_KINDS(X)     \
+    X(EOF)                   \
+    X(LIT_INT)               \
+    X(LIT_CHAR)              \
+    X(LIT_STRING)            \
+    X(IDENT)                 \
+    X(AUTO)                  \
+    X(BREAK)                 \
+    X(CASE)                  \
+    X(CHAR)                  \
+    X(CONST)                 \
+    X(CONTINUE)              \
+    X(DEFAULT)               \
+    X(DO)                    \
+    X(DOUBLE)                \
+    X(ELSE)                  \
+    X(ENUM)                  \
+    X(EXTERN)                \
+    X(FLOAT)                 \
+    X(FOR)                   \
+    X(GOTO)                  \
+    X(IF)                    \
+    X(INT)                   \
+    X(LONG)                  \
+    X(REGISTER)              \
+    X(RETURN)                \
+    X(SHORT)                 \
+    X(SIGNED)                \
+    X(SIZEOF)                \
+    X(STATIC)                \
+    X(STRUCT)                \
+    X(SWITCH)                \
+    X(TYPEDEF)               \
+    X(UNION)                 \
+    X(UNSIGNED)              \
+    X(VOID)                  \
+    X(VOLATILE)              \
+    X(WHILE)                 \
+    X(TRIPLE_DOT)            \
+    X(PLUS_PLUS)             \
+    X(PLUS_EQUAL)            \
+    X(MINUS_MINUS)           \
+    X(MINUS_EQUAL)           \
+    X(STAR_EQUAL)            \
+    X(SLASH_EQUAL)           \
+    X(PERCENT_EQUAL)         \
+    X(AMPERSAND_AMPERSAND)   \
+    X(AMPERSAND_EQUAL)       \
+    X(PIPE_PIPE)             \
+    X(PIPE_EQUAL)            \
+    X(CARET_EQUAL)           \
+    X(LESS_LESS_EQUAL)       \
+    X(LESS_LESS)             \
+    X(LESS_EQUAL)            \
+    X(GREATER_GREATER_EQUAL) \
+    X(GREATER_GREATER)       \
+    X(GREATER_EQUAL)         \
+    X(EQUAL_EQUAL)           \
+    X(BANG_EQUAL)            \
+    X(DUMMY)
 
 typedef enum c_token_kind {
     C_TOKEN_INVALID = 0,
@@ -85,6 +142,7 @@ typedef struct c_token {
 
     bool is_macro_param;
     int macro_param_index;
+    bool is_angle_string;
 
     union {
         int64_t int_value;
@@ -93,20 +151,34 @@ typedef struct c_token {
     };
 } c_token;
 
+typedef struct c_token_buffer {
+    dynarr(c_token) semantic_tokens;
+} c_token_buffer;
+
+typedef struct c_macro_def {
+    string_view name;
+    bool has_params;
+    dynarr(string_view) params;
+    dynarr(c_token) body;
+} c_macro_def;
+
 typedef struct c_translation_unit {
     layec_context* context;
     layec_sourceid sourceid;
 
     lca_arena* arena;
 
-    dynarr(c_token) _all_tokens;
+    dynarr(c_macro_def*) macro_defs;
+
+    //dynarr(c_token) _all_tokens;
+    c_token_buffer token_buffer;
 } c_translation_unit;
 
 string c_translation_unit_debug_print(c_translation_unit* tu);
 c_translation_unit* c_parse(layec_context* context, layec_sourceid sourceid);
 void c_translation_unit_destroy(c_translation_unit* tu);
 
-// 
+//
 
 const char* c_token_kind_to_cstring(c_token_kind kind);
 

@@ -43,9 +43,9 @@ string c_translation_unit_debug_print(c_translation_unit* tu) {
     bool use_color = print_context.use_color;
     string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(layec_context_get_source(tu->context, tu->sourceid).name), COL(RESET));
 
-    layec_source source = layec_context_get_source(tu->context, tu->sourceid);
-    for (int64_t i = 0; i < arr_count(tu->_all_tokens); i++) {
-        c_token token = tu->_all_tokens[i];
+    for (int64_t i = 0; i < arr_count(tu->token_buffer.semantic_tokens); i++) {
+        c_token token = tu->token_buffer.semantic_tokens[i];
+        layec_source source = layec_context_get_source(tu->context, token.location.sourceid);
         string_append_format(
             print_context.output,
             "%s :: %.*s\n",

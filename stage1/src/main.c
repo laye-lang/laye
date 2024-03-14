@@ -168,6 +168,8 @@ static int preprocess_only(compiler_state* state) {
 static laye_module* parse_module(compiler_state* state, layec_context* context, string_view input_file_path) {
     layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
+        const char* error_string = strerror(errno);
+        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
         return NULL;
     }
 
@@ -180,6 +182,8 @@ static laye_module* parse_module(compiler_state* state, layec_context* context, 
 static c_translation_unit* parse_translation_unit(compiler_state* state, layec_context* context, string_view input_file_path) {
     layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
+        const char* error_string = strerror(errno);
+        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
         return NULL;
     }
 

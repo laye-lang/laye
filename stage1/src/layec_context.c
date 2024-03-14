@@ -299,8 +299,8 @@ layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context,
     
     int error_code = read_file_to_string(context->allocator, file_path_owned, &text);
     if (error_code != 0) {
-        const char* error_string = strerror(error_code);
-        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(file_path), error_string);
+        //const char* error_string = strerror(error_code);
+        //fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(file_path), error_string);
 
         string_destroy(&file_path_owned);
         return -1;
