@@ -220,7 +220,7 @@ static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* 
             lca_string_append_format(codegen->output, ", ");
         }
 
-        layec_type* member_type = layec_type_struct_get_member_at_index(type, i);
+        layec_type* member_type = layec_type_struct_get_member_type_at_index(type, i);
         llvm_print_type(codegen, member_type);
     }
 

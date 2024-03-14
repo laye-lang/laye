@@ -162,13 +162,13 @@ static void laye_irgen_generate_declaration(laye_irgen* irgen, laye_module* modu
 
         dynarr(layec_value*) parameters = NULL;
         for (int64_t i = 0, count = arr_count(node->decl_function.parameter_declarations); i < count; i++) {
-            laye_node *parameter_node = node->decl_function.parameter_declarations[i];
+            laye_node* parameter_node = node->decl_function.parameter_declarations[i];
 
             layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(ir_function_type, i);
             layec_value* ir_parameter = layec_create_parameter(ir_module, parameter_node->location, parameter_type, parameter_node->declared_name, i);
 
             laye_irgen_ir_value_set(irgen, module, parameter_node, ir_parameter);
-            //parameter_node->ir_value = ir_parameter;
+            // parameter_node->ir_value = ir_parameter;
             arr_push(parameters, ir_parameter);
         }
 
@@ -183,7 +183,7 @@ static void laye_irgen_generate_declaration(laye_irgen* irgen, laye_module* modu
 
         assert(ir_function != NULL);
         laye_irgen_ir_value_set(irgen, module, node, ir_function);
-        //node->ir_value = ir_function;
+        // node->ir_value = ir_function;
     }
 }
 
@@ -211,7 +211,7 @@ static void laye_irgen_generate_imported_function_declarations(laye_irgen* irgen
             assert(node != NULL);
 
             laye_irgen_generate_declaration(irgen, module, node);
-            //assert(node->ir_value != NULL);
+            // assert(node->ir_value != NULL);
         }
     }
 }
@@ -290,7 +290,7 @@ void laye_generate_ir(layec_context* context) {
             assert(top_level_node != NULL);
 
             laye_irgen_generate_declaration(&irgen, module, top_level_node);
-            //assert(top_level_node->ir_value != NULL);
+            // assert(top_level_node->ir_value != NULL);
         }
     }
 
@@ -310,7 +310,7 @@ void laye_generate_ir(layec_context* context) {
 
             if (top_level_node->kind == LAYE_NODE_DECL_FUNCTION) {
                 layec_value* function = laye_irgen_ir_value_get(&irgen, module, top_level_node);
-                //layec_value* function = top_level_node->ir_value;
+                // layec_value* function = top_level_node->ir_value;
                 assert(function != NULL);
                 assert(layec_value_is_function(function));
 
@@ -326,7 +326,7 @@ void laye_generate_ir(layec_context* context) {
                 layec_type* function_type = layec_value_get_type(function);
 
                 for (int64_t i = 0, count = layec_function_type_parameter_count(function_type); i < count; i++) {
-                    laye_node *parameter_node = top_level_node->decl_function.parameter_declarations[i];
+                    laye_node* parameter_node = top_level_node->decl_function.parameter_declarations[i];
                     layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(function_type, i);
 
                     layec_value* alloca = layec_build_alloca(builder, parameter_node->location, parameter_type, 1);
@@ -335,7 +335,7 @@ void laye_generate_ir(layec_context* context) {
 
                     layec_value* ir_parameter = laye_irgen_ir_value_get(&irgen, module, parameter_node);
                     assert(ir_parameter != NULL);
-                    //assert(parameter_node->ir_value != NULL);
+                    // assert(parameter_node->ir_value != NULL);
                     layec_value* store = layec_build_store(builder, parameter_node->location, alloca, ir_parameter);
                     assert(store != NULL);
 
@@ -441,11 +441,13 @@ static layec_type* laye_convert_type(laye_type type) {
             }
 
             int64_t field_count = arr_count(type.node->type_struct.fields);
-            dynarr(layec_type*) fields = NULL;
+            dynarr(layec_struct_member) fields = NULL;
             arr_set_count(fields, field_count);
 
             for (int64_t i = 0; i < field_count; i++) {
-                fields[i] = laye_convert_type(type.node->type_struct.fields[i].type);
+                fields[i] = (layec_struct_member){
+                    .type = laye_convert_type(type.node->type_struct.fields[i].type),
+                };
             }
 
             layec_type* struct_type = layec_struct_type(context, type.node->type_struct.name, fields);
@@ -503,7 +505,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
             }
 
             laye_irgen_ir_value_set(irgen, node->module, node, alloca);
-            //node->ir_value = alloca;
+            // node->ir_value = alloca;
             return layec_void_constant(context);
         }
 
@@ -711,8 +713,8 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
             bool has_always_true_condition = !has_breaks && node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
 
             bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
-            
-            #if 0
+
+#if 0
             bool is_infinite_for = node->_for.initializer == NULL && node->_for.condition == NULL && node->_for.increment == NULL;
             bool is_effectively_infinite_for = !has_initializer && has_always_true_condition && !has_increment && node->_for.fail == NULL;
 
@@ -734,7 +736,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 assert(layec_block_is_terminated(layec_builder_get_insert_block(builder)));
                 return layec_void_constant(context);
             }
-            #endif
+#endif
 
             // 1. handle the initializer
             if (has_initializer) {
@@ -760,7 +762,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
             layec_value* for_pass_block = layec_function_append_block(function, SV_EMPTY);
             assert(for_pass_block != NULL);
-            
+
             layec_value* for_increment_block = NULL;
             if (has_increment && !laye_type_is_noreturn(node->_for.pass->type)) {
                 for_increment_block = layec_function_append_block(function, SV_EMPTY);
@@ -788,7 +790,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 } else {
                     node->_for.continue_target_block = for_pass_block;
                 }
-                
+
                 assert(node->_for.continue_target_block != NULL);
             }
 
@@ -818,7 +820,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
             // 3. regular condition for looping
             if (has_always_true_condition) {
-                //assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
+                // assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
                 layec_location condition_location = node->_for.condition != NULL ? node->_for.condition->location : node->location;
                 layec_build_branch(builder, condition_location, for_pass_block);
             } else {
@@ -946,7 +948,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 } else {
                     node->_while.continue_target_block = while_pass_block;
                 }
-                
+
                 assert(node->_while.continue_target_block != NULL);
             }
 
@@ -976,7 +978,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
 
             // 3. regular condition for looping
             if (has_always_true_condition) {
-                //assert(node->_while.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
+                // assert(node->_while.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
                 layec_location condition_location = node->_while.condition != NULL ? node->_while.condition->location : node->location;
                 layec_build_branch(builder, condition_location, while_pass_block);
             } else {
@@ -1207,7 +1209,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                     if (laye_type_is_float(from) && laye_type_is_float(to)) {
                         int64_t from_sz = laye_type_size_in_bits(from);
                         int64_t to_sz = laye_type_size_in_bits(to);
-                        
+
                         if (from_sz < to_sz) {
                             return layec_build_fpext(builder, node->location, operand, cast_type);
                         } else if (from_sz > to_sz) {
@@ -1488,7 +1490,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                         return layec_build_icmp_ult(builder, node->location, lhs_value, rhs_value);
                     }
                 }
-                
+
                 case LAYE_TOKEN_LESSEQUAL: {
                     if (are_floats) {
                         return layec_build_fcmp_ole(builder, node->location, lhs_value, rhs_value);
@@ -1514,7 +1516,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                         return layec_build_icmp_ugt(builder, node->location, lhs_value, rhs_value);
                     }
                 }
-                
+
                 case LAYE_TOKEN_GREATEREQUAL: {
                     if (are_floats) {
                         return layec_build_fcmp_oge(builder, node->location, lhs_value, rhs_value);
@@ -1534,7 +1536,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
             assert(node->nameref.referenced_declaration != NULL);
             layec_value* ir_value_referenced = laye_irgen_ir_value_get(irgen, node->module, node->nameref.referenced_declaration);
             assert(ir_value_referenced != NULL);
-            //assert(node->nameref.referenced_declaration->ir_value != NULL);
+            // assert(node->nameref.referenced_declaration->ir_value != NULL);
             return ir_value_referenced;
         }
 
@@ -1603,7 +1605,7 @@ static layec_value* laye_generate_node(laye_irgen* irgen, layec_builder* builder
                 }
 
                 arr_free(indices);
-                
+
                 calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
                 return layec_build_ptradd(builder, node->location, value, calc_index_value);
             } else if (laye_type_is_buffer(lhs_type)) {

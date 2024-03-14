@@ -50,18 +50,28 @@ typedef enum layec_cabi_class {
     LAYEC_CABI_INTEGER,
     LAYEC_CABI_SSE,
     LAYEC_CABI_SSEUP,
-    // NOTE: no `long double` or `complex long double` for now, ew
+    LAYEC_CABI_X87,
+    LAYEC_CABI_X87UP,
+    LAYEC_CABI_COMPLEX_X87,
     LAYEC_CABI_MEMORY,
 } layec_cabi_class;
 
-static void layec_abi_transform(layec_module* module, layec_value* function);
+static void layec_abi_transform_function_declaration(layec_module* module, layec_value* function);
+static void layec_abi_transform_callsites(layec_module* module, layec_value* function, layec_builder* builder);
 
 void layec_irpass_fix_abi(layec_module* module) {
     assert(module != NULL);
+    layec_context* context = layec_module_context(module);
+    assert(context != NULL);
+
+    layec_builder* builder = layec_builder_create(context);
 
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
-        layec_abi_transform(module, layec_module_get_function_at_index(module, i));
+        layec_abi_transform_function_declaration(module, layec_module_get_function_at_index(module, i));
+        layec_abi_transform_callsites(module, layec_module_get_function_at_index(module, i), builder);
     }
+
+    layec_builder_destroy(builder);
 
     layec_irpass_validate(module);
 }
@@ -77,6 +87,28 @@ static layec_cabi_class merge(layec_cabi_class accum, layec_cabi_class field) {
         return LAYEC_CABI_INTEGER;
     } else { // NOTE(local): not handling X87 et al
         return LAYEC_CABI_SSE;
+    }
+}
+
+static void post_merge(int64_t bit_width, layec_cabi_class* lo, layec_cabi_class* hi) {
+    assert(bit_width >= 0);
+    assert(lo != NULL);
+    assert(hi != NULL);
+
+    if (*hi == LAYEC_CABI_MEMORY) {
+        *lo = LAYEC_CABI_MEMORY;
+    }
+
+    if (*hi == LAYEC_CABI_X87UP && *lo != LAYEC_CABI_X87) {
+        *lo = LAYEC_CABI_MEMORY;
+    }
+
+    if (bit_width > 128 && (*lo != LAYEC_CABI_SSE && *hi != LAYEC_CABI_SSEUP)) {
+        *lo = LAYEC_CABI_MEMORY;
+    }
+
+    if (*hi == LAYEC_CABI_SSEUP && *lo != LAYEC_CABI_SSE) {
+        *lo = LAYEC_CABI_SSE;
     }
 }
 
@@ -104,83 +136,84 @@ static void classify(
     }
 
     if (layec_type_is_integer(param_type)) {
-        assert(bit_width <= 128 && "> i128 is not explicitly supported just yet");
-
         if (bit_width <= 64) {
             *current = LAYEC_CABI_INTEGER;
         } else if (bit_width <= 128) {
             *lo = LAYEC_CABI_INTEGER;
             *hi = LAYEC_CABI_INTEGER;
-        } else {
-            assert(false && "unreachable due to previous assert");
-        }
+        } // else pass in memory
 
         return;
     }
 
     if (layec_type_is_float(param_type)) {
-        assert(bit_width != 80 && "f80 is not explicitly supported just yet (if ever?)");
-
         if (bit_width == 16 || bit_width == 32 || bit_width == 64) {
             *current = LAYEC_CABI_SSE;
         } else if (bit_width == 128) {
             *lo = LAYEC_CABI_SSE;
             *hi = LAYEC_CABI_SSEUP;
         } else {
-            assert(false && "unreachable due to previous assert");
+            assert(bit_width == 80);
+            *lo = LAYEC_CABI_X87;
+            *hi = LAYEC_CABI_X87UP;
         }
 
         return;
     }
-    
+
+    // TODO(local): complex numbers don't exist at the IR level, so for now we just ignore them entirely.
+    // If we ever do decide to support complex numbers the way C does, at the IR level, which we'd need to
+    // do for ABI compatibility, then that needs to happen. It's very low on our list of priorities, though.
+    // NOTE(local): might just need special C front-end handling for that.
+
+    if (layec_type_is_ptr(param_type)) {
+        *current = LAYEC_CABI_INTEGER;
+        return;
+    }
+
     if (layec_type_is_struct(param_type)) {
         // We need to break up structs into "eightbytes".
-        if (bit_width >= 64 * 64) {
+        if (bit_width >= 8 * 64) {
             // a struct that is more than eight eightbytes just goes in MEMORY
-            assert(false && "todo");
+            return;
         }
+
+        *current = LAYEC_CABI_NO_CLASS;
 
         int64_t field_count = layec_type_struct_member_count(param_type);
+        for (int64_t field_index = 0, current_offset = offset_base; field_index < field_count; field_index++) {
+            layec_struct_member field = layec_type_struct_get_member_at_index(param_type, field_index);
+            layec_type* field_type = field.type;
 
-        // TODO(local): as soon as you can introduce unaligned fields in Laye structs,
-        // this needs to be able to handle them.
-        // Unaligned data makes the whole thing MEMORY by default.
+            int64_t field_offset = current_offset;
+            current_offset += layec_type_size_in_bits(field_type);
 
-        int64_t current_bit_count = 0;
-        layec_cabi_class current_class = LAYEC_CABI_NO_CLASS;
-
-        for (int64_t field_index = 0; field_index < field_count; field_index++) {
-            layec_type* field_type = layec_type_struct_get_member_at_index(param_type, field_index);
-            assert(field_type != NULL);
-
-            int64_t field_type_bit_width = layec_type_size_in_bits(field_type);
-
-            if (current_bit_count < 64 && current_bit_count + field_type_bit_width > 64) {
-                assert(false && "I think this means that there's unaligned memory");
+            // TODO(local): any place here where bitfields can go? not sure, might need special C handling for stuff like that.
+            if (0 != (field_offset % layec_type_align_in_bits(field_type))) {
+                *lo = LAYEC_CABI_MEMORY;
+                post_merge(bit_width, lo, hi);
+                return;
             }
 
-            current_bit_count += field_type_bit_width;
+            layec_cabi_class field_lo, field_hi;
+            classify(field_type, field_offset, &field_lo, &field_hi);
 
-            layec_cabi_class lo = LAYEC_CABI_NO_CLASS, hi = LAYEC_CABI_NO_CLASS;
-            classify(field_type, 0, &lo, &hi);
-            // TODO(local): merge correctly
+            *lo = merge(*lo, field_lo);
+            *hi = merge(*hi, field_hi);
 
-            // NOTE: if any field is in memory, the whole struct might just go in memory?
-            // probably in the most-merger part.
+            if (*lo == LAYEC_CABI_MEMORY || *hi == LAYEC_CABI_MEMORY)
+                break;
         }
 
-        if (current_bit_count <= 64) {
-            // single eightbyte, return the current class
-            return current_class;
-        }
-
-        assert(false && "todo");
+        post_merge(bit_width, lo, hi);
     }
 }
 
-static void layec_abi_transform(layec_module* module, layec_value* function) {
+static void layec_abi_transform_function_declaration(layec_module* module, layec_value* function) {
     assert(module != NULL);
     assert(function != NULL);
+    layec_context* context = layec_module_context(module);
+    assert(context != NULL);
 
     int64_t int_registers_used = 0;
     int64_t float_registers_used = 0;
@@ -191,5 +224,103 @@ static void layec_abi_transform(layec_module* module, layec_value* function) {
 
         layec_type* param_type = layec_value_get_type(param);
         assert(param_type != NULL);
+
+        int64_t param_type_bit_width = layec_type_size_in_bits(param_type);
+        assert(param_type_bit_width >= 0);
+
+        layec_cabi_class param_lo, param_hi;
+        classify(param_type, 0, &param_lo, &param_hi);
+
+        // TODO(local): use the registers
+
+        if (layec_type_is_struct(param_type)) {
+            if (param_lo == LAYEC_CABI_INTEGER && param_hi == LAYEC_CABI_NO_CLASS) {
+                assert(param_type_bit_width <= 64);
+                layec_type* new_type = layec_int_type(context, param_type_bit_width);
+                layec_function_set_parameter_type_at_index(function, param_index, new_type);
+            } else if (param_lo == LAYEC_CABI_SSE && param_hi == LAYEC_CABI_NO_CLASS) {
+                assert(param_type_bit_width == 16 || param_type_bit_width == 32 || param_type_bit_width == 64);
+                layec_type* new_type = layec_float_type(context, param_type_bit_width);
+                layec_function_set_parameter_type_at_index(function, param_index, new_type);
+            }
+        }
+    }
+}
+
+static void layec_abi_transform_call(layec_module* module, layec_value* function, layec_builder* builder, layec_value* call) {
+    assert(module != NULL);
+    assert(function != NULL);
+    layec_context* context = layec_module_context(module);
+    assert(context != NULL);
+    assert(builder != NULL);
+    assert(call != NULL);
+    assert(layec_value_get_kind(call) == LAYEC_IR_CALL);
+
+    layec_builder_position_before(builder, call);
+
+    for (int64_t i = 0; i < layec_instruction_call_argument_count(call); i++) {
+        layec_value* arg = layec_instruction_call_get_argument_at_index(call, i);
+        assert(arg != NULL);
+
+        layec_type* arg_type = layec_value_get_type(arg);
+        assert(arg_type != NULL);
+
+        int64_t arg_type_bit_width = layec_type_size_in_bits(arg_type);
+        assert(arg_type_bit_width >= 0);
+
+        layec_cabi_class arg_lo, arg_hi;
+        classify(arg_type, 0, &arg_lo, &arg_hi);
+
+        // TODO(local): use the registers
+
+        if (layec_type_is_struct(arg_type)) {
+            if (arg_lo == LAYEC_CABI_INTEGER && arg_hi == LAYEC_CABI_NO_CLASS) {
+                assert(arg_type_bit_width <= 64);
+                layec_type* new_type = layec_int_type(context, arg_type_bit_width);
+
+                if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
+                    layec_value_set_type(arg, new_type);
+                } else {
+                    assert(false && "how do do this yes plz");
+                }
+            } else if (arg_lo == LAYEC_CABI_SSE && arg_hi == LAYEC_CABI_NO_CLASS) {
+                assert(arg_type_bit_width == 16 || arg_type_bit_width == 32 || arg_type_bit_width == 64);
+                layec_type* new_type = layec_float_type(context, arg_type_bit_width);
+
+                if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
+                    layec_value_set_type(arg, new_type);
+                } else {
+                    assert(false && "how do do this yes plz");
+                }
+            }
+        }
+    }
+}
+
+static void layec_abi_transform_callsites(layec_module* module, layec_value* function, layec_builder* builder) {
+    assert(module != NULL);
+    assert(function != NULL);
+    layec_context* context = layec_module_context(module);
+    assert(context != NULL);
+    assert(builder != NULL);
+
+    int64_t block_count = layec_function_block_count(function);
+    for (int64_t block_index = 0; block_index < block_count; block_index++) {
+        layec_value* block = layec_function_get_block_at_index(function, block_index);
+        assert(block != NULL);
+        assert(layec_value_is_block(block));
+
+        for (int64_t i = 0; i < layec_block_instruction_count(block); i++) {
+            layec_value* inst = layec_block_get_instruction_at_index(block, i);
+            assert(inst != NULL);
+
+            switch (layec_value_get_kind(inst)) {
+                default: break;
+
+                case LAYEC_IR_CALL: {
+                    layec_abi_transform_call(module, function, builder, inst);
+                } break;
+            }
+        }
     }
 }

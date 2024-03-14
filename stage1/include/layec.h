@@ -111,6 +111,11 @@ typedef struct layec_value layec_value;
 typedef struct layec_module layec_module;
 typedef struct layec_builder layec_builder;
 
+typedef struct layec_struct_member {
+    layec_type* type;
+    bool is_padding;
+} layec_struct_member;
+
 typedef void (*layec_ir_pass_function)(layec_module* module);
 
 typedef struct layec_context {
@@ -514,7 +519,7 @@ layec_type* layec_function_type(
     layec_calling_convention calling_convention,
     bool is_variadic
 );
-layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_type*) field_types);
+layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_struct_member) members);
 
 bool layec_type_is_ptr(layec_type* type);
 bool layec_type_is_void(layec_type* type);
@@ -535,7 +540,8 @@ int64_t layec_type_array_length(layec_type* type);
 bool layec_type_struct_is_named(layec_type* type);
 string_view layec_type_struct_name(layec_type* type);
 int64_t layec_type_struct_member_count(layec_type* type);
-layec_type* layec_type_struct_get_member_at_index(layec_type* type, int64_t index);
+layec_struct_member layec_type_struct_get_member_at_index(layec_type* type, int64_t index);
+layec_type* layec_type_struct_get_member_type_at_index(layec_type* type, int64_t index);
 
 void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
 
@@ -544,6 +550,7 @@ void layec_type_print_to_string(layec_type* type, string* s, bool use_color);
 int64_t layec_function_type_parameter_count(layec_type* function_type);
 layec_type* layec_function_type_get_parameter_type_at_index(layec_type* function_type, int64_t parameter_index);
 bool layec_function_type_is_variadic(layec_type* function_type);
+void layec_function_type_set_parameter_type_at_index(layec_type* function_type, int64_t parameter_index, layec_type* param_type);
 
 // Value API
 
@@ -560,6 +567,7 @@ layec_context* layec_value_context(layec_value* value);
 layec_location layec_value_location(layec_value* value);
 layec_linkage layec_value_linkage(layec_value* value);
 layec_type* layec_value_get_type(layec_value* value);
+void layec_value_set_type(layec_value* value, layec_type* type);
 string_view layec_value_name(layec_value* value);
 int64_t layec_value_index(layec_value* value);
 bool layec_value_is_terminating_instruction(layec_value* instruction);
@@ -588,6 +596,7 @@ layec_value* layec_function_get_block_at_index(layec_value* function, int64_t bl
 int64_t layec_function_parameter_count(layec_value* function);
 layec_value* layec_function_get_parameter_at_index(layec_value* function, int64_t parameter_index);
 bool layec_function_is_variadic(layec_value* function);
+void layec_function_set_parameter_type_at_index(layec_value* function, int64_t parameter_index, layec_type* param_type);
 
 layec_value* layec_function_append_block(layec_value* function, string_view name);
 
