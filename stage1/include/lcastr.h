@@ -89,6 +89,7 @@ lca_string lca_string_view_to_string(lca_allocator allocator, lca_string_view s)
 char* lca_string_view_to_cstring(lca_allocator allocator, lca_string_view s);
 int64_t lca_string_view_index_of(lca_string_view s, char c);
 int64_t lca_string_view_last_index_of(lca_string_view s, char c);
+bool lca_string_view_ends_with_cstring(lca_string_view s, const char* cstr);
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext);
 
 #ifndef LCA_STR_NO_SHORT_NAMES
@@ -122,6 +123,7 @@ typedef struct lca_string_view string_view;
 #    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
 #    define string_view_index_of(S, C)            lca_string_view_index_of(S, C)
 #    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
+#    define string_view_ends_with_cstring(S, CS)  lca_string_view_ends_with_cstring(S, CS)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
 #endif // !LCA_STR_NO_SHORT_NAMES
 
@@ -344,6 +346,15 @@ int64_t lca_string_view_last_index_of(lca_string_view s, char c) {
     }
 
     return -1;
+}
+
+bool lca_string_view_ends_with_cstring(lca_string_view s, const char* cstr) {
+    int64_t cstr_len = (int64_t)strlen(cstr);
+    if (cstr_len > s.count) {
+        return false;
+    }
+
+    return 0 == strncmp(s.data + s.count - cstr_len, cstr, (size_t)cstr_len);
 }
 
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext) {

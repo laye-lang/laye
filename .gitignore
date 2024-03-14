@@ -2,7 +2,11 @@
 fchk/
 
 test/*
+test/c/*
 test/laye/*
+!test/c/
+!test/c/*.c
+!test/c/*.h
 !test/laye/
 !test/laye/*.laye
 !test/laye/deps/

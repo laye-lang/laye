@@ -45,6 +45,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_MEM_IMPLEMENTATION
 #define LCA_STR_IMPLEMENTATION
 #define LCA_PLAT_IMPLEMENTATION
+#include "c.h"
 #include "laye.h"
 #include "layec.h"
 
@@ -125,6 +126,8 @@ typedef struct compiler_state {
 
     dynarr(string_view) input_files;
 
+    dynarr(c_translation_unit*) translation_units;
+
     dynarr(string) total_intermediate_files;
     dynarr(string) llvm_modules;
 
@@ -172,6 +175,19 @@ static laye_module* parse_module(compiler_state* state, layec_context* context, 
     assert(module != NULL);
 
     return module;
+}
+
+static c_translation_unit* parse_translation_unit(compiler_state* state, layec_context* context, string_view input_file_path) {
+    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
+    if (sourceid < 0) {
+        return NULL;
+    }
+
+    c_translation_unit* tu = c_parse(context, sourceid);
+    assert(tu != NULL);
+    arr_push(state->translation_units, tu);
+
+    return tu;
 }
 
 static int emit_lyir(compiler_state* state) {
@@ -350,13 +366,27 @@ int main(int argc, char** argv) {
     for (int64_t i = 0; i < arr_count(state.input_files); i++) {
         string_view input_file_path = state.input_files[i];
 
-        laye_module* module = parse_module(&state, context, input_file_path);
-        if (module == NULL) {
-            if (!state.sema_only && !state.parse_only) exit_code = 1;
+        if (string_view_ends_with_cstring(input_file_path, ".laye")) {
+            laye_module* module = parse_module(&state, context, input_file_path);
+            if (module == NULL) {
+                if (!state.sema_only && !state.parse_only) exit_code = 1;
+                goto program_exit;
+            }
+
+            assert(module != NULL);
+        } else if (string_view_ends_with_cstring(input_file_path, ".c")) {
+            c_translation_unit* tu = parse_translation_unit(&state, context, input_file_path);
+            if (tu == NULL) {
+                if (!state.sema_only && !state.parse_only) exit_code = 1;
+                goto program_exit;
+            }
+
+            assert(tu != NULL);
+        } else {
+            fprintf(stderr, "Unknown source file type for file %.*s\n", STR_EXPAND(input_file_path));
+            exit_code = 1;
             goto program_exit;
         }
-
-        assert(module != NULL);
     }
 
     if (context->has_reported_errors) {
@@ -372,6 +402,14 @@ int main(int argc, char** argv) {
             string module_string = laye_module_debug_print(module);
             fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
             string_destroy(&module_string);
+        }
+
+        for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+            c_translation_unit* tu = state.translation_units[i];
+            assert(tu != NULL);
+            string tu_string = c_translation_unit_debug_print(tu);
+            fprintf(stdout, "%.*s\n", STR_EXPAND(tu_string));
+            string_destroy(&tu_string);
         }
 
         goto program_exit;
@@ -391,6 +429,14 @@ int main(int argc, char** argv) {
             string module_string = laye_module_debug_print(module);
             fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
             string_destroy(&module_string);
+        }
+
+        for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+            c_translation_unit* tu = state.translation_units[i];
+            assert(tu != NULL);
+            string tu_string = c_translation_unit_debug_print(tu);
+            fprintf(stdout, "%.*s\n", STR_EXPAND(tu_string));
+            string_destroy(&tu_string);
         }
 
         goto program_exit;
@@ -516,8 +562,13 @@ program_exit:;
         string_destroy(&state.llvm_modules[i]);
     }
 
+    for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+        c_translation_unit_destroy(state.translation_units[i]);
+    }
+
     arr_free(state.total_intermediate_files);
     arr_free(state.llvm_modules);
+    arr_free(state.translation_units);
     arr_free(state.input_files);
 
     layec_context_destroy(context);

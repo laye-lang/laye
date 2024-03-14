@@ -94,7 +94,20 @@ typedef struct c_token {
 } c_token;
 
 typedef struct c_translation_unit {
+    layec_context* context;
+    layec_sourceid sourceid;
+
+    lca_arena* arena;
+
     dynarr(c_token) _all_tokens;
 } c_translation_unit;
+
+string c_translation_unit_debug_print(c_translation_unit* tu);
+c_translation_unit* c_parse(layec_context* context, layec_sourceid sourceid);
+void c_translation_unit_destroy(c_translation_unit* tu);
+
+// 
+
+const char* c_token_kind_to_cstring(c_token_kind kind);
 
 #endif // !LAYEC_C_H

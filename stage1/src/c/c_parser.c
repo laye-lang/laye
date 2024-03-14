@@ -1,5 +1,7 @@
 #include "c.h"
 
+#include <assert.h>
+
 typedef struct c_macro_def {
     string_view name;
     bool has_params;
@@ -8,7 +10,6 @@ typedef struct c_macro_def {
 } c_macro_def;
 
 typedef struct c_macro_expansion {
-
     c_macro_def* def;
     int64_t body_position;
     dynarr(dynarr(c_token)) args;
@@ -36,7 +37,52 @@ typedef struct c_parser {
     dynarr(c_macro_expansion) macro_expansions;
 } c_parser;
 
+static bool c_is_space(int c) {
+    return c == ' ' || c == '\t' || c == '\v' || c == '\r' || c == '\n';
+}
+
+static bool c_skip_backslash_newline(c_parser* p) {
+
+}
+
+static int c_read_next_char(c_parser* p, bool allow_comments) {
+    if (p->lexer_position >= p->source.text.count) {
+        return 0;
+    }
+
+    if (p->current_char == '\n') {
+        p->at_start_of_line = true;
+    } else if (!c_is_space(p->current_char) && p->current_char != 0) {
+        p->at_start_of_line = false;
+    }
+
+    while (c_skip_backslash_newline(p)) {
+    }
+
+    if (p->lexer_position >= p->source.text.count) {
+        return 0;
+    }
+}
+
+static void c_char_advance(c_parser* p, bool allow_comments) {
+    p->lexer_position++;
+
+    if (p->lexer_position >= p->source.text.count) {
+        p->lexer_position = p->source.text.count;
+        p->current_char = 0;
+        return;
+    }
+
+    p->current_char = p->source.text.data[p->lexer_position];
+}
+
 static void c_skip_whitespace(c_parser* p) {
+    while (c_is_space(p->current_char)) {
+        if (p->is_in_preprocessor && p->current_char == '\n')
+            break;
+        
+        c_char_advance(p, true);
+    }
 }
 
 static void c_read_token_no_preprocess(c_parser* p, c_token* out_token) {
@@ -65,7 +111,8 @@ static c_macro_def* c_lookup_macro_def(c_parser* p, string_view macro_name) {
     return NULL;
 }
 
-static void c_handle_pp_directive(c_parser* p);
+static void c_handle_pp_directive(c_parser* p) {
+}
 
 static void c_read_token(c_parser* p, c_token* out_token) {
     assert(p != NULL);
@@ -81,8 +128,6 @@ static void c_read_token(c_parser* p, c_token* out_token) {
             int64_t body_position = macro_expansion->body_position;
             *out_token = macro_expansion->def->body[body_position];
             macro_expansion->body_position++;
-
-            
         } else {
             int64_t body_position = macro_expansion->body_position;
             *out_token = macro_expansion->def->body[body_position];
@@ -100,7 +145,6 @@ static void c_read_token(c_parser* p, c_token* out_token) {
             if (macro_expansion->body_position >= arr_count(macro_expansion->def->body)) {
                 arr_pop(p->macro_expansions);
             }
-
         }
     }
 
@@ -131,7 +175,7 @@ static void c_read_token(c_parser* p, c_token* out_token) {
                 dynarr(c_token) current_arg = NULL;
                 // TODO(local): nested parens shield commas
                 while (true) {
-                    if (c_at_eof(p)) {
+                    if (p->lexer_position >= p->source.text.count) {
                         layec_location eof_location = (layec_location){.sourceid = p->sourceid, .offset = p->lexer_position, .length = 0};
                         layec_write_error(p->context, eof_location, "Expected ')' in macro argument list");
                         out_token->kind = C_TOKEN_EOF;
@@ -174,4 +218,27 @@ static void c_read_token(c_parser* p, c_token* out_token) {
 
         // TODO(local): keywords
     }
+}
+
+c_translation_unit* c_parse(layec_context* context, layec_sourceid sourceid) {
+    assert(context != NULL);
+    assert(sourceid >= 0);
+
+    c_translation_unit* tu = lca_allocate(context->allocator, sizeof *tu);
+    assert(tu != NULL);
+    tu->context = context;
+    tu->sourceid = sourceid;
+    tu->arena = lca_arena_create(context->allocator, 1024 * 1024);
+    assert(tu->arena);
+
+    layec_source source = layec_context_get_source(context, sourceid);
+
+    c_parser p = {
+        .context = context,
+        .tu = tu,
+        .sourceid = sourceid,
+        .source = source,
+    };
+
+    return tu;
 }
