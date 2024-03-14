@@ -1,3 +1,8 @@
+struct vector2 {
+    f32 x;
+    f32 y;
+}
+
 struct color {
     i8 r;
     i8 g;
@@ -5,9 +10,10 @@ struct color {
     i8 a;
 }
 
-foreign callconv(cdecl) void f(color c);
+foreign callconv(cdecl) void f(vector2 v, color c);
 
 void main() {
+    vector2 v;
     color c;
-    f(c);
+    f(v, c);
 }

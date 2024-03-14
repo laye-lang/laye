@@ -38,9 +38,9 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <assert.h>
-
 #include "layec.h"
+
+#include <assert.h>
 
 void layec_value_destroy(layec_value* value);
 
@@ -75,7 +75,7 @@ struct layec_type {
         } function;
 
         struct {
-            dynarr(layec_type*) members;
+            dynarr(layec_struct_member) members;
             bool named;
 
             union {
@@ -327,7 +327,7 @@ void layec_type_destroy(layec_type* type) {
 
         case LAYEC_TYPE_STRUCT: {
             for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
-                layec_type_destroy(type->_struct.members[i]);
+                layec_type_destroy(type->_struct.members[i].type);
             }
 
             arr_free(type->_struct.members);
@@ -406,10 +406,10 @@ layec_value* layec_module_create_global_string_ptr(layec_module* module, layec_l
     assert(module->context != NULL);
 
     layec_type* array_type = layec_array_type(module->context, string_value.count + 1, layec_int_type(module->context, 8));
-    
+
     char* data = lca_arena_push(module->arena, string_value.count + 1);
     memcpy(data, string_value.data, string_value.count);
-    
+
     layec_value* array_constant = layec_array_constant(module->context, location, array_type, data, string_value.count + 1, true);
 
     layec_value* global_string_ptr = layec_value_create(module, location, LAYEC_IR_GLOBAL_VARIABLE, layec_ptr_type(module->context), SV_EMPTY);
@@ -467,6 +467,15 @@ bool layec_function_is_variadic(layec_value* function) {
     return function->type->function.is_variadic;
 }
 
+void layec_function_set_parameter_type_at_index(layec_value* function, int64_t parameter_index, layec_type* param_type) {
+    assert(function != NULL);
+    assert(layec_value_is_function(function));
+    assert(function->type != NULL);
+    assert(layec_type_is_function(function->type));
+    layec_function_type_set_parameter_type_at_index(function->type, parameter_index, param_type);
+    function->function.parameters[parameter_index]->type = param_type;
+}
+
 int64_t layec_block_instruction_count(layec_value* block) {
     assert(block != NULL);
     assert(layec_value_is_block(block));
@@ -494,7 +503,7 @@ bool layec_block_is_terminated(layec_value* block) {
 
 bool layec_value_is_terminating_instruction(layec_value* instruction) {
     assert(instruction != NULL);
-    
+
     switch (instruction->kind) {
         default: return false;
 
@@ -950,11 +959,11 @@ layec_type* layec_function_type(
     return function_type;
 }
 
-layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_type*) field_types) {
+layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(layec_struct_member) members) {
     assert(context != NULL);
     assert(name.count != 0);
-    for (int64_t i = 0, count = arr_count(field_types); i < count; i++) {
-        assert(field_types[i] != NULL);
+    for (int64_t i = 0, count = arr_count(members); i < count; i++) {
+        assert(members[i].type != NULL);
     }
 
     layec_type* struct_type = layec_type_create(context, LAYEC_TYPE_STRUCT);
@@ -962,7 +971,7 @@ layec_type* layec_struct_type(layec_context* context, string_view name, dynarr(l
     // TODO(local): unnamed struct types
     struct_type->_struct.named = true;
     struct_type->_struct.name = name;
-    struct_type->_struct.members = field_types;
+    struct_type->_struct.members = members;
     return struct_type;
 }
 
@@ -988,7 +997,7 @@ int layec_type_size_in_bits(layec_type* type) {
             int size = 0;
             // NOTE(local): generation of this struct should include padding, so we don't consider it here
             for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
-                size += layec_type_size_in_bits(type->_struct.members[i]);
+                size += layec_type_size_in_bits(type->_struct.members[i].type);
             }
             return size;
         }
@@ -1012,6 +1021,18 @@ int layec_type_align_in_bits(layec_type* type) {
 
         case LAYEC_TYPE_INTEGER:
         case LAYEC_TYPE_FLOAT: return type->primitive_bit_width;
+
+        case LAYEC_TYPE_STRUCT: {
+            int align = 1;
+            for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
+                int f_align = layec_type_align_in_bits(type->_struct.members[i].type);
+                if (f_align > align) {
+                    align = f_align;
+                }
+            }
+
+            return align;
+        }
     }
 }
 
@@ -1049,10 +1070,16 @@ int64_t layec_type_struct_member_count(layec_type* type) {
     return arr_count(type->_struct.members);
 }
 
-layec_type* layec_type_struct_get_member_at_index(layec_type* type, int64_t index) {
+layec_struct_member layec_type_struct_get_member_at_index(layec_type* type, int64_t index) {
     assert(type != NULL);
     assert(type->kind == LAYEC_TYPE_STRUCT);
     return type->_struct.members[index];
+}
+
+layec_type* layec_type_struct_get_member_type_at_index(layec_type* type, int64_t index) {
+    assert(type != NULL);
+    assert(type->kind == LAYEC_TYPE_STRUCT);
+    return type->_struct.members[index].type;
 }
 
 int64_t layec_function_type_parameter_count(layec_type* function_type) {
@@ -1073,6 +1100,15 @@ bool layec_function_type_is_variadic(layec_type* function_type) {
     assert(function_type != NULL);
     assert(layec_type_is_function(function_type));
     return function_type->function.is_variadic;
+}
+
+void layec_function_type_set_parameter_type_at_index(layec_type* function_type, int64_t parameter_index, layec_type* param_type) {
+    assert(function_type != NULL);
+    assert(layec_type_is_function(function_type));
+    assert(parameter_index >= 0);
+    assert(parameter_index < arr_count(function_type->function.parameter_types));
+    assert(param_type != NULL);
+    function_type->function.parameter_types[parameter_index] = param_type;
 }
 
 static layec_value* layec_value_create_in_context(layec_context* context, layec_location location, layec_value_kind kind, layec_type* type, string_view name) {
@@ -1161,6 +1197,12 @@ layec_type* layec_value_get_type(layec_value* value) {
     assert(value != NULL);
     assert(value->type != NULL);
     return value->type;
+}
+
+void layec_value_set_type(layec_value* value, layec_type* type) {
+    assert(value != NULL);
+    assert(type != NULL);
+    value->type = type;
 }
 
 layec_value* layec_module_create_function(layec_module* module, layec_location location, string_view function_name, layec_type* function_type, dynarr(layec_value*) parameters, layec_linkage linkage) {
@@ -1372,7 +1414,7 @@ static void layec_builder_recalculate_instruction_indices(layec_builder* builder
     assert(layec_value_is_function(builder->function));
 
     int64_t instruction_index = layec_function_type_parameter_count(builder->function->type);
-    
+
     for (int64_t b = 0, bcount = arr_count(builder->function->function.blocks); b < bcount; b++) {
         layec_value* block = builder->function->function.blocks[b];
         assert(block != NULL);
@@ -1406,8 +1448,15 @@ void layec_builder_insert(layec_builder* builder, layec_value* instruction) {
     assert(insert_index >= 0);
     assert(insert_index <= arr_count(block->block.instructions));
 
+    instruction->parent_block = block;
+
     // reserve space for the new instruction
     arr_push(block->block.instructions, NULL);
+
+    // move everything over if necessary
+    for (int64_t i = insert_index, count = arr_count(block->block.instructions) - 1; i < count; i++) {
+        block->block.instructions[i + 1] = block->block.instructions[i];
+    }
 
     block->block.instructions[insert_index] = instruction;
     builder->insert_index++;
@@ -1981,7 +2030,7 @@ string layec_module_print(layec_module* module, bool use_color) {
         .output = &output_string,
     };
 
-    //bool use_color = print_context.use_color;
+    // bool use_color = print_context.use_color;
 
     lca_string_append_format(
         print_context.output,
@@ -2073,7 +2122,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(instruction->kind));
             assert(false && "todo layec_instruction_print");
         } break;
-        
+
         case LAYEC_IR_NOP: {
             lca_string_append_format(print_context->output, "%snop", COL(COL_KEYWORD));
         } break;
@@ -2127,7 +2176,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
                 lca_string_append_format(print_context->output, "%s ]", COL(RESET));
             }
         } break;
-        
+
         case LAYEC_IR_RETURN: {
             lca_string_append_format(print_context->output, "%sreturn", COL(COL_KEYWORD));
             if (instruction->return_value != NULL) {
@@ -2135,7 +2184,7 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
                 layec_value_print_to_string(instruction->return_value, print_context->output, true, use_color);
             }
         } break;
-        
+
         case LAYEC_IR_UNREACHABLE: {
             lca_string_append_format(print_context->output, "%sunreachable", COL(COL_KEYWORD));
         } break;
@@ -2673,7 +2722,7 @@ static void layec_type_print_struct_type_to_string_literally(layec_type* type, s
             lca_string_append_format(s, " ");
         }
 
-        layec_type* member_type = type->_struct.members[i];
+        layec_type* member_type = type->_struct.members[i].type;
         layec_type_print_to_string(member_type, s, use_color);
     }
 
