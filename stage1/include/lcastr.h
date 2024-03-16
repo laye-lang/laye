@@ -76,6 +76,7 @@ void lca_string_append_format(lca_string* s, const char* format, ...);
 void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 void lca_string_append_rune(lca_string* s, int rune);
 
+void lca_string_path_parent(lca_string* string);
 void lca_string_path_append(lca_string* path, lca_string s);
 void lca_string_path_append_cstring(lca_string* path, const char* s);
 void lca_string_path_append_view(lca_string* path, lca_string_view s);
@@ -111,8 +112,9 @@ typedef struct lca_string_view string_view;
 #    define string_vformat(F, V)            lca_string_vformat(F, V)
 #    define string_append_format(S, F, ...) lca_string_append_format(S, F, __VA_ARGS__)
 #    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
-#    define string_append_rune(S, R)  lca_string_append_rune(S, R)
+#    define string_append_rune(S, R)        lca_string_append_rune(S, R)
 
+#    define string_path_parent(S)     lca_string_path_parent(S)
 #    define string_path_append_view(P, S) lca_string_path_append_view(P, S)
 
 #    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
@@ -247,6 +249,18 @@ void lca_string_append_rune(lca_string* s, int rune) {
     lca_string_ensure_capacity(s, s->count + 1);
     s->data[s->count] = (char)rune;
     s->count += 1;
+}
+
+void lca_string_path_parent(lca_string* string) {
+    if (string->count > 0 && (string->data[string->count - 1] == '/' || string->data[string->count - 1] == '\\')) {
+        string->data[string->count - 1] = 0;
+        string->count--;
+    }
+
+    for (int64_t i = string->count - 1; i >= 0 && string->data[i] != '/' && string->data[i] != '\\'; i--) {
+        string->data[i] = 0;
+        string->count--;
+    }
 }
 
 void lca_string_path_append_view(lca_string* path, lca_string_view s) {

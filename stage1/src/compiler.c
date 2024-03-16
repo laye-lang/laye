@@ -304,10 +304,23 @@ static int emit_llvm(compiler_state* state) {
     return 0;
 }
 
+static void add_stdlib_includes(layec_context* context, string_view stdlib_root) {
+    string_view liblaye_dir = string_view_from_cstring(lca_temp_sprintf("%.*s/%s", STR_EXPAND(stdlib_root), "liblaye"));
+    if (nob_file_exists(liblaye_dir.data) && nob_get_file_type(liblaye_dir.data) == NOB_FILE_DIRECTORY) {
+        arr_push(context->include_directories, liblaye_dir);
+    } else {
+        fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, while the Laye compiler found the standard `lib/laye` directory, it did not find the `liblaye` standard library directory within it. Because of this, the compiler will be unable to add it as a default include location and you will need to manually include it: `-I path/to/lib/laye`.\n");
+    }
+}
+
 int main(int argc, char** argv) {
     int exit_code = 0;
 
+    lca_temp_allocator_init(default_allocator, 1024 * 1024);
+
     // setup
+
+    layec_init_targets(default_allocator);
 
     compiler_state state = {
         .use_color = COLOR_AUTO,
@@ -331,9 +344,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    lca_temp_allocator_init(default_allocator, 1024 * 1024);
-    layec_init_targets(default_allocator);
-
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
     state.context = context;
@@ -351,6 +361,39 @@ int main(int argc, char** argv) {
     context->link_libraries = state.link_libraries;
 
     context->use_byte_positions_in_diagnostics = state.use_byte_positions_in_diagnostics;
+
+    const char* self_exe = lca_plat_self_exe();
+    if (self_exe != NULL) {
+        string libdir_builder = string_create(default_allocator);
+        string_append_format(&libdir_builder, "%s", self_exe);
+        string_path_parent(&libdir_builder);
+
+        while (libdir_builder.count > 0) {
+            int64_t last_count = libdir_builder.count;
+
+            string_path_append_view(&libdir_builder, SV_CONSTANT("lib/laye"));
+            //fprintf(stderr, "looking for '%.*s'\n", STR_EXPAND(libdir_builder));
+            
+            if (nob_file_exists(libdir_builder.data) && nob_get_file_type(libdir_builder.data) == NOB_FILE_DIRECTORY) {
+                string_view libdir_root = layec_context_intern_string_view(context, string_as_view(libdir_builder));
+                string_destroy(&libdir_builder);
+                add_stdlib_includes(context, libdir_root);
+                goto found_stdlib;
+            }
+
+            memset(libdir_builder.data + last_count, 0, (size_t)(libdir_builder.count - last_count));
+            libdir_builder.count = last_count;
+
+            string_path_parent(&libdir_builder);
+        }
+
+        string_destroy(&libdir_builder);
+        fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, the Laye compiler could not locate the standard library directory. Either it does not exist or is not in a place the compiler looks for it. The Laye compiler searches for the standard library in `./lib/laye`, `../lib/laye`, `../../lib/laye` etc relative to the executable file itself.\n");
+    } else {
+        fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, either Laye does not support getting the current executable path on this platform or it could not be obtained for some reason. Because of this, the compiler will be unable to easily infer the location of the standard library and you may need to manually include the standard library path: `-I path/to/lib/laye`.\n");
+    }
+
+found_stdlib:;
 
     if (state.output_file.count == 0) {
 #if _WIN32

@@ -48,6 +48,8 @@ bool lca_plat_stderr_isatty(void);
 
 bool lca_plat_file_exists(const char* file_path);
 
+const char* lca_plat_self_exe(void);
+
 #ifdef LCA_PLAT_IMPLEMENTATION
 
 #include <stdio.h>
@@ -66,6 +68,8 @@ bool lca_plat_file_exists(const char* file_path);
 #endif
 
 #include <errno.h>
+
+#include "lcamem.h"
 
 bool lca_plat_stdout_isatty(void) {
     return isatty(fileno(stdout));
@@ -97,6 +101,23 @@ bool lca_plat_file_exists(const char* file_path) {
     }
     fclose(f);
     return true;
+#endif
+}
+
+const char* lca_plat_self_exe(void) {
+#if defined(__linux__)
+    char buffer[1024] = {0};
+    ssize_t n = readlink("/proc/self/exe", buffer, 1024);
+    if (n < 0) {
+        return NULL;
+    }
+    return lca_temp_sprintf("%s", buffer);
+#elif define(_WIN32)
+    assert(false && "lca_plat_self_exe is not implemented on this platform");
+    return NULL;
+#else
+    assert(false && "lca_plat_self_exe is not implemented on this platform");
+    return NULL;
 #endif
 }
 

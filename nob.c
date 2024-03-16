@@ -57,7 +57,7 @@ static const char* stage1_laye_sources[] = {
     "./stage1/src/laye/laye_sema.c",
     "./stage1/src/laye/laye_irgen.c",
     // Main file always has to be the last
-    "./stage1/src/main.c"
+    "./stage1/src/compiler.c"
 };
 
 static int64_t stage1_laye_sources_count = sizeof(stage1_laye_sources) / sizeof(stage1_laye_sources[0]);
@@ -585,9 +585,9 @@ static int nob_install(int argc, char** argv) {
     }
 
 #if defined(NOB_WINDOWS)
-    const char* bin_path = path_contact(binary_prefix, "laye.exe");
+    const char* bin_path = path_contact(binary_prefix, "layec.exe");
 #elif defined(NOB_UNIX)
-    const char* bin_path = path_contact(binary_prefix, "laye");
+    const char* bin_path = path_contact(binary_prefix, "layec");
 #endif
     const char* lib_path = path_contact(library_prefix, "laye");
 
