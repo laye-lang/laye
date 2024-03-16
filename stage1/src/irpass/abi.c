@@ -281,6 +281,7 @@ static void layec_abi_transform_call(layec_module* module, layec_value* function
                 if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
                     layec_value_set_type(arg, new_type);
                 } else {
+                    fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(layec_value_get_kind(arg)));
                     assert(false && "how do do this yes plz");
                 }
             } else if (arg_lo == LAYEC_CABI_SSE && arg_hi == LAYEC_CABI_NO_CLASS) {
@@ -290,6 +291,7 @@ static void layec_abi_transform_call(layec_module* module, layec_value* function
                 if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
                     layec_value_set_type(arg, new_type);
                 } else {
+                    fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(layec_value_get_kind(arg)));
                     assert(false && "how do do this yes plz");
                 }
             }

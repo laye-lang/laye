@@ -1,4 +1,7 @@
 import * from "raylib_types.laye";
 
+export foreign "DrawCircle" void draw_circle(i32 x, i32 y, f32 radius, color color);                                       // Draw a color-filled circle (Vector version)
 export foreign "DrawCircleV" void draw_circle_v(vector2 center, f32 radius, color color);                                       // Draw a color-filled circle (Vector version)
+export foreign "DrawCircleLines" void draw_circle_lines(i32 x, i32 y, f32 radius, color color);                                       // Draw a color-filled circle (Vector version)
+export foreign "DrawCircleLinesV" void draw_circle_lines_v(vector2 center, f32 radius, color color);                                       // Draw a color-filled circle (Vector version)
 export foreign "DrawRectangle" void draw_rectangle(i32 posX, i32 posY, i32 width, i32 height, color color);                        // Draw a color-filled rectangle

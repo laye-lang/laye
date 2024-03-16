@@ -875,7 +875,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
             if (float_value == 0.0) {
                 lca_string_append_format(codegen->output, "0.0");
             } else {
-                lca_string_append_format(codegen->output, "%#.*g", float_value);
+                lca_string_append_format(codegen->output, "%f", float_value);
             }
         } break;
 

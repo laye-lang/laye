@@ -645,15 +645,21 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
         } break;
 
         case LAYE_TOKEN_IDENT: {
+            layec_location nameref_location = p->token.location;
+            assert(p->scope != NULL);
+
+            laye_nameref type_nameref = laye_parse_nameref(p, &result, &nameref_location, allocate);
+            assert(type_nameref.scope != NULL);
+
             if (allocate) {
+                assert(arr_count(type_nameref.pieces) > 0);
                 result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_NAMEREF, p->token.location, LTY(p->context->laye_types.type));
-                result.type.node->nameref.kind = LAYE_NAMEREF_DEFAULT;
-                arr_push(result.type.node->nameref.pieces, p->token);
-                assert(p->scope != NULL);
-                result.type.node->nameref.scope = p->scope;
                 assert(result.type.node != NULL);
+                result.type.node->nameref = type_nameref;
+            } else {
+                assert(type_nameref.pieces == NULL);
+                assert(type_nameref.template_arguments == NULL);
             }
-            laye_next_token(p);
         } break;
 
         case LAYE_TOKEN_VOID: {
@@ -2590,6 +2596,31 @@ try_again:;
                 laye_char_advance(p);
                 goto try_again;
             }
+
+            case '#': {
+                laye_trivia line_trivia = {
+                    .kind = LAYE_TRIVIA_HASH_COMMENT,
+                    .location.sourceid = p->sourceid,
+                    .location.offset = p->lexer_position,
+                };
+
+                laye_char_advance(p);
+
+                int64_t text_start_position = p->lexer_position;
+                while (p->current_char != 0 && p->current_char != '\n') {
+                    laye_char_advance(p);
+                }
+
+                int64_t text_end_position = p->lexer_position;
+                string_view line_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
+
+                line_trivia.location.length = line_comment_text.count - 2;
+                line_trivia.text = layec_context_intern_string_view(p->context, line_comment_text);
+
+                // arr_push(trivia, line_trivia);
+
+                if (!leading) goto exit_loop;
+            } break;
 
             case '/': {
                 if (laye_char_peek(p) == '/') {

@@ -94,6 +94,8 @@ int64_t lca_string_view_last_index_of(lca_string_view s, char c);
 bool lca_string_view_ends_with_cstring(lca_string_view s, const char* cstr);
 lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_view s, const char* new_ext);
 
+lca_string_view lca_string_view_path_file_name(lca_string_view s);
+
 #ifndef LCA_STR_NO_SHORT_NAMES
 #    define SV_EMPTY       LCA_SV_EMPTY
 #    define SV_CONSTANT(C) LCA_SV_CONSTANT(C)
@@ -114,7 +116,7 @@ typedef struct lca_string_view string_view;
 #    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
 #    define string_append_rune(S, R)        lca_string_append_rune(S, R)
 
-#    define string_path_parent(S)     lca_string_path_parent(S)
+#    define string_path_parent(S)         lca_string_path_parent(S)
 #    define string_path_append_view(P, S) lca_string_path_append_view(P, S)
 
 #    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
@@ -129,6 +131,8 @@ typedef struct lca_string_view string_view;
 #    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
 #    define string_view_ends_with_cstring(S, CS)  lca_string_view_ends_with_cstring(S, CS)
 #    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
+
+#    define string_view_path_file_name(S) lca_string_view_path_file_name(S)
 #endif // !LCA_STR_NO_SHORT_NAMES
 
 #ifdef LCA_STR_IMPLEMENTATION
@@ -404,6 +408,21 @@ lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_
     string_append_format(&result, "%.*s%s", (int)last_dot_index, s.data, new_ext);
 
     return result;
+}
+
+lca_string_view lca_string_view_path_file_name(lca_string_view s) {
+    int64_t start_index = s.count - 1;
+    while (start_index > 0) {
+        if (s.data[start_index - 1] == '/' || s.data[start_index - 1] == '\\') {
+            break;
+        }
+        start_index--;
+    }
+
+    s.data += start_index;
+    s.count -= start_index;
+
+    return s;
 }
 
 #endif // LCA_STR_IMPLEMENTATION

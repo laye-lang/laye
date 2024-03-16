@@ -1,0 +1,22 @@
+import "std.laye";
+import "libc.laye";
+
+struct circle {
+    std::complex mut center;
+    f32 mut bend;
+}
+
+void main() {
+    f32 one = 1;
+    f32 a = one / 300;
+    f32 b = one / 150;
+    libc::printf("one: %f, a: %f, b: %f\n", one, a, b);
+    f32 x = 1 / a;
+    f32 y = 1 / b;
+    libc::printf("x: %f, y: %f\n", x, y);
+    circle mut foo;
+    foo.bend = 300;
+    libc::printf("foo.bend: %f\n", foo.bend);
+    foo.bend = 1 / foo.bend;
+    libc::printf("foo.bend: %f\n", foo.bend);
+}

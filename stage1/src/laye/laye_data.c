@@ -527,7 +527,7 @@ int laye_type_size_in_bits(laye_type type) {
         }
 
         case LAYE_NODE_TYPE_ARRAY: {
-            int element_size = laye_type_size_in_bytes(type.node->type_container.element_type) * 8;
+            int element_size = laye_type_size_in_bytes(type.node->type_container.element_type);// * 8;
             int64_t constant_value = 1;
 
             for (int64_t i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
@@ -605,12 +605,12 @@ int laye_type_align_in_bytes(laye_type type) {
         case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
-            return context->target->align_of_pointer;
+            return align_to(context->target->align_of_pointer, 8) / 8;
         }
 
         case LAYE_NODE_TYPE_STRUCT: {
             if (type.node->type_struct.cached_align != 0) {
-                return type.node->type_struct.cached_align * 8;
+                return type.node->type_struct.cached_align;// * 8;
             }
 
             // NOTE(local): Sema is responsible for caching, any time before sema

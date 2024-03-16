@@ -169,6 +169,7 @@ typedef enum laye_mut_compare {
 } laye_mut_compare;
 
 #define LAYE_TRIVIA_KINDS(X) \
+    X(HASH_COMMENT)          \
     X(LINE_COMMENT)          \
     X(DELIMITED_COMMENT)
 

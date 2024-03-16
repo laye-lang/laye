@@ -1,0 +1,25 @@
+export struct complex {
+    f32 mut a;
+    f32 mut b;
+}
+
+export complex complex_add(complex lhs, complex rhs) {
+    complex mut result;
+    result.a = lhs.a + rhs.a;
+    result.b = lhs.b + rhs.b;
+    return result;
+}
+
+export complex complex_scale(f32 lhs, complex rhs) {
+    complex mut result;
+    result.a = lhs * rhs.a;
+    result.b = lhs * rhs.b;
+    return result;
+}
+
+export complex complex_multiply(complex lhs, complex rhs) {
+    complex mut result;
+    result.a = (lhs.a * rhs.a) - (lhs.b * rhs.b);
+    result.b = (lhs.a * rhs.b) + (lhs.b * rhs.a);
+    return result;
+}

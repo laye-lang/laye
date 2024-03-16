@@ -1,0 +1,88 @@
+import "std.laye";
+
+import "libc.laye";
+
+import "raylib.laye";
+
+struct circle {
+    std::complex mut center;
+    f32 mut bend;
+}
+
+f32 f32_abs(f32 value) {
+    if (value < 0) {
+        return -value;
+    }
+
+    return value;
+}
+
+raylib::vector2 complex_to_vector(std::complex c) {
+    raylib::vector2 mut result;
+    result.x = c.a;
+    result.y = c.b;
+    return result;
+}
+
+void circle_draw(circle c, raylib::color color) {
+    raylib::vector2 center = complex_to_vector(c.center);
+    raylib::draw_circle_lines_v(center, f32_abs(1 / c.bend), color);
+}
+
+int main() {
+    raylib::init_window(600, 600, "Appolonian Gasket");
+
+    raylib::color background_color;
+    background_color.r = 20;
+    background_color.g = 20;
+    background_color.b = 20;
+    background_color.a = 255;
+
+    raylib::color circle_color;
+    circle_color.r = 250;
+    circle_color.g = 250;
+    circle_color.b = 250;
+    circle_color.a = 255;
+
+    circle mut c1;
+    c1.bend = 300;
+    libc::printf("%f\n", c1.bend);
+    c1.bend = 1 / c1.bend;
+    libc::printf("%f\n", c1.bend);
+    c1.bend = -c1.bend;
+    libc::printf("%f\n", c1.bend);
+    c1.center.a = 300;
+    c1.center.b = 300;
+
+    circle mut c2;
+    c2.bend = 150;
+    c2.bend = 1 / c2.bend;
+    c2.center.a = 150;
+    c2.center.b = 300;
+    libc::printf("%f\n", c1.bend);
+
+    circle mut c3;
+    c3.bend = 150;
+    c3.bend = 1 / c3.bend;
+    c3.center.a = 450;
+    c3.center.b = 300;
+    libc::printf("%f\n", c1.bend);
+
+    while (not raylib::window_should_close()) {
+        raylib::begin_drawing();
+
+        libc::printf("%f\n", c1.bend);
+        raylib::clear_background(background_color);
+        libc::printf("%f\n", c1.bend);
+
+        raylib::end_drawing();
+        break;
+        circle_draw(c1, circle_color);
+        circle_draw(c2, circle_color);
+        circle_draw(c3, circle_color);
+
+    }
+
+    raylib::close_window();
+    return 0;
+}

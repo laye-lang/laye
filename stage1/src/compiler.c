@@ -547,7 +547,9 @@ found_stdlib:;
 
     for (int64_t i = 0; i < arr_count(state.llvm_modules); i++) {
         string llvm_module_string = state.llvm_modules[i];
-        string_view source_input_file_path = layec_module_name(context->ir_modules[i]);
+        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
+
+        //fprintf(stderr, ">> %.*s\n", STR_EXPAND(source_input_file_path));
 
         string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
         arr_push(state.total_intermediate_files, output_file_path_intermediate);

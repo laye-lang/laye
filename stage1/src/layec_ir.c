@@ -1033,6 +1033,11 @@ int layec_type_align_in_bits(layec_type* type) {
 
             return align;
         }
+
+        case LAYEC_TYPE_ARRAY: {
+            assert(type->array.element_type != NULL);
+            return layec_type_align_in_bits(type->array.element_type);
+        }
     }
 }
 
@@ -2259,6 +2264,13 @@ static void layec_instruction_print(layec_print_context* print_context, layec_va
             layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
         } break;
 
+        case LAYEC_IR_FPEXT: {
+            lca_string_append_format(print_context->output, "%sfpext ", COL(COL_KEYWORD));
+            layec_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
         case LAYEC_IR_NEG: {
             lca_string_append_format(print_context->output, "%sneg ", COL(COL_KEYWORD));
             layec_value_print_to_string(instruction->operand, print_context->output, true, use_color);
@@ -2804,6 +2816,10 @@ void layec_value_print_to_string(layec_value* value, string* s, bool print_type,
 
         case LAYEC_IR_INTEGER_CONSTANT: {
             lca_string_append_format(s, "%s%lld", COL(COL_CONSTANT), value->int_value);
+        } break;
+
+        case LAYEC_IR_FLOAT_CONSTANT: {
+            lca_string_append_format(s, "%s%f", COL(COL_CONSTANT), value->float_value);
         } break;
 
         case LAYEC_IR_GLOBAL_VARIABLE: {

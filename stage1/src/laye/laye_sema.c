@@ -1928,14 +1928,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     laye_type rhs_type = node->binary.rhs->type;
                     assert(rhs_type.node != NULL);
 
-                    if (laye_type_is_int(lhs_type) && laye_type_is_int(rhs_type)) {
+                    if (laye_type_is_numeric(lhs_type) && laye_type_is_numeric(rhs_type)) {
                         if (!laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
-                            goto cannot_arith_types;
-                        }
-
-                        node->type = node->binary.lhs->type;
-                    } else if (laye_type_is_float(lhs_type) && laye_type_is_float(rhs_type)) {
-                        if (is_bitwise_operation || !laye_sema_convert_to_common_type(sema, &node->binary.lhs, &node->binary.rhs)) {
                             goto cannot_arith_types;
                         }
 
@@ -2466,6 +2460,10 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
         }
 
         return LAYE_CONVERT_IMPOSSIBLE;
+    }
+
+    if (laye_type_is_int(from) && laye_type_is_float(to)) {
+        return 1 + score;
     }
 
     if (laye_type_is_float(from) && laye_type_is_float(to)) {
