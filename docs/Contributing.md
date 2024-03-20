@@ -1,4 +1,4 @@
-## Using Laye in new projects
+## Using cake  in new projects
 
 One of the best ways to contribute to Laye is to use it in projects where you're able; don't use Laye in production just yet! New hobby projects are the best place to give it a shot for now. If you're up to it, then please share your thoughts on the language and its provided tooling (you can email laye@nashiora.com or join the Forever Untitled [Discord server](https://discord.gg/paKyDFKJtr) to most easily reach me personal; my name is Local, it's nice to meet you!). Laye has a *long* way to go before it's ready to be considered a user-friendly experience, with all of the modern tooling expected of a language, but one way to help make that process quicker and smoother is to provide early feedback from personal use.
 

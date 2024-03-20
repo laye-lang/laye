@@ -22,8 +22,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
 
     string_view name = SV_CONSTANT("<fuzz-input>");
     string_view data = {
-        .data = (char*)Data,
-        .count = (int64_t)Size,
+       .data = (char*)Data,
+       .count = (int64_t)Size,
     };
 
     layec_sourceid sourceid = layec_context_get_or_add_source_from_string(
@@ -33,21 +33,21 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     );
 
     laye_module* module = laye_parse(context, sourceid);
-    assert(module != NULL);
+    assert(module!= NULL);
 
     if (context->has_reported_errors) {
         exit_code = 1;
-        goto end_fuzz;
+        goto end;
     }
 
     laye_analyse(context);
 
     if (context->has_reported_errors) {
         exit_code = 1;
-        goto end_fuzz;
+        goto end;
     }
 
-end_fuzz:;
+end:
     layec_context_destroy(context);
     lca_temp_allocator_clear();
 
