@@ -48,7 +48,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 
 #define LCA_SV_EMPTY       ((lca_string_view){0})
-#define LCA_SV_CONSTANT(C) ((lca_string_view){.data = (C), .count = (sizeof C) - 1})
+#define LCA_SV_CONSTANT(C) ((lca_string_view){.data = (C),.count = (sizeof C) - 1})
 #define LCA_STR_EXPAND(s)  ((int)s.count), (s.data)
 
 // invariant: should always be nul terminated
@@ -70,9 +70,9 @@ void lca_string_destroy(lca_string* s);
 char* lca_string_as_cstring(lca_string s);
 bool lca_string_equals(lca_string a, lca_string b);
 lca_string_view lca_string_slice(lca_string s, int64_t offset, int64_t length);
-lca_string lca_string_format(const char* format, ...);
+lca_string lca_string_format(const char* format,...);
 lca_string lca_string_vformat(const char* format, va_list v);
-void lca_string_append_format(lca_string* s, const char* format, ...);
+void lca_string_append_format(lca_string* s, const char* format,...);
 void lca_string_append_vformat(lca_string* s, const char* format, va_list v);
 void lca_string_append_rune(lca_string* s, int rune);
 
@@ -104,39 +104,7 @@ lca_string_view lca_string_view_path_file_name(lca_string_view s);
 typedef struct lca_string string;
 typedef struct lca_string_view string_view;
 
-#    define string_create(A)                lca_string_create(A)
-#    define string_from_data(A, D, L, C)    lca_string_from_data(A, D, L, C)
-#    define string_destroy(S)               lca_string_destroy(S)
-#    define string_as_cstring(S)            lca_string_as_cstring(S)
-#    define string_equals(A, B)             lca_string_equals(A, B)
-#    define string_slice(S, O, L)           lca_string_slice(S, O, L)
-#    define string_format(F, ...)           lca_string_format(F, __VA_ARGS__)
-#    define string_vformat(F, V)            lca_string_vformat(F, V)
-#    define string_append_format(S, F, ...) lca_string_append_format(S, F, __VA_ARGS__)
-#    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
-#    define string_append_rune(S, R)        lca_string_append_rune(S, R)
-
-#    define string_path_parent(S)         lca_string_path_parent(S)
-#    define string_path_append_view(P, S) lca_string_path_append_view(P, S)
-
-#    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
-#    define string_as_view(S)                     lca_string_as_view(S)
-#    define string_view_slice(S, O, L)            lca_string_view_slice(S, O, L)
-#    define string_view_equals(A, B)              lca_string_view_equals(A, B)
-#    define string_view_equals_cstring(A, B)      lca_string_view_equals_cstring(A, B)
-#    define string_view_starts_with(A, B)         lca_string_view_starts_with(A, B)
-#    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
-#    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
-#    define string_view_index_of(S, C)            lca_string_view_index_of(S, C)
-#    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
-#    define string_view_ends_with_cstring(S, CS)  lca_string_view_ends_with_cstring(S, CS)
-#    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
-
-#    define string_view_path_file_name(S) lca_string_view_path_file_name(S)
-#endif // !LCA_STR_NO_SHORT_NAMES
-
-#ifdef LCA_STR_IMPLEMENTATION
-
+#    define string_create(A)
 string lca_string_create(lca_allocator allocator) {
     int64_t capacity = 32;
     char* data = lca_allocate(allocator, (size_t)capacity * sizeof *data);
