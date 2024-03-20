@@ -45,13 +45,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 layec_location layec_location_combine(layec_location a, layec_location b) {
     assert(a.sourceid == b.sourceid);
 
-    int64_t start_offset = a.offset < b.offset ? a.offset : b.offset;
-    int64_t end_offset = (a.offset + a.length) > (b.offset + b.length) ? (a.offset + a.length) : (b.offset + b.length);
+    int64_t start_offset = a.offset < b.offset? a.offset : b.offset;
+    int64_t end_offset = (a.offset + a.length) > (b.offset + b.length)? (a.offset + a.length) : (b.offset + b.length);
 
     return (layec_location){
-        .sourceid = a.sourceid,
-        .offset = start_offset,
-        .length = (end_offset - start_offset),
+       .sourceid = a.sourceid,
+       .offset = start_offset,
+       .length = (end_offset - start_offset),
     };
 }
 
@@ -77,7 +77,7 @@ const char* layec_value_category_to_cstring(layec_value_category category) {
 }
 
 bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated_constant b) {
-    if (a.kind != b.kind) return false;
+    if (a.kind!= b.kind) return false;
     switch (a.kind) {
         default: assert(false); return false;
         case LAYEC_EVAL_NULL: return true;

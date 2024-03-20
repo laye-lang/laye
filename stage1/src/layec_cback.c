@@ -39,7 +39,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <assert.h>
-
 #include "layec.h"
 
 typedef struct cback_codegen {
@@ -51,16 +50,16 @@ typedef struct cback_codegen {
 static void cback_print_module(cback_codegen* codegen, layec_module* module);
 
 string layec_codegen_c(layec_module* module) {
-    assert(module != NULL);
+    assert(module!= NULL);
     layec_context* context = layec_module_context(module);
-    assert(context != NULL);
+    assert(context!= NULL);
 
     string output_string = string_create(context->allocator);
 
     cback_codegen codegen = {
-        .context = context,
-        .use_color = context->use_color,
-        .output = &output_string,
+       .context = context,
+       .use_color = context->use_color,
+       .output = &output_string,
     };
 
     cback_print_module(&codegen, module);
@@ -68,16 +67,75 @@ string layec_codegen_c(layec_module* module) {
     return output_string;
 }
 
-static void cback_print_header(cback_codegen* codegen, layec_module* module);
-static void cback_declare_structs(cback_codegen* codegen, layec_context* context);
-static void cback_define_structs(cback_codegen* codegen, layec_context* context);
+static void cback_print_header(cback_codegen* codegen, layec_module* module) {
+    lca_string_append_format(codegen->output, "#include <assert.h>\n");
+    lca_string_append_format(codegen->output, "#include \"layec.h\"\n\n");
+}
 
-static void cback_print_global(cback_codegen* codegen, layec_value* global);
-static void cback_print_function(cback_codegen* codegen, layec_value* global);
+static void cback_declare_structs(cback_codegen* codegen, layec_context* context) {
+    for (int64_t i = 0, count = layec_context_struct_count(context); i < count; i++) {
+        layec_struct* struct_ = layec_context_get_struct_at_index(context, i);
+        lca_string_append_format(codegen->output, "typedef struct %s {\n", struct_->name);
+        for (int64_t j = 0, count_ = layec_struct_field_count(struct_); j < count_; j++) {
+            layec_field* field = layec_struct_get_field_at_index(struct_, j);
+            lca_string_append_format(codegen->output, "    %s %s%s;\n", field->type, field->name, j < count_ - 1? "," : "");
+        }
+        lca_string_append_format(codegen->output, "} %s;\n\n", struct_->name);
+    }
+}
+
+static void cback_define_structs(cback_codegen* codegen, layec_context* context) {
+    for (int64_t i = 0, count = layec_context_struct_count(context); i < count; i++) {
+        layec_struct* struct_ = layec_context_get_struct_at_index(context, i);
+        lca_string_append_format(codegen->output, "struct %s {\n", struct_->name);
+        for (int64_t j = 0, count_ = layec_struct_field_count(struct_); j < count_; j++) {
+            layec_field* field = layec_struct_get_field_at_index(struct_, j);
+            lca_string_append_format(codegen->output, "    %s %s%s;\n", field->type, field->name, j < count_ - 1? "," : "");
+        }
+        lca_string_append_format(codegen->output, "};\n\n");
+    }
+}
+
+static void cback_print_global(cback_codegen* codegen, layec_value* global) {
+    switch (global->kind) {
+        case LAYEC_VALUE_KIND_FUNCTION:
+            cback_print_function(codegen, global);
+            break;
+        default:
+            assert(false);
+    }
+}
+
+static void cback_print_function(cback_codegen* codegen, layec_value* global) {
+    layec_function* function = (layec_function*)global;
+    lca_string_append_format(codegen->output, "static %s %s(", function->return_type, function->name);
+    for (int64_t i = 0, count = layec_function_param_count(function); i < count; i++) {
+        layec_param* param = layec_function_get_param_at_index(function, i);
+        lca_string_append_format(codegen->output, "%s %s%s", param->type, param->name, i < count - 1? "," : "");
+    }
+    lca_string_append_format(codegen->output, ") {\n");
+    for (int64_t i = 0, count = layec_function_block_count(function); i < count; i++) {
+        layec_block* block = layec_function_get_block_at_index(function, i);
+        for (int64_t j = 0, count_ = layec_block_instr_count(block); j < count_; j++) {
+            layec_instr* instr = layec_block_get_instr_at_index(block, j);
+            switch (instr->kind) {
+                case LAYEC_INSTR_KIND_ASSIGN:
+                    lca_string_append_format(codegen->output, "    %s = %s;\n", ((layec_assign_instr*)instr)->dest, ((layec_assign_instr*)instr)->src);
+                    break;
+                case LAYEC_INSTR_KIND_RETURN:
+                    lca_string_append_format(codegen->output, "    return %s;\n", ((layec_return_instr*)instr)->value);
+                    break;
+                default:
+                    assert(false);
+            }
+        }
+    }
+    lca_string_append_format(codegen->output, "}\n\n");
+}
 
 static void cback_print_module(cback_codegen* codegen, layec_module* module) {
     layec_context* context = layec_module_context(module);
-    assert(context != NULL);
+    assert(context!= NULL);
 
     cback_print_header(codegen, module);
     cback_declare_structs(codegen, context);
