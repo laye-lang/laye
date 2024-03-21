@@ -42,6 +42,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "layec.h"
 
+#include "nob.h"
+
 typedef struct cback_codegen {
     layec_context* context;
     bool use_color;
@@ -75,6 +77,9 @@ static void cback_define_structs(cback_codegen* codegen, layec_context* context)
 static void cback_print_global(cback_codegen* codegen, layec_value* global);
 static void cback_print_function(cback_codegen* codegen, layec_value* global);
 
+static void cback_print_type(cback_codegen* codegen, layec_type* type);
+static void cback_print_value(cback_codegen* codegen, layec_value* value);
+
 static void cback_print_module(cback_codegen* codegen, layec_module* module) {
     layec_context* context = layec_module_context(module);
     assert(context != NULL);
@@ -96,4 +101,96 @@ static void cback_print_module(cback_codegen* codegen, layec_module* module) {
         layec_value* function = layec_module_get_function_at_index(module, i);
         cback_print_function(codegen, function);
     }
+}
+
+static void cback_print_header(cback_codegen* codegen, layec_module* module) {
+    lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", STR_EXPAND(layec_module_name(module)));
+
+    Nob_String_Builder builder = {0};
+    nob_read_entire_file("./stage1/src/lyir_cir_preamble.h", &builder);
+    string_append_format(codegen->output, "%.*s\n", (int)builder.count, builder.items);
+    nob_sb_free(builder);
+}
+
+static void cback_declare_structs(cback_codegen* codegen, layec_context* context) {
+    for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
+        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        if (layec_type_struct_is_named(struct_type)) {
+            lca_string_append_format(codegen->output, "typedef struct %.*s %.*s;\n", STR_EXPAND(layec_type_struct_name(struct_type)), STR_EXPAND(layec_type_struct_name(struct_type)));
+        }
+    }
+
+    if (layec_context_get_struct_type_count(codegen->context) > 0) {
+        lca_string_append_format(codegen->output, "\n");
+    }
+}
+
+static void cback_define_structs(cback_codegen* codegen, layec_context* context) {
+    for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
+        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        if (layec_type_struct_is_named(struct_type)) {
+            lca_string_append_format(codegen->output, "struct %.*s {\n", STR_EXPAND(layec_type_struct_name(struct_type)), STR_EXPAND(layec_type_struct_name(struct_type)));
+
+            for (int64_t member_index = 0; member_index < layec_type_struct_member_count(struct_type); member_index++) {
+                lca_string_append_format(codegen->output, "    ");
+
+                layec_type* member_type = layec_type_struct_get_member_type_at_index(struct_type, member_index);
+                cback_print_type(codegen, member_type);
+
+                lca_string_append_format(codegen->output, " member_%d;\n", member_index);
+            }
+        
+            lca_string_append_format(codegen->output, "};\n\n");
+        }
+    }
+}
+
+static void cback_print_global(cback_codegen* codegen, layec_value* global) {
+}
+
+static void cback_print_function(cback_codegen* codegen, layec_value* global) {
+}
+
+static void cback_print_type(cback_codegen* codegen, layec_type* type) {
+    switch (layec_type_get_kind(type)) {
+        default: {
+            fprintf(stderr, "for lyir type '%s'\n", layec_type_kind_to_cstring(layec_type_get_kind(type)));
+            assert(false && "unhandled type kind in C backend");
+        } break;
+
+        case LAYEC_TYPE_POINTER: {
+            lca_string_append_format(codegen->output, "lyir_ptr");
+        } break;
+
+        case LAYEC_TYPE_INTEGER: {
+            int bit_width = layec_type_size_in_bits(type);
+            if (bit_width == 8) {
+                lca_string_append_format(codegen->output, "lyir_i8");
+            } else if (bit_width == 16) {
+                lca_string_append_format(codegen->output, "lyir_i16");
+            } else if (bit_width == 32) {
+                lca_string_append_format(codegen->output, "lyir_i32");
+            } else if (bit_width == 64) {
+                lca_string_append_format(codegen->output, "lyir_i64");
+            } else {
+                fprintf(stderr, "unsupported bit width: %d\n", bit_width);
+                assert(false && "unsupported int bit width in C backend");
+            }
+        } break;
+
+        case LAYEC_TYPE_FLOAT: {
+            int bit_width = layec_type_size_in_bits(type);
+            if (bit_width == 32) {
+                lca_string_append_format(codegen->output, "lyir_f32");
+            } else if (bit_width == 64) {
+                lca_string_append_format(codegen->output, "lyir_f64");
+            } else {
+                fprintf(stderr, "unsupported bit width: %d\n", bit_width);
+                assert(false && "unsupported float bit width in C backend");
+            }
+        } break;
+    }
+}
+
+static void cback_print_value(cback_codegen* codegen, layec_value* value) {
 }

@@ -47,6 +47,7 @@ static const char* stage1_laye_sources[] = {
     "./stage1/src/layec_ir.c",
     "./stage1/src/irpass/validate.c",
     "./stage1/src/irpass/abi.c",
+    "./stage1/src/layec_cback.c",
     "./stage1/src/layec_llvm.c",
     "./stage1/src/c/c_data.c",
     "./stage1/src/c/c_debug.c",

@@ -58,25 +58,33 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LAYE_HELP_TEXT_USAGE \
     "Usage: %.*s [%.*s] [--help] [--version] [<args>]\n"
 
-#define LAYE_HELP_TEXT_NOCMD                                                                                 \
-    "    --help               Print this help text, then exit.\n"                                            \
-    "    --version            Print version information, then exit.\n"                                       \
-    "\n"                                                                                                     \
-    "    -o <file>                 Write output to <file>. If <file> is '-` (a single dash), then output\n"  \
-    "                              will be written to stdout.\n"                                             \
-    "\n"                                                                                                     \
-    "  actions:\n"                                                                                           \
-    "    -E, --preprocess          Run the preprocessor step (for C files). Writes the result to stdout.\n"  \
-    "    --ast                     Run the parse step. Writes a representation of the AST to stdout.\n"      \
-    "                              Running the parser implies running the preprocessor for C files.\n"       \
-    "    -fsyntax-only, --sema     Run the parse and semantic analysis steps.\n"                             \
-    "    -S, --assemble            Run the parse, semantic analysis and assemble steps.\n"                   \
-    "    -emit-lyir                Uses the LYIR representation for assembler and object files.\n"           \
-    "    -emit-llvm                Uses the LLVM representation for assembler and object files.\n"           \
-    "\n"                                                                                                     \
-    "  diagnostics and output:\n"                                                                            \
-    "    --nocolor            Explicitly disable output coloring. By default, colors are enabled only if \n" \
-    "                         writing to a terminal.\n"                                                      \
+#define LAYE_HELP_TEXT_NOCMD                                                                                          \
+    "    --help               Print this help text, then exit.\n"                                                     \
+    "    --version            Print version information, then exit.\n"                                                \
+    "\n"                                                                                                              \
+    "    -o <file>                 Write output to <file>. If <file> is '-` (a single dash), then output\n"           \
+    "                              will be written to stdout.\n"                                                      \
+    "    --x <source-kind>         Changes the default interpretation of an input source file.\n"                     \
+    "                              By default, the source file extension determines what format the file is.\n"       \
+    "                              When overriden, treats the following source files as a specific format instead.\n" \
+    "                              One of 'default', 'c', 'laye' or 'lyir'.\n"                                        \
+    "                              Default: 'default'.\n"                                                             \
+    "    --backend <backend>       What code generation backend to use. One of 'c' or 'llvm'.\n"                      \
+    "                              Default: 'c'.\n"                                                                   \
+    "\n"                                                                                                              \
+    "  actions:\n"                                                                                                    \
+    "    -E, --preprocess          Run the preprocessor step (for C files). Writes the result to stdout.\n"           \
+    "    --ast                     Run the parse step. Writes a representation of the AST to stdout.\n"               \
+    "                              Running the parser implies running the preprocessor for C files.\n"                \
+    "    -fsyntax-only, --sema     Run the parse and semantic analysis steps.\n"                                      \
+    "    -S, --assemble            Run the parse, semantic analysis and assemble steps.\n"                            \
+    "    -emit-lyir                Uses the LYIR representation for assembler and object files.\n"                    \
+    "    -emit-llvm                Uses the LLVM representation for assembler and object files.\n"                    \
+    "    -emit-c                   Rather than emiting typical IR, emits C source code instead.\n"                    \
+    "\n"                                                                                                              \
+    "  diagnostics and output:\n"                                                                                     \
+    "    --nocolor            Explicitly disable output coloring. By default, colors are enabled only if \n"          \
+    "                         writing to a terminal.\n"                                                               \
     "    --byte-diagnostics   Report diagnostic information with a byte offset rather than line/column.\n"
 
 #define LAYE_HELP_TEXT_BUILD \
@@ -98,6 +106,23 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     "\n" LAYE_HELP_TEXT_NOCMD                                                                           \
     ""
 
+typedef enum source_file_kind {
+    SOURCE_DEFAULT,
+    SOURCE_LAYE,
+    SOURCE_C,
+    SOURCE_LYIR,
+} source_file_kind;
+
+typedef enum backend {
+    BACKEND_C,
+    BACKEND_LLVM,
+} backend;
+
+typedef struct source_file_info {
+    string_view path;
+    source_file_kind kind;
+} source_file_info;
+
 typedef struct compiler_state {
     string_view command;
     string_view program_name;
@@ -118,17 +143,22 @@ typedef struct compiler_state {
     bool sema_only;
     bool assemble_only;
 
+    backend backend;
+
     bool emit_lyir;
     bool emit_llvm;
+    bool emit_c;
 
     string_view output_file;
     bool is_output_file_stdout;
 
-    dynarr(string_view) input_files;
+    source_file_kind override_file_kind;
+    dynarr(source_file_info) input_files;
 
     dynarr(c_translation_unit*) translation_units;
 
     dynarr(string) total_intermediate_files;
+    dynarr(string) c_modules;
     dynarr(string) llvm_modules;
 
     dynarr(string_view) include_directories;
@@ -205,7 +235,7 @@ static int emit_lyir(compiler_state* state) {
 
         string ir_module_string = layec_module_print(ir_module, use_color);
         string_view intermediate_file_name = {0};
-        assert(string_view_equals(layec_module_name(ir_module), state->input_files[0]));
+        assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
 
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
@@ -235,12 +265,11 @@ static int emit_lyir(compiler_state* state) {
 }
 
 static int emit_c(compiler_state* state) {
-#if false
-    for (int64_t i = 0, count = arr_count(state->llvm_modules); i < count; i++) {
+    for (int64_t i = 0, count = arr_count(state->c_modules); i < count; i++) {
         bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
         bool is_output_file_stdout = state->is_output_file_stdout;
 
-        string llvm_module = state->llvm_modules[i];
+        string c_module = state->c_modules[i];
 
         string_view intermediate_file_name = {0};
         if (is_only_file && state->output_file.count != 0) {
@@ -248,15 +277,15 @@ static int emit_c(compiler_state* state) {
         } else {
             layec_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0]));
-            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ll");
+            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
+            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ir.c");
         }
 
         if (is_output_file_stdout) {
             assert(is_only_file);
-            fprintf(stdout, "%.*s", STR_EXPAND(llvm_module));
+            fprintf(stdout, "%.*s", STR_EXPAND(c_module));
         } else {
-            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), llvm_module.data, (size_t)llvm_module.count)) {
+            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), c_module.data, (size_t)c_module.count)) {
                 return 1;
             }
         }
@@ -265,7 +294,6 @@ static int emit_c(compiler_state* state) {
             break;
         }
     }
-#endif
 
     return 0;
 }
@@ -283,7 +311,7 @@ static int emit_llvm(compiler_state* state) {
         } else {
             layec_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0]));
+            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
             intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ll");
         }
 
@@ -313,6 +341,9 @@ static void add_stdlib_includes(layec_context* context, string_view stdlib_root)
     }
 }
 
+static int backend_c(compiler_state* state);
+static int backend_llvm(compiler_state* state);
+
 int main(int argc, char** argv) {
     int exit_code = 0;
 
@@ -324,6 +355,7 @@ int main(int argc, char** argv) {
 
     compiler_state state = {
         .use_color = COLOR_AUTO,
+        .backend = BACKEND_LLVM,
     };
     if (!parse_args(&state, &argc, &argv) || state.help) {
         string_view command = state.command;
@@ -347,6 +379,30 @@ int main(int argc, char** argv) {
     layec_context* context = layec_context_create(default_allocator);
     assert(context != NULL);
     state.context = context;
+
+    if (state.emit_lyir) {
+        if (!state.assemble_only) {
+            fprintf(stderr, "-emit-lyir cannot be used when linking.\n");
+            exit_code = 1;
+            goto program_exit;
+        }
+    }
+
+    if (state.emit_c) {
+        if (!state.assemble_only) {
+            fprintf(stderr, "-emit-c cannot be used when linking.\n");
+            exit_code = 1;
+            goto program_exit;
+        }
+    }
+
+    if (state.emit_llvm) {
+        if (!state.assemble_only) {
+            fprintf(stderr, "-emit-llvm cannot be used when linking.\n");
+            exit_code = 1;
+            goto program_exit;
+        }
+    }
 
     if (state.use_color == COLOR_ALWAYS) {
         context->use_color = true;
@@ -372,8 +428,8 @@ int main(int argc, char** argv) {
             int64_t last_count = libdir_builder.count;
 
             string_path_append_view(&libdir_builder, SV_CONSTANT("lib/laye"));
-            //fprintf(stderr, "looking for '%.*s'\n", STR_EXPAND(libdir_builder));
-            
+            // fprintf(stderr, "looking for '%.*s'\n", STR_EXPAND(libdir_builder));
+
             if (nob_file_exists(libdir_builder.data) && nob_get_file_type(libdir_builder.data) == NOB_FILE_DIRECTORY) {
                 string_view libdir_root = layec_context_intern_string_view(context, string_as_view(libdir_builder));
                 string_destroy(&libdir_builder);
@@ -411,9 +467,11 @@ found_stdlib:;
     }
 
     for (int64_t i = 0; i < arr_count(state.input_files); i++) {
-        string_view input_file_path = state.input_files[i];
+        source_file_info input_file_info = state.input_files[i];
+        string_view input_file_path = input_file_info.path;
+        source_file_kind input_file_kind = input_file_info.kind;
 
-        if (string_view_ends_with_cstring(input_file_path, ".laye")) {
+        if (input_file_kind == SOURCE_LAYE || (input_file_kind == SOURCE_DEFAULT && string_view_ends_with_cstring(input_file_path, ".laye"))) {
             laye_module* module = parse_module(&state, context, input_file_path);
             if (module == NULL) {
                 if (!state.sema_only && !state.parse_only) exit_code = 1;
@@ -421,7 +479,7 @@ found_stdlib:;
             }
 
             assert(module != NULL);
-        } else if (string_view_ends_with_cstring(input_file_path, ".c")) {
+        } else if (input_file_kind == SOURCE_C || (input_file_kind == SOURCE_DEFAULT && string_view_ends_with_cstring(input_file_path, ".c"))) {
             c_translation_unit* tu = parse_translation_unit(&state, context, input_file_path);
             if (tu == NULL) {
                 if (!state.sema_only && !state.parse_only) exit_code = 1;
@@ -513,81 +571,32 @@ found_stdlib:;
         goto program_exit;
     }
 
-    if (state.emit_lyir) {
-        if (!state.assemble_only) {
-            fprintf(stderr, "-emit-lyir cannot be used when linking.\n");
-            exit_code = 1;
+    //
+
+    if (state.assemble_only) {
+        if (state.emit_llvm) {
+            exit_code = backend_llvm(&state);
+        } else if (state.emit_lyir) {
+            exit_code = emit_lyir(&state);
+        } else if (state.emit_c) {
+            exit_code = backend_c(&state);
         } else {
-            emit_lyir(&state);
+            exit_code = 1;
+            fprintf(stderr, "No explicit assembler format provided when -S option was given.\n");
         }
 
         goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
-        layec_module* ir_module = context->ir_modules[i];
-        assert(ir_module != NULL);
-
-        string llvm_module_string = layec_codegen_llvm(ir_module);
-        arr_push(state.llvm_modules, llvm_module_string);
-    }
-
-    assert(arr_count(state.llvm_modules) == arr_count(context->ir_modules));
-
-    if (state.emit_llvm) {
-        if (!state.assemble_only) {
-            fprintf(stderr, "-emit-llvm cannot be used when linking.\n");
-            exit_code = 1;
-        } else {
-            emit_llvm(&state);
-        }
-
-        goto program_exit;
-    }
-
-    for (int64_t i = 0; i < arr_count(state.llvm_modules); i++) {
-        string llvm_module_string = state.llvm_modules[i];
-        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
-
-        //fprintf(stderr, ">> %.*s\n", STR_EXPAND(source_input_file_path));
-
-        string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
-        arr_push(state.total_intermediate_files, output_file_path_intermediate);
-
-        bool ll_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), llvm_module_string.data, llvm_module_string.count);
-        if (!ll_file_result) {
-            exit_code = 1;
-            goto program_exit;
-        }
-    }
-
-    Nob_Cmd clang_ll_cmd = {0};
-    nob_cmd_append(
-        &clang_ll_cmd,
-        "clang",
-        "-Wno-override-module",
-        "-O3",
-        "-o",
-        lca_string_view_to_cstring(temp_allocator, state.output_file)
-    );
-
-    for (int64_t i = 0; i < arr_count(state.link_libraries); i++) {
-        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(state.link_libraries[i]));
-        nob_cmd_append(&clang_ll_cmd, s);
-    }
-
-    for (int64_t i = 0; i < arr_count(state.total_intermediate_files); i++) {
-        const char* s = string_as_cstring(state.total_intermediate_files[i]);
-        nob_cmd_append(&clang_ll_cmd, s);
-    }
-
-    if (!nob_cmd_run_sync(clang_ll_cmd)) {
-        nob_cmd_free(clang_ll_cmd);
+    if (state.backend == BACKEND_LLVM) {
+        exit_code = backend_llvm(&state);
+    } else if (state.backend == BACKEND_C) {
+        exit_code = backend_c(&state);
+    } else {
         exit_code = 1;
+        fprintf(stderr, "Unknown backend\n");
         goto program_exit;
     }
-
-    nob_cmd_free(clang_ll_cmd);
 
     // in release/unsafe builds, we don't need to worry about manually tearing
     // down all of our allocations. these should always be run in debug/safe
@@ -607,22 +616,163 @@ program_exit:;
         string_destroy(&state.total_intermediate_files[i]);
     }
 
-    for (int64_t i = 0; i < arr_count(state.llvm_modules); i++) {
-        string_destroy(&state.llvm_modules[i]);
-    }
-
     for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
         c_translation_unit_destroy(state.translation_units[i]);
     }
 
     arr_free(state.total_intermediate_files);
-    arr_free(state.llvm_modules);
     arr_free(state.translation_units);
     arr_free(state.input_files);
 
     layec_context_destroy(context);
     lca_temp_allocator_clear();
 #endif // !NDEBUG
+
+    return exit_code;
+}
+
+static int backend_c(compiler_state* state) {
+    int exit_code = 0;
+
+    layec_context* context = state->context;
+
+    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+        layec_module* ir_module = context->ir_modules[i];
+        assert(ir_module != NULL);
+
+        string c_module_string = layec_codegen_c(ir_module);
+        arr_push(state->c_modules, c_module_string);
+    }
+
+    assert(arr_count(state->c_modules) == arr_count(context->ir_modules));
+
+    if (state->emit_c) {
+        assert(state->assemble_only);
+        emit_c(state);
+        goto backend_exit;
+    }
+
+    for (int64_t i = 0; i < arr_count(state->c_modules); i++) {
+        string c_module_string = state->c_modules[i];
+        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
+
+        string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ir.c");
+        arr_push(state->total_intermediate_files, output_file_path_intermediate);
+
+        bool c_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), c_module_string.data, c_module_string.count);
+        if (!c_file_result) {
+            exit_code = 1;
+            goto backend_exit;
+        }
+    }
+
+    Nob_Cmd clang_cc_cmd = {0};
+    nob_cmd_append(
+        &clang_cc_cmd,
+        "clang",
+        "-Wno-override-module",
+        "-O3",
+        "-o",
+        lca_string_view_to_cstring(temp_allocator, state->output_file)
+    );
+
+    for (int64_t i = 0; i < arr_count(state->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(state->link_libraries[i]));
+        nob_cmd_append(&clang_cc_cmd, s);
+    }
+
+    for (int64_t i = 0; i < arr_count(state->total_intermediate_files); i++) {
+        const char* s = string_as_cstring(state->total_intermediate_files[i]);
+        nob_cmd_append(&clang_cc_cmd, s);
+    }
+
+    if (!nob_cmd_run_sync(clang_cc_cmd)) {
+        nob_cmd_free(clang_cc_cmd);
+        exit_code = 1;
+        goto backend_exit;
+    }
+
+    nob_cmd_free(clang_cc_cmd);
+
+backend_exit:;
+    for (int64_t i = 0; i < arr_count(state->c_modules); i++) {
+        string_destroy(&state->c_modules[i]);
+    }
+
+    arr_free(state->c_modules);
+
+    return exit_code;
+}
+
+static int backend_llvm(compiler_state* state) {
+    int exit_code = 0;
+
+    layec_context* context = state->context;
+
+    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+        layec_module* ir_module = context->ir_modules[i];
+        assert(ir_module != NULL);
+
+        string llvm_module_string = layec_codegen_llvm(ir_module);
+        arr_push(state->llvm_modules, llvm_module_string);
+    }
+
+    assert(arr_count(state->llvm_modules) == arr_count(context->ir_modules));
+
+    if (state->emit_llvm) {
+        assert(state->assemble_only);
+        emit_llvm(state);
+        goto backend_exit;
+    }
+
+    for (int64_t i = 0; i < arr_count(state->llvm_modules); i++) {
+        string llvm_module_string = state->llvm_modules[i];
+        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
+
+        string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
+        arr_push(state->total_intermediate_files, output_file_path_intermediate);
+
+        bool ll_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), llvm_module_string.data, llvm_module_string.count);
+        if (!ll_file_result) {
+            exit_code = 1;
+            goto backend_exit;
+        }
+    }
+
+    Nob_Cmd clang_ll_cmd = {0};
+    nob_cmd_append(
+        &clang_ll_cmd,
+        "clang",
+        "-Wno-override-module",
+        "-O3",
+        "-o",
+        lca_string_view_to_cstring(temp_allocator, state->output_file)
+    );
+
+    for (int64_t i = 0; i < arr_count(state->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(state->link_libraries[i]));
+        nob_cmd_append(&clang_ll_cmd, s);
+    }
+
+    for (int64_t i = 0; i < arr_count(state->total_intermediate_files); i++) {
+        const char* s = string_as_cstring(state->total_intermediate_files[i]);
+        nob_cmd_append(&clang_ll_cmd, s);
+    }
+
+    if (!nob_cmd_run_sync(clang_ll_cmd)) {
+        nob_cmd_free(clang_ll_cmd);
+        exit_code = 1;
+        goto backend_exit;
+    }
+
+    nob_cmd_free(clang_ll_cmd);
+
+backend_exit:;
+    for (int64_t i = 0; i < arr_count(state->llvm_modules); i++) {
+        string_destroy(&state->llvm_modules[i]);
+    }
+
+    arr_free(state->llvm_modules);
 
     return exit_code;
 }
@@ -648,6 +798,8 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
             args->sema_only = true;
         } else if (string_view_equals(arg, SV_CONSTANT("-S")) || string_view_equals(arg, SV_CONSTANT("--assemble"))) {
             args->assemble_only = true;
+        } else if (string_view_equals(arg, SV_CONSTANT("-emit-c"))) {
+            args->emit_c = true;
         } else if (string_view_equals(arg, SV_CONSTANT("-emit-lyir"))) {
             args->emit_lyir = true;
         } else if (string_view_equals(arg, SV_CONSTANT("-emit-llvm"))) {
@@ -656,6 +808,44 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
             args->use_color = COLOR_NEVER;
         } else if (string_view_equals(arg, SV_CONSTANT("--byte-diagnostics"))) {
             args->use_byte_positions_in_diagnostics = true;
+        } else if (string_view_equals(arg, SV_CONSTANT("--backend"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'--backend' requires an argument\n");
+                return false;
+            }
+
+            const char* backend = nob_shift_args(argc, argv);
+            assert(backend != NULL);
+
+            if (0 == strcmp(backend, "c")) {
+                args->backend = BACKEND_C;
+            } else if (0 == strcmp(backend, "llvm")) {
+                args->backend = BACKEND_LLVM;
+            } else {
+                fprintf(stderr, "Unknown value for option '--backend': %s\n", backend);
+                return false;
+            }
+        } else if (string_view_equals(arg, SV_CONSTANT("-x"))) {
+            if (argc == 0) {
+                fprintf(stderr, "'-x' requires an argument\n");
+                return false;
+            }
+
+            const char* backend = nob_shift_args(argc, argv);
+            assert(backend != NULL);
+
+            if (0 == strcmp(backend, "c")) {
+                args->override_file_kind = SOURCE_C;
+            } else if (0 == strcmp(backend, "laye")) {
+                args->override_file_kind = SOURCE_LAYE;
+            } else if (0 == strcmp(backend, "lyir")) {
+                args->override_file_kind = SOURCE_LYIR;
+            } else if (0 == strcmp(backend, "default")) {
+                args->override_file_kind = SOURCE_DEFAULT;
+            } else {
+                fprintf(stderr, "Unknown value for option '-x': %s\n", backend);
+                return false;
+            }
         } else if (string_view_equals(arg, SV_CONSTANT("-o"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-o' requires a file path as the output file, but no additional arguments were provided\n");
@@ -690,7 +880,11 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
         } else if (string_view_starts_with(arg, SV_CONSTANT("-l"))) {
             arr_push(args->link_libraries, string_view_slice(arg, 2, -1));
         } else {
-            arr_push(args->input_files, arg);
+            source_file_info info = {
+                .path = arg,
+                .kind = args->override_file_kind,
+            };
+            arr_push(args->input_files, info);
         }
     }
 
