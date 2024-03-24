@@ -621,7 +621,7 @@ layec_value* layec_instruction_binary_get_lhs(layec_value* instruction) {
     return instruction->binary.lhs;
 }
 
-layec_value* layec_instruction_get_binary_rhs(layec_value* instruction) {
+layec_value* layec_instruction_binary_get_rhs(layec_value* instruction) {
     assert(instruction != NULL);
     assert(instruction->binary.rhs != NULL);
     return instruction->binary.rhs;

@@ -623,7 +623,7 @@ layec_type* layec_instruction_get_alloca_type(layec_value* alloca);
 layec_value* layec_instruction_get_address(layec_value* instruction);
 layec_value* layec_instruction_get_operand(layec_value* instruction);
 layec_value* layec_instruction_binary_get_lhs(layec_value* instruction);
-layec_value* layec_instruction_get_binary_rhs(layec_value* instruction);
+layec_value* layec_instruction_binary_get_rhs(layec_value* instruction);
 layec_value* layec_instruction_get_value(layec_value* instruction);
 layec_value* layec_instruction_branch_get_pass(layec_value* instruction);
 layec_value* layec_instruction_branch_get_fail(layec_value* instruction);

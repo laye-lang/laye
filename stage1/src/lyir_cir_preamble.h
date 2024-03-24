@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef int8_t lyir_bool;
 typedef int8_t lyir_i8;
 typedef int16_t lyir_i16;
 typedef int32_t lyir_i32;
