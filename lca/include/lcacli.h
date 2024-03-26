@@ -38,76 +38,28 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef LCA_CLI_H
+#define LCA_CLI_H
+
+char *lca_cli_shift_args(int *argc, char ***argv);
+
+#ifdef LCA_CLI_IMPLEMENTATION
+
 #include <assert.h>
 
-#include "lyir.h"
-
-lyir_location lyir_location_combine(lyir_location a, lyir_location b) {
-    assert(a.sourceid == b.sourceid);
-
-    int64_t start_offset = a.offset < b.offset ? a.offset : b.offset;
-    int64_t end_offset = (a.offset + a.length) > (b.offset + b.length) ? (a.offset + a.length) : (b.offset + b.length);
-
-    return (lyir_location){
-        .sourceid = a.sourceid,
-        .offset = start_offset,
-        .length = (end_offset - start_offset),
-    };
-}
-
-const char* layec_status_to_cstring(lyir_status status) {
-    switch (status) {
-        default: assert(false && "unreachable layec_status case");
-        case LYIR_NO_STATUS: return "NO_STATUS";
-        case LYIR_INFO: return "INFO";
-        case LYIR_NOTE: return "NOTE";
-        case LYIR_WARN: return "WARN";
-        case LYIR_ERROR: return "ERROR";
-        case LYIR_FATAL: return "FATAL";
-        case LYIR_ICE: return "ICE";
+char *lca_cli_shift_args(int *argc, char ***argv) {
+    assert(argc != NULL);
+    assert(argv != NULL);
+    assert(*argv != NULL);
+    char *result = **argv;
+    if (result != NULL) {
+        assert(*argc > 0);
+        (*argv) += 1;
+        (*argc) -= 1;
     }
+    return result;
 }
 
-const char* layec_value_category_to_cstring(lyir_value_category category) {
-    switch (category) {
-        default: assert(false && "unreachable layec_value_category case");
-        case LYIR_LVALUE: return "LVALUE";
-        case LYIR_RVALUE: return "RVALUE";
-    }
-}
+#endif // LCA_CLI_IMPLEMENTATION
 
-bool lyir_evaluated_constant_equals(lyir_evaluated_constant a, lyir_evaluated_constant b) {
-    if (a.kind != b.kind) return false;
-    switch (a.kind) {
-        default: assert(false); return false;
-        case LYIR_EVAL_NULL: return true;
-        case LYIR_EVAL_VOID: return true;
-        case LYIR_EVAL_BOOL: return a.bool_value == b.bool_value;
-        case LYIR_EVAL_INT: return a.int_value == b.int_value;
-        case LYIR_EVAL_FLOAT: return a.float_value == b.float_value;
-        case LYIR_EVAL_STRING: return lca_string_view_equals(a.string_value, b.string_value);
-    }
-}
-
-int lyir_get_significant_bits(int64_t value) {
-    int bit_width = 8 * sizeof value;
-    assert(bit_width == 64);
-
-    if (value < 0) {
-        int sig = bit_width - 1;
-        while (sig > 0) {
-            if (!(value & (1ull << (sig - 1))))
-                return sig + 1;
-            sig--;
-        }
-    } else {
-        int sig = bit_width - 1;
-        while (sig > 0) {
-            if (value & (1ull << (sig - 1)))
-                return sig;
-            sig--;
-        }
-    }
-
-    return 1;
-}
+#endif // !LCA_CLI_H
