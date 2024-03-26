@@ -1,3 +1,4 @@
+-I.
 -I./lca/include
 -I./lyir/include
 -I./ccly/include
