@@ -40,6 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
+#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 lyir_location lyir_location_combine(lyir_location a, lyir_location b) {
@@ -85,7 +86,7 @@ bool lyir_evaluated_constant_equals(lyir_evaluated_constant a, lyir_evaluated_co
         case LYIR_EVAL_BOOL: return a.bool_value == b.bool_value;
         case LYIR_EVAL_INT: return a.int_value == b.int_value;
         case LYIR_EVAL_FLOAT: return a.float_value == b.float_value;
-        case LYIR_EVAL_STRING: return string_view_equals(a.string_value, b.string_value);
+        case LYIR_EVAL_STRING: return lca_string_view_equals(a.string_value, b.string_value);
     }
 }
 

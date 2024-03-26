@@ -43,10 +43,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "lyir.h"
-
 // TODO(local): remove this, very soonly
 #include "laye.h"
+
+#define LCA_STR_NO_SHORT_NAMES
+#include "lyir.h"
 
 void layec_type_destroy(lyir_type* type);
 void layec_value_destroy(lyir_value* value);
@@ -203,7 +204,7 @@ void lyir_context_destroy(lyir_context* context) {
     arr_free(context->_interned_strings);
 
     for (int64_t i = 0, count = arr_count(context->allocated_strings); i < count; i++) {
-        string* string = &context->allocated_strings[i];
+        lca_string* string = &context->allocated_strings[i];
         string_destroy(string);
     }
 
@@ -260,7 +261,7 @@ void lyir_context_destroy(lyir_context* context) {
     lca_deallocate(allocator, context);
 }
 
-static int read_file_to_string(lca_allocator allocator, string file_path, string* out_contents) {
+static int read_file_to_string(lca_allocator allocator, lca_string file_path, lca_string* out_contents) {
     assert(out_contents != NULL);
     const char* file_path_cstr = string_as_cstring(file_path);
     assert(file_path_cstr != NULL);
@@ -275,11 +276,11 @@ static int read_file_to_string(lca_allocator allocator, string file_path, string
     fread(data, (size_t)count, 1, stream);
     data[count] = 0;
     fclose(stream);
-    *out_contents = string_from_data(allocator, data, count, count + 1);
+    *out_contents = lca_string_from_data(allocator, data, count, count + 1);
     return 0;
 }
 
-lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, string_view file_path) {
+lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, lca_string_view file_path) {
     assert(context != NULL);
 
     lyir_sourceid sourceid = 0;
@@ -288,8 +289,8 @@ lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, st
             return sourceid;
     }
 
-    string file_path_owned = string_view_to_string(context->allocator, file_path);
-    string text = {0};
+    lca_string file_path_owned = lca_string_view_to_string(context->allocator, file_path);
+    lca_string text = {0};
     
     int error_code = read_file_to_string(context->allocator, file_path_owned, &text);
     if (error_code != 0) {
@@ -303,7 +304,7 @@ lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, st
     return lyir_context_get_or_add_source_from_string(context, file_path_owned, text);
 }
 
-lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, string name, string source_text) {
+lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, lca_string name, lca_string source_text) {
     assert(context != NULL);
 
     lyir_sourceid sourceid = arr_count(context->sources);
@@ -322,13 +323,13 @@ lyir_source lyir_context_get_source(lyir_context* context, lyir_sourceid sourcei
     return context->sources[sourceid];
 }
 
-bool lyir_context_get_location_info(lyir_context* context, lyir_location location, string_view* out_name, int64_t* out_line, int64_t* out_column) {
+bool lyir_context_get_location_info(lyir_context* context, lyir_location location, lca_string_view* out_name, int64_t* out_line, int64_t* out_column) {
     assert(context != NULL);
 
     if (location.offset < 0) return false;
 
     lyir_source source = lyir_context_get_source(context, location.sourceid);
-    if (out_name != NULL) *out_name = string_as_view(source.name);
+    if (out_name != NULL) *out_name = lca_string_as_view(source.name);
 
     if (location.offset >= source.text.count) return false;
     if (location.offset + location.length > source.text.count) return false;
@@ -356,7 +357,7 @@ void lyir_context_print_location_info(lyir_context* context, lyir_location locat
     assert(context != NULL);
 
     lyir_source source = lyir_context_get_source(context, location.sourceid);
-    string_view name = string_as_view(source.name);
+    lca_string_view name = lca_string_as_view(source.name);
 
     const char* col = "";
     const char* status_string = "";
@@ -390,7 +391,7 @@ void lyir_context_print_location_info(lyir_context* context, lyir_location locat
 #define GET_MESSAGE \
     va_list v; \
     va_start(v, format); \
-    string message = string_vformat(format, v); \
+    lca_string message = lca_string_vformat(format, v); \
     va_end(v)
 
 lyir_diag lyir_info(lyir_context* context, lyir_location location, const char* format, ...) {
@@ -480,11 +481,11 @@ void lyir_write_ice(lyir_context* context, lyir_location location, const char* f
 
 #undef GET_MESSAGE
 
-string_view lyir_context_intern_string_view(lyir_context* context, string_view s) {
+lca_string_view lyir_context_intern_string_view(lyir_context* context, lca_string_view s) {
     if (s.count + 1 > context->max_interned_string_size) {
-        string allocated_string = string_view_to_string(context->allocator, s);
+        lca_string allocated_string = lca_string_view_to_string(context->allocator, s);
         arr_push(context->allocated_strings, allocated_string);
-        return string_as_view(allocated_string);
+        return lca_string_as_view(allocated_string);
     }
 
     // TODO(local): these aren't properly interned yet, do that eventually.
@@ -492,7 +493,7 @@ string_view lyir_context_intern_string_view(lyir_context* context, string_view s
     char* arena_string_data = lca_arena_push(context->string_arena, s.count + 1);
     memcpy(arena_string_data, s.data, (size_t)s.count);
     
-    string arena_string = string_from_data(context->allocator, arena_string_data, s.count, s.count + 1);
+    lca_string arena_string = lca_string_from_data(context->allocator, arena_string_data, s.count, s.count + 1);
 
-    return string_as_view(arena_string);
+    return lca_string_as_view(arena_string);
 }

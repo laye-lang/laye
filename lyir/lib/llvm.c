@@ -40,6 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
+#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 // declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)
@@ -51,17 +52,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct llvm_codegen {
     lyir_context* context;
     bool use_color;
-    string* output;
+    lca_string* output;
 } llvm_codegen;
 
 static void llvm_print_module(llvm_codegen* codegen, lyir_module* module);
 
-string lyir_codegen_llvm(lyir_module* module) {
+lca_string lyir_codegen_llvm(lyir_module* module) {
     assert(module != NULL);
     lyir_context* context = lyir_module_context(module);
     assert(context != NULL);
 
-    string output_string = string_create(context->allocator);
+    lca_string output_string = lca_string_create(context->allocator);
 
     llvm_codegen codegen = {
         .context = context,
@@ -105,14 +106,14 @@ static void llvm_print_module(llvm_codegen* codegen, lyir_module* module) {
 }
 
 static void llvm_print_header(llvm_codegen* codegen, lyir_module* module) {
-    lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", STR_EXPAND(lyir_module_name(module)));
-    lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(lyir_module_name(module)));
+    lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", LCA_STR_EXPAND(lyir_module_name(module)));
+    lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", LCA_STR_EXPAND(lyir_module_name(module)));
     lca_string_append_format(codegen->output, "\n");
 
     for (int64_t i = 0; i < lyir_context_get_struct_type_count(codegen->context); i++) {
         lyir_type* struct_type = lyir_context_get_struct_type_at_index(codegen->context, i);
         if (lyir_type_struct_is_named(struct_type)) {
-            lca_string_append_format(codegen->output, "%%%.*s = ", STR_EXPAND(lyir_type_struct_name_get(struct_type)));
+            lca_string_append_format(codegen->output, "%%%.*s = ", LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)));
             llvm_print_type_struct_literally(codegen, struct_type);
             lca_string_append_format(codegen->output, "\n");
         }
@@ -126,12 +127,12 @@ static void llvm_print_header(llvm_codegen* codegen, lyir_module* module) {
 }
 
 static void llvm_print_global(llvm_codegen* codegen, lyir_value* global) {
-    string_view name = lyir_value_name_get(global);
+    lca_string_view name = lyir_value_name_get(global);
     if (name.count == 0) {
         int64_t index = lyir_value_index_get(global);
         lca_string_append_format(codegen->output, "@.global.%lld", index);
     } else {
-        lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
+        lca_string_append_format(codegen->output, "@%.*s", LCA_STR_EXPAND(name));
     }
 
     lyir_linkage linkage = lyir_value_linkage_get(global);
@@ -173,7 +174,7 @@ static void llvm_print_function(llvm_codegen* codegen, lyir_value* function) {
     lca_string_append_format(
         codegen->output,
         " @%.*s(",
-        STR_EXPAND(lyir_value_function_name_get(function))
+        LCA_STR_EXPAND(lyir_value_function_name_get(function))
     );
 
     lyir_type* function_type = lyir_value_type_get(function);
@@ -272,7 +273,7 @@ static void llvm_print_type(llvm_codegen* codegen, lyir_type* type) {
 
         case LYIR_TYPE_STRUCT: {
             if (lyir_type_struct_is_named(type)) {
-                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(lyir_type_struct_name_get(type)));
+                lca_string_append_format(codegen->output, "%%%.*s", LCA_STR_EXPAND(lyir_type_struct_name_get(type)));
             } else {
                 llvm_print_type_struct_literally(codegen, type);
             }
@@ -284,7 +285,7 @@ static void llvm_print_block(llvm_codegen* codegen, lyir_value* block) {
     int64_t instruction_count = lyir_value_block_instruction_count_get(block);
 
     if (lyir_value_block_has_name(block)) {
-        lca_string_append_format(codegen->output, "%.*s:\n", STR_EXPAND(lyir_value_block_name_get(block)));
+        lca_string_append_format(codegen->output, "%.*s:\n", LCA_STR_EXPAND(lyir_value_block_name_get(block)));
     } else {
         lca_string_append_format(codegen->output, "_bb%lld:\n", lyir_value_block_index_get(block));
     }
@@ -850,17 +851,17 @@ static void llvm_print_value(llvm_codegen* codegen, lyir_value* value, bool incl
 
     switch (kind) {
         default: {
-            string_view name = lyir_value_name_get(value);
+            lca_string_view name = lyir_value_name_get(value);
             if (name.count == 0) {
                 int64_t index = lyir_value_index_get(value);
                 lca_string_append_format(codegen->output, "%%%lld", index);
             } else {
-                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(name));
+                lca_string_append_format(codegen->output, "%%%.*s", LCA_STR_EXPAND(name));
             }
         } break;
 
         case LYIR_IR_FUNCTION: {
-            lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(lyir_value_function_name_get(value)));
+            lca_string_append_format(codegen->output, "@%.*s", LCA_STR_EXPAND(lyir_value_function_name_get(value)));
         } break;
 
         case LYIR_IR_INTEGER_CONSTANT: {
@@ -880,18 +881,18 @@ static void llvm_print_value(llvm_codegen* codegen, lyir_value* value, bool incl
         } break;
 
         case LYIR_IR_GLOBAL_VARIABLE: {
-            string_view name = lyir_value_name_get(value);
+            lca_string_view name = lyir_value_name_get(value);
             if (name.count == 0) {
                 int64_t index = lyir_value_index_get(value);
                 lca_string_append_format(codegen->output, "@.global.%lld", index);
             } else {
-                lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
+                lca_string_append_format(codegen->output, "@%.*s", LCA_STR_EXPAND(name));
             }
         } break;
 
         case LYIR_IR_BLOCK: {
             if (lyir_value_block_has_name(value)) {
-                lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(lyir_value_block_name_get(value)));
+                lca_string_append_format(codegen->output, "%%%.*s", LCA_STR_EXPAND(lyir_value_block_name_get(value)));
             } else {
                 lca_string_append_format(codegen->output, "%%_bb%lld", lyir_value_block_index_get(value));
             }

@@ -40,6 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
+#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 #include "../../nob.h"
@@ -47,17 +48,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef struct cback_codegen {
     lyir_context* context;
     bool use_color;
-    string* output;
+    lca_string* output;
 } cback_codegen;
 
 static void cback_print_module(cback_codegen* codegen, lyir_module* module);
 
-string lyir_codegen_c(lyir_module* module) {
+lca_string lyir_codegen_c(lyir_module* module) {
     assert(module != NULL);
     lyir_context* context = lyir_module_context(module);
     assert(context != NULL);
 
-    string output_string = string_create(context->allocator);
+    lca_string output_string = lca_string_create(context->allocator);
 
     cback_codegen codegen = {
         .context = context,
@@ -113,11 +114,11 @@ static void cback_print_module(cback_codegen* codegen, lyir_module* module) {
 }
 
 static void cback_print_header(cback_codegen* codegen, lyir_module* module) {
-    lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", STR_EXPAND(lyir_module_name(module)));
+    lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", LCA_STR_EXPAND(lyir_module_name(module)));
 
     Nob_String_Builder builder = {0};
     nob_read_entire_file("./stage1/src/lyir_cir_preamble.h", &builder);
-    string_append_format(codegen->output, "%.*s\n", (int)builder.count, builder.items);
+    lca_string_append_format(codegen->output, "%.*s\n", (int)builder.count, builder.items);
     nob_sb_free(builder);
 }
 
@@ -125,7 +126,7 @@ static void cback_declare_structs(cback_codegen* codegen, lyir_context* context)
     for (int64_t i = 0; i < lyir_context_get_struct_type_count(codegen->context); i++) {
         lyir_type* struct_type = lyir_context_get_struct_type_at_index(codegen->context, i);
         if (lyir_type_struct_is_named(struct_type)) {
-            lca_string_append_format(codegen->output, "typedef struct %.*s %.*s;\n", STR_EXPAND(lyir_type_struct_name_get(struct_type)), STR_EXPAND(lyir_type_struct_name_get(struct_type)));
+            lca_string_append_format(codegen->output, "typedef struct %.*s %.*s;\n", LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)), LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)));
         }
     }
 
@@ -138,7 +139,7 @@ static void cback_define_structs(cback_codegen* codegen, lyir_context* context) 
     for (int64_t i = 0; i < lyir_context_get_struct_type_count(codegen->context); i++) {
         lyir_type* struct_type = lyir_context_get_struct_type_at_index(codegen->context, i);
         if (lyir_type_struct_is_named(struct_type)) {
-            lca_string_append_format(codegen->output, "struct %.*s {\n", STR_EXPAND(lyir_type_struct_name_get(struct_type)), STR_EXPAND(lyir_type_struct_name_get(struct_type)));
+            lca_string_append_format(codegen->output, "struct %.*s {\n", LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)), LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)));
 
             for (int64_t member_index = 0; member_index < lyir_type_struct_member_count_get(struct_type); member_index++) {
                 lca_string_append_format(codegen->output, "    ");
@@ -159,9 +160,9 @@ static void cback_print_block_name(cback_codegen* codegen, lyir_value* block) {
     assert(block != NULL);
 
     if (lyir_value_block_has_name(block)) {
-        string_view block_name = lyir_value_block_name_get(block);
+        lca_string_view block_name = lyir_value_block_name_get(block);
         // TODO(local): probably need to sanitize this
-        lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(block_name));
+        lca_string_append_format(codegen->output, "%.*s", LCA_STR_EXPAND(block_name));
     } else {
         lca_string_append_format(codegen->output, "lyir_bb_%ld", lyir_value_block_index_get(block));
     }
@@ -172,7 +173,7 @@ static void cback_print_global(cback_codegen* codegen, lyir_value* global) {
 
 static void cback_print_function_prototype(cback_codegen* codegen, lyir_value* function) {
     cback_print_type(codegen, lyir_value_function_return_type_get(function));
-    lca_string_append_format(codegen->output, " %.*s(", STR_EXPAND(lyir_value_function_name_get(function)));
+    lca_string_append_format(codegen->output, " %.*s(", LCA_STR_EXPAND(lyir_value_function_name_get(function)));
 
     for (int64_t i = 0; i < lyir_value_function_parameter_count_get(function); i++) {
         if (i > 0) lca_string_append_format(codegen->output, ", ");
@@ -184,7 +185,7 @@ static void cback_print_function_prototype(cback_codegen* codegen, lyir_value* f
         assert(param_type != NULL);
 
         cback_print_type(codegen, param_type);
-        lca_string_append_format(codegen->output, " %.*s", STR_EXPAND(lyir_value_name_get(param)));
+        lca_string_append_format(codegen->output, " %.*s", LCA_STR_EXPAND(lyir_value_name_get(param)));
     }
 
     if (lyir_value_function_is_variadic(function)) {
@@ -387,26 +388,26 @@ static void cback_print_value(cback_codegen* codegen, lyir_value* value, bool in
 
     switch (lyir_value_kind_get(value)) {
         default: {
-            string_view name = lyir_value_name_get(value);
+            lca_string_view name = lyir_value_name_get(value);
             if (name.count == 0) {
                 int64_t index = lyir_value_index_get(value);
                 lca_string_append_format(codegen->output, "lyir_inst_%lld", index);
             } else {
-                lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
+                lca_string_append_format(codegen->output, "%.*s", LCA_STR_EXPAND(name));
             }
         } break;
 
         case LYIR_IR_FUNCTION: {
-            lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(lyir_value_function_name_get(value)));
+            lca_string_append_format(codegen->output, "%.*s", LCA_STR_EXPAND(lyir_value_function_name_get(value)));
         } break;
 
         case LYIR_IR_GLOBAL_VARIABLE: {
-            string_view name = lyir_value_name_get(value);
+            lca_string_view name = lyir_value_name_get(value);
             if (name.count == 0) {
                 int64_t index = lyir_value_index_get(value);
                 lca_string_append_format(codegen->output, "lyir_glbl_%lld", index);
             } else {
-                lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
+                lca_string_append_format(codegen->output, "%.*s", LCA_STR_EXPAND(name));
             }
         } break;
 
@@ -424,12 +425,12 @@ static void cback_print_value(cback_codegen* codegen, lyir_value* value, bool in
 
         case LYIR_IR_ALLOCA: {
             if (!include_type) lca_string_append_format(codegen->output, "&");
-            string_view name = lyir_value_name_get(value);
+            lca_string_view name = lyir_value_name_get(value);
             if (name.count == 0) {
                 int64_t index = lyir_value_index_get(value);
                 lca_string_append_format(codegen->output, "lyir_inst_%lld", index);
             } else {
-                lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
+                lca_string_append_format(codegen->output, "%.*s", LCA_STR_EXPAND(name));
             }
         } break;
     }
