@@ -51,7 +51,7 @@ lyir_dependency_graph* lyir_dependency_graph_create_in_context(lyir_context* con
     graph->context = context;
     graph->arena = lca_arena_create(context->allocator, 1024 * sizeof(lyir_dependency_entry));
     assert(graph->arena != NULL);
-    arr_push(context->_all_depgraphs, graph);
+    lca_da_push(context->_all_depgraphs, graph);
 
     return graph;
 }
@@ -64,11 +64,11 @@ void lyir_dependency_graph_destroy(lyir_dependency_graph* graph) {
 
     lca_allocator allocator = graph->context->allocator;
 
-    for (int64_t i = 0, count = arr_count(graph->entries); i < count; i++) {
-        arr_free(graph->entries[i]->dependencies);
+    for (int64_t i = 0, count = lca_da_count(graph->entries); i < count; i++) {
+        lca_da_free(graph->entries[i]->dependencies);
     }
 
-    arr_free(graph->entries);
+    lca_da_free(graph->entries);
     lca_arena_destroy(graph->arena);
 
     *graph = (lyir_dependency_graph){0};
@@ -81,7 +81,7 @@ void lyir_depgraph_add_dependency(lyir_dependency_graph* graph, lyir_dependency_
     assert(node != NULL);
 
     lyir_dependency_entry* entry = NULL;
-    for (int64_t i = 0, count = arr_count(graph->entries); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(graph->entries); i < count; i++) {
         if (graph->entries[i]->node == node) {
             entry = graph->entries[i];
             break;
@@ -91,20 +91,20 @@ void lyir_depgraph_add_dependency(lyir_dependency_graph* graph, lyir_dependency_
     if (entry == NULL) {
         entry = lca_arena_push(graph->arena, sizeof *entry);
         entry->node = node;
-        arr_push(graph->entries, entry);
+        lca_da_push(graph->entries, entry);
     }
 
     assert(entry != NULL);
     assert(entry->node == node);
 
     if (dependency != NULL) {
-        for (int64_t i = 0, count = arr_count(entry->dependencies); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(entry->dependencies); i < count; i++) {
             if (entry->dependencies[i] == dependency) {
                 return;
             }
         }
 
-        arr_push(entry->dependencies, dependency);
+        lca_da_push(entry->dependencies, dependency);
     }
 }
 
@@ -115,8 +115,8 @@ void lyir_depgraph_ensure_tracked(lyir_dependency_graph* graph, lyir_dependency_
     lyir_depgraph_add_dependency(graph, node, NULL);
 }
 
-static int64_t dynarr_index_of(dynarr(void*) entities, void* entity) {
-    for (int64_t i = 0, count = arr_count(entities); i < count; i++) {
+static int64_t dynarr_index_of(lca_da(void*) entities, void* entity) {
+    for (int64_t i = 0, count = lca_da_count(entities); i < count; i++) {
         if (entity == entities[i])
             return i;
     }
@@ -127,8 +127,8 @@ static int64_t dynarr_index_of(dynarr(void*) entities, void* entity) {
 static lyir_dependency_order_result resolve_dependencies(
     lyir_dependency_graph* graph,
     // clang-format off
-    dynarr(lyir_dependency_entity*)* resolved,
-    dynarr(lyir_dependency_entity*)* seen,
+    lca_da(lyir_dependency_entity*)* resolved,
+    lca_da(lyir_dependency_entity*)* seen,
     // clang-format on
     lyir_dependency_entity* entity
 ) {
@@ -144,22 +144,22 @@ static lyir_dependency_order_result resolve_dependencies(
         return result;
     }
 
-    arr_push(SEEN, entity);
+    lca_da_push(SEEN, entity);
 
     int64_t entry_index = -1; // dynarr_index_of((void**)graph->entries, entity);
-    for (int64_t i = 0; i < arr_count(graph->entries) && entry_index == -1; i++) {
+    for (int64_t i = 0; i < lca_da_count(graph->entries) && entry_index == -1; i++) {
         if (graph->entries[i]->node == entity) {
             entry_index = i;
         }
     }
 
-    bool requires_resolution = entry_index >= 0 && arr_count(graph->entries[entry_index]->dependencies) >= 0;
+    bool requires_resolution = entry_index >= 0 && lca_da_count(graph->entries[entry_index]->dependencies) >= 0;
 
     if (requires_resolution) {
 #define DEPS (*dependencies)
-        dynarr(lyir_dependency_entity*)* dependencies = &graph->entries[entry_index]->dependencies;
+        lca_da(lyir_dependency_entity*)* dependencies = &graph->entries[entry_index]->dependencies;
 
-        for (int64_t i = 0, count = arr_count(DEPS); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(DEPS); i < count; i++) {
             lyir_dependency_entity* dep = DEPS[i];
             assert(dep != NULL);
 
@@ -189,17 +189,17 @@ static lyir_dependency_order_result resolve_dependencies(
 #undef DEPS
     }
 
-    arr_push(RESOLVED, entity);
+    lca_da_push(RESOLVED, entity);
 
     int64_t seen_index = dynarr_index_of((void**)SEEN, entity);
     assert(seen_index >= 0);
-    assert(seen_index < arr_count(SEEN));
-    if (arr_count(SEEN) == 1) {
-        arr_pop(SEEN);
+    assert(seen_index < lca_da_count(SEEN));
+    if (lca_da_count(SEEN) == 1) {
+        lca_da_pop(SEEN);
     } else {
-        SEEN[seen_index] = SEEN[arr_count(SEEN) - 1];
-        SEEN[arr_count(SEEN) - 1] = NULL;
-        arr_set_count(SEEN, arr_count(SEEN) - 1);
+        SEEN[seen_index] = SEEN[lca_da_count(SEEN) - 1];
+        SEEN[lca_da_count(SEEN) - 1] = NULL;
+        lca_da_count_set(SEEN, lca_da_count(SEEN) - 1);
     }
 
     return result;
@@ -212,9 +212,9 @@ lyir_dependency_order_result lyir_dependency_graph_get_ordered_entities(lyir_dep
     assert(graph != NULL);
 
     lyir_dependency_order_result result = {0};
-    dynarr(lyir_dependency_entity*) seen = NULL;
+    lca_da(lyir_dependency_entity*) seen = NULL;
 
-    for (int64_t i = 0, count = arr_count(graph->entries); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(graph->entries); i < count; i++) {
         lyir_dependency_order_result entry_result = resolve_dependencies(
             graph,
             &result.ordered_entities,
@@ -223,12 +223,12 @@ lyir_dependency_order_result lyir_dependency_graph_get_ordered_entities(lyir_dep
         );
 
         if (entry_result.status != LYIR_DEP_OK) {
-            arr_free(seen);
+            lca_da_free(seen);
             return entry_result;
         }
     }
 
-    arr_free(seen);
+    lca_da_free(seen);
     result.status = LYIR_DEP_OK;
     return result;
 }

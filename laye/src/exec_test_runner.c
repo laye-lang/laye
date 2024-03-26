@@ -64,7 +64,7 @@ typedef struct test_info {
 
 typedef struct test_state {
     int test_count;
-    dynarr(test_info) failed_tests;
+    lca_da(test_info) failed_tests;
 } test_state;
 
 static bool cstring_ends_with(const char* s, const char* ending);
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
     test_state state = {0};
     run_tests_in_directory(&state, "./test/laye", ".laye");
 
-    int64_t num_tests_failed = arr_count(state.failed_tests);
+    int64_t num_tests_failed = lca_da_count(state.failed_tests);
     if (num_tests_failed == 0) {
         fprintf(
             stderr,
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    arr_free(state.failed_tests);
+    lca_da_free(state.failed_tests);
     nob_temp_reset();
 
     return 0;
@@ -133,7 +133,7 @@ static void run_tests_in_directory(test_state* state, const char* test_directory
         bool exec_test_success = run_exec_test(test_full_name);
         state->test_count++;
         if (!exec_test_success) {
-            arr_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
+            lca_da_push(state->failed_tests, ((test_info){ .test_name = test_full_name }));
         }
     }
 

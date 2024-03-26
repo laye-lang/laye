@@ -189,38 +189,38 @@ void lyir_context_destroy(lyir_context* context) {
 
     lca_allocator allocator = context->allocator;
 
-    for (int64_t i = 0, count = arr_count(context->sources); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->sources); i < count; i++) {
         lyir_source* source = &context->sources[i];
-        string_destroy(&source->name);
-        string_destroy(&source->text);
+        lca_string_destroy(&source->name);
+        lca_string_destroy(&source->text);
     }
 
-    arr_free(context->sources);
-    arr_free(context->include_directories);
-    arr_free(context->library_directories);
-    arr_free(context->link_libraries);
+    lca_da_free(context->sources);
+    lca_da_free(context->include_directories);
+    lca_da_free(context->library_directories);
+    lca_da_free(context->link_libraries);
 
     lca_arena_destroy(context->string_arena);
-    arr_free(context->_interned_strings);
+    lca_da_free(context->_interned_strings);
 
-    for (int64_t i = 0, count = arr_count(context->allocated_strings); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->allocated_strings); i < count; i++) {
         lca_string* string = &context->allocated_strings[i];
-        string_destroy(string);
+        lca_string_destroy(string);
     }
 
-    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+    for (int64_t i = 0; i < lca_da_count(context->ir_modules); i++) {
         lyir_module_destroy(context->ir_modules[i]);
         context->ir_modules[i] = NULL;
     }
 
-    for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+    for (int64_t i = 0; i < lca_da_count(context->laye_modules); i++) {
         laye_module_destroy(context->laye_modules[i]);
         context->laye_modules[i] = NULL;
     }
 
-    arr_free(context->allocated_strings);
-    arr_free(context->laye_modules);
-    arr_free(context->ir_modules);
+    lca_da_free(context->allocated_strings);
+    lca_da_free(context->laye_modules);
+    lca_da_free(context->ir_modules);
 
     lca_deallocate(allocator, context->laye_types.poison);
     lca_deallocate(allocator, context->laye_types.unknown);
@@ -235,27 +235,27 @@ void lyir_context_destroy(lyir_context* context) {
     lca_deallocate(allocator, context->laye_types._float);
     lca_deallocate(allocator, context->laye_types.i8_buffer);
 
-    for (int64_t i = 0, count = arr_count(context->_all_depgraphs); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->_all_depgraphs); i < count; i++) {
         lyir_dependency_graph_destroy(context->_all_depgraphs[i]);
     }
 
-    arr_free(context->_all_depgraphs);
+    lca_da_free(context->_all_depgraphs);
 
-    for (int64_t i = 0, count = arr_count(context->_all_types); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->_all_types); i < count; i++) {
         layec_type_destroy(context->_all_types[i]);
     }
     
-    arr_free(context->types.int_types);
-    arr_free(context->_all_types);
-    arr_free(context->_all_struct_types);
+    lca_da_free(context->types.int_types);
+    lca_da_free(context->_all_types);
+    lca_da_free(context->_all_struct_types);
     lca_arena_destroy(context->type_arena);
 
-    for (int64_t i = 0, count = arr_count(context->_all_values); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->_all_values); i < count; i++) {
         layec_value_destroy(context->_all_values[i]);
         lca_deallocate(allocator, context->_all_values[i]);
     }
 
-    arr_free(context->_all_values);
+    lca_da_free(context->_all_values);
 
     *context = (lyir_context){0};
     lca_deallocate(allocator, context);
@@ -263,7 +263,7 @@ void lyir_context_destroy(lyir_context* context) {
 
 static int read_file_to_string(lca_allocator allocator, lca_string file_path, lca_string* out_contents) {
     assert(out_contents != NULL);
-    const char* file_path_cstr = string_as_cstring(file_path);
+    const char* file_path_cstr = lca_string_as_cstring(file_path);
     assert(file_path_cstr != NULL);
     FILE* stream = fopen(file_path_cstr, "r");
     if (stream == NULL) {
@@ -284,8 +284,8 @@ lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, lc
     assert(context != NULL);
 
     lyir_sourceid sourceid = 0;
-    for (; sourceid < arr_count(context->sources); sourceid++) {
-        if (string_view_equals(string_as_view(context->sources[sourceid].name), file_path))
+    for (; sourceid < lca_da_count(context->sources); sourceid++) {
+        if (lca_string_view_equals(lca_string_as_view(context->sources[sourceid].name), file_path))
             return sourceid;
     }
 
@@ -295,9 +295,9 @@ lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, lc
     int error_code = read_file_to_string(context->allocator, file_path_owned, &text);
     if (error_code != 0) {
         //const char* error_string = strerror(error_code);
-        //fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(file_path), error_string);
+        //fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", LCA_STR_EXPAND(file_path), error_string);
 
-        string_destroy(&file_path_owned);
+        lca_string_destroy(&file_path_owned);
         return -1;
     }
 
@@ -307,19 +307,19 @@ lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, lc
 lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, lca_string name, lca_string source_text) {
     assert(context != NULL);
 
-    lyir_sourceid sourceid = arr_count(context->sources);
+    lyir_sourceid sourceid = lca_da_count(context->sources);
     lyir_source source = {
         .name = name,
         .text = source_text,
     };
 
-    arr_push(context->sources, source);
+    lca_da_push(context->sources, source);
     return sourceid;
 }
 
 lyir_source lyir_context_get_source(lyir_context* context, lyir_sourceid sourceid) {
     assert(context != NULL);
-    assert(sourceid >= 0 && sourceid < arr_count(context->sources));
+    assert(sourceid >= 0 && sourceid < lca_da_count(context->sources));
     return context->sources[sourceid];
 }
 
@@ -372,7 +372,7 @@ void lyir_context_print_location_info(lyir_context* context, lyir_location locat
         case LYIR_ICE: col = COL(MAGENTA); status_string = "Internal Compiler Exception:"; break;
     }
 
-    fprintf(stream, "%.*s", STR_EXPAND(name));
+    fprintf(stream, "%.*s", LCA_STR_EXPAND(name));
 
     if (context->use_byte_positions_in_diagnostics) {
         fprintf(stream, "[%ld]", location.offset);
@@ -441,7 +441,7 @@ lyir_diag lyir_ice(lyir_context* context, lyir_location location, const char* fo
 
 void lyir_write_diag(lyir_context* context, lyir_diag diag) {
     lyir_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(diag.message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(diag.message));
     if (diag.status == LYIR_ERROR || diag.status == LYIR_FATAL || diag.status == LYIR_ICE) {
         context->has_reported_errors = true;
     }
@@ -450,32 +450,32 @@ void lyir_write_diag(lyir_context* context, lyir_diag diag) {
 void lyir_write_info(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
     lyir_context_print_location_info(context, location, LYIR_INFO, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_note(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
     lyir_context_print_location_info(context, location, LYIR_NOTE, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_warn(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
     lyir_context_print_location_info(context, location, LYIR_WARN, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_error(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
     lyir_context_print_location_info(context, location, LYIR_ERROR, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 
 void lyir_write_ice(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
     lyir_context_print_location_info(context, location, LYIR_ICE, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", STR_EXPAND(message));
+    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 
@@ -484,7 +484,7 @@ void lyir_write_ice(lyir_context* context, lyir_location location, const char* f
 lca_string_view lyir_context_intern_string_view(lyir_context* context, lca_string_view s) {
     if (s.count + 1 > context->max_interned_string_size) {
         lca_string allocated_string = lca_string_view_to_string(context->allocator, s);
-        arr_push(context->allocated_strings, allocated_string);
+        lca_da_push(context->allocated_strings, allocated_string);
         return lca_string_as_view(allocated_string);
     }
 

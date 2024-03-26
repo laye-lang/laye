@@ -23,13 +23,13 @@ struct c_lexer {
     bool is_in_preprocessor;
     bool is_in_include;
 
-    dynarr(c_macro_expansion) macro_expansions;
+    lca_da(c_macro_expansion) macro_expansions;
 };
 
 struct c_macro_expansion {
     c_macro_def* def;
     long long body_position;
-    dynarr(dynarr(c_token)) args;
+    lca_da(lca_da(c_token)) args;
     long long arg_index; // set to -1 when not expanding an argument
     long long arg_position;
 };
@@ -125,7 +125,7 @@ c_token_buffer c_get_tokens(lyir_context* context, c_translation_unit* tu, lyir_
         c_token token = {0};
         c_lexer_read_token(&lexer, &token);
         if (token.kind == C_TOKEN_EOF) break;
-        arr_push(token_buffer.semantic_tokens, token);
+        lca_da_push(token_buffer.semantic_tokens, token);
     }
 
     return token_buffer;
@@ -358,7 +358,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
         case '"': {
         parse_string_literal:;
             char end_delim = lexer->current_char == '"' ? '"' : '>';
-            string builder = string_create(lexer->context->allocator);
+            lca_string builder = lca_string_create(lexer->context->allocator);
 
             c_lexer_advance(lexer, false);
             out_token->kind = C_TOKEN_LIT_STRING;
@@ -369,9 +369,9 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
                     c_lexer_advance(lexer, false);
                     goto finish_token;
                 } else if (lexer->current_char == '\\' && !lexer->is_in_include)
-                    string_append_rune(&builder, c_lexer_read_escape_sequence(lexer, false));
+                    lca_string_append_rune(&builder, c_lexer_read_escape_sequence(lexer, false));
                 else {
-                    string_append_rune(&builder, lexer->current_char);
+                    lca_string_append_rune(&builder, lexer->current_char);
                     c_lexer_advance(lexer, false);
                 }
             }
@@ -381,8 +381,8 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
                 c_lexer_advance(lexer, true);
             } else c_lexer_advance(lexer, false);
 
-            out_token->string_value = lyir_context_intern_string_view(lexer->context, string_as_view(builder));
-            string_destroy(&builder);
+            out_token->string_value = lyir_context_intern_string_view(lexer->context, lca_string_as_view(builder));
+            lca_string_destroy(&builder);
         } break;
 
         case '0':
@@ -413,13 +413,13 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
             // TODO(local): integer suffixes
             // u l ll ull llu lu f ld
 
-            string_view suffix_view = {0};
+            lca_string_view suffix_view = {0};
             if (is_alpha_numeric(lexer->current_char)) {
                 lyir_location suffix_location = c_lexer_get_location(lexer);
                 do c_lexer_advance(lexer, true);
                 while (is_alpha_numeric(lexer->current_char));
                 lyir_location suffix_end_location = c_lexer_get_location(lexer);
-                out_token->string_value = string_view_slice(string_as_view(lexer->source_buffer.text), suffix_location.offset, suffix_end_location.offset - suffix_location.offset);
+                out_token->string_value = lca_string_view_slice(lca_string_as_view(lexer->source_buffer.text), suffix_location.offset, suffix_end_location.offset - suffix_location.offset);
             }
 
             if (suffix_view.count != 0) {
@@ -491,7 +491,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
                 c_lexer_advance(lexer, true);
 
             lyir_location ident_end_location = c_lexer_get_location(lexer);
-            out_token->string_value = string_view_slice(string_as_view(lexer->source_buffer.text), start_location.offset, ident_end_location.offset - start_location.offset);
+            out_token->string_value = lca_string_view_slice(lca_string_as_view(lexer->source_buffer.text), start_location.offset, ident_end_location.offset - start_location.offset);
         } break;
 
         default: {
@@ -505,10 +505,10 @@ finish_token:;
     out_token->location.length = end_location.offset - start_location.offset;
 }
 
-static c_macro_def* c_lexer_lookup_macro_def(c_lexer* lexer, string_view macro_name) {
-    for (long long i = 0; i < arr_count(lexer->tu->macro_defs); i++) {
+static c_macro_def* c_lexer_lookup_macro_def(c_lexer* lexer, lca_string_view macro_name) {
+    for (long long i = 0; i < lca_da_count(lexer->tu->macro_defs); i++) {
         c_macro_def* def = lexer->tu->macro_defs[i];
-        if (string_view_equals(macro_name, def->name))
+        if (lca_string_view_equals(macro_name, def->name))
             return def;
     }
 
@@ -519,8 +519,8 @@ static void c_lexer_handle_preprocessor_directive(c_lexer* lexer);
 
 static void c_lexer_read_token(c_lexer* lexer, c_token* out_token) {
     assert(lexer);
-    if (arr_count(lexer->macro_expansions) > 0) {
-        c_macro_expansion* macro_expansion = arr_back(lexer->macro_expansions);
+    if (lca_da_count(lexer->macro_expansions) > 0) {
+        c_macro_expansion* macro_expansion = lca_da_back(lexer->macro_expansions);
         assert(macro_expansion);
 
         if (macro_expansion->arg_index >= 0) {
@@ -528,25 +528,25 @@ static void c_lexer_read_token(c_lexer* lexer, c_token* out_token) {
             *out_token = macro_expansion->args[macro_expansion->arg_index][arg_position];
             macro_expansion->arg_position++;
 
-            if (macro_expansion->arg_position >= arr_count(macro_expansion->args[macro_expansion->arg_index])) {
+            if (macro_expansion->arg_position >= lca_da_count(macro_expansion->args[macro_expansion->arg_index])) {
                 macro_expansion->arg_index = -1;
                 macro_expansion->arg_position = 0;
 
-                if (macro_expansion->body_position >= arr_count(macro_expansion->def->body))
-                    arr_pop(lexer->macro_expansions);
+                if (macro_expansion->body_position >= lca_da_count(macro_expansion->def->body))
+                    lca_da_pop(lexer->macro_expansions);
             }
         } else {
             assert(macro_expansion->def);
-            dynarr(c_token) body = macro_expansion->def->body;
-            if (macro_expansion->body_position >= arr_count(body)) {
-                arr_pop(lexer->macro_expansions);
+            lca_da(c_token) body = macro_expansion->def->body;
+            if (macro_expansion->body_position >= lca_da_count(body)) {
+                lca_da_pop(lexer->macro_expansions);
                 goto regular_lex_token;
             }
 
             long long body_position = macro_expansion->body_position;
             assert(body_position >= 0);
             assert(macro_expansion->def->body);
-            assert(body_position < arr_count(macro_expansion->def->body));
+            assert(body_position < lca_da_count(macro_expansion->def->body));
             *out_token = macro_expansion->def->body[body_position];
             macro_expansion->body_position++;
 
@@ -559,8 +559,8 @@ static void c_lexer_read_token(c_lexer* lexer, c_token* out_token) {
                 return;
             }
 
-            if (macro_expansion->body_position >= arr_count(macro_expansion->def->body))
-                arr_pop(lexer->macro_expansions);
+            if (macro_expansion->body_position >= lca_da_count(macro_expansion->def->body))
+                lca_da_pop(lexer->macro_expansions);
         }
 
         return;
@@ -589,8 +589,8 @@ regular_lex_token:;
                     goto not_a_macro;
                 }
 
-                dynarr(dynarr(c_token)) args = NULL;
-                dynarr(c_token) current_arg = NULL;
+                lca_da(lca_da(c_token)) args = NULL;
+                lca_da(c_token) current_arg = NULL;
                 for (;;) {
                     if (c_lexer_at_eof(lexer)) {
                         lyir_write_error(lexer->context, c_lexer_get_location(lexer), "Expected ')' in macro argument list.");
@@ -601,16 +601,16 @@ regular_lex_token:;
 
                     c_lexer_read_token_no_preprocess(lexer, &arg_token);
                     if (arg_token.kind == ')') {
-                        arr_push(args, current_arg);
+                        lca_da_push(args, current_arg);
                         current_arg = NULL;
                         break;
                     } else if (arg_token.kind == ',') {
-                        arr_push(args, current_arg);
+                        lca_da_push(args, current_arg);
                         current_arg = NULL;
                         continue;
                     }
 
-                    arr_push(current_arg, arg_token);
+                    lca_da_push(current_arg, arg_token);
                 }
 
                 c_macro_expansion macro_expansion = {
@@ -619,14 +619,14 @@ regular_lex_token:;
                     .arg_index = -1,
                 };
 
-                arr_push(lexer->macro_expansions, macro_expansion);
+                lca_da_push(lexer->macro_expansions, macro_expansion);
             } else {
                 c_macro_expansion macro_expansion = {
                     .def = macro_def,
                     .arg_index = -1,
                 };
 
-                arr_push(lexer->macro_expansions, macro_expansion);
+                lca_da_push(lexer->macro_expansions, macro_expansion);
             }
 
             *out_token = (c_token){0};
@@ -636,7 +636,7 @@ regular_lex_token:;
 
     not_a_macro:;
         for (int i = 0; c89_keywords[i].name != NULL; i++) {
-            if (string_view_equals_cstring(out_token->string_value, c89_keywords[i].name)) {
+            if (lca_string_view_equals_cstring(out_token->string_value, c89_keywords[i].name)) {
                 out_token->kind = c89_keywords[i].kind;
                 break;
             }
@@ -661,7 +661,7 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
     assert(lexer);
     assert(lexer->is_in_preprocessor);
     assert(token.kind == C_TOKEN_IDENT);
-    assert(string_view_equals_cstring(token.string_value, "define"));
+    assert(lca_string_view_equals_cstring(token.string_value, "define"));
 
     lyir_location start_location = token.location;
     c_lexer_read_token_no_preprocess(lexer, &token);
@@ -678,11 +678,11 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
     }
 
     assert(token.kind == C_TOKEN_IDENT);
-    string_view macro_name = token.string_value;
+    lca_string_view macro_name = token.string_value;
 
     bool macro_has_params = false;
-    dynarr(string_view) macro_params = NULL;
-    dynarr(c_token) macro_body = NULL;
+    lca_da(lca_string_view) macro_params = NULL;
+    lca_da(c_token) macro_body = NULL;
 
     if (LEXER_PAST_EOF(lexer))
         goto store_macro_in_translation_unit;
@@ -715,7 +715,7 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
             }
 
             assert(token.kind == C_TOKEN_IDENT);
-            arr_push(macro_params, token.string_value);
+            lca_da_push(macro_params, token.string_value);
 
             c_lexer_read_token_no_preprocess(lexer, &token);
             if (token.kind == ')')
@@ -748,8 +748,8 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
             break;
 
         if (token.kind == C_TOKEN_IDENT && macro_has_params) {
-            for (long long i = 0; i < arr_count(macro_params); i++) {
-                if (string_view_equals(token.string_value, macro_params[i])) {
+            for (long long i = 0; i < lca_da_count(macro_params); i++) {
+                if (lca_string_view_equals(token.string_value, macro_params[i])) {
                     token.is_macro_param = true;
                     token.macro_param_index = i;
                     break;
@@ -757,7 +757,7 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
             }
         }
 
-        arr_push(macro_body, token);
+        lca_da_push(macro_body, token);
     }
 
 store_macro_in_translation_unit:;
@@ -767,7 +767,7 @@ store_macro_in_translation_unit:;
     def->params = macro_params;
     def->body = macro_body;
 
-    arr_push(lexer->tu->macro_defs, def);
+    lca_da_push(lexer->tu->macro_defs, def);
 
     lexer->is_in_preprocessor = false;
     lexer->is_in_include = false;
@@ -777,7 +777,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     assert(lexer);
     assert(lexer->is_in_preprocessor);
     assert(token.kind == C_TOKEN_IDENT);
-    assert(string_view_equals_cstring(token.string_value, "include"));
+    assert(lca_string_view_equals_cstring(token.string_value, "include"));
 
     lyir_location include_location = token.location;
 
@@ -785,7 +785,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     c_lexer_read_token_no_preprocess(lexer, &token);
 
     bool is_angle_string = false;
-    string_view include_path = {0};
+    lca_string_view include_path = {0};
 
     if (token.kind == '\n') {
         lyir_write_error(lexer->context, token.location, "Expected a file name.");
@@ -813,18 +813,18 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     if (include_sourceid <= 0) {
         // TODO(local): only do this for quote strings, not angle strings
         if (!is_angle_string) {
-            string include_path2 = string_create(lexer->context->allocator);
-            string_append_format(&include_path2, "%.*s", STR_EXPAND(lexer->source_buffer.name));
+            lca_string include_path2 = lca_string_create(lexer->context->allocator);
+            lca_string_append_format(&include_path2, "%.*s", LCA_STR_EXPAND(lexer->source_buffer.name));
             for (int64_t i = include_path2.count - 1; i >= 0 && include_path2.data[i] != '/' && include_path2.data[i] != '\\'; i--) {
                 include_path2.count = i;
             }
-            string_path_append_view(&include_path2, include_path);
+            lca_string_path_append_view(&include_path2, include_path);
 
-            // string_view parent_dir = string_as_view(lexer->source_buffer.name);
+            // string_view parent_dir = lca_string_as_view(lexer->source_buffer.name);
             // string_view include_path2 = string_view_path_concat(parent_dir, include_path);
 
-            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
-            string_destroy(&include_path2);
+            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, lca_string_as_view(include_path2));
+            lca_string_destroy(&include_path2);
 
             if (include_sourceid > 0) {
                 goto good_include_gogogo;
@@ -833,16 +833,16 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
             // free((void*)include_path2.data);
         }
 
-        for (long long i = 0; i < arr_count(lexer->context->include_directories); i++) {
-            string_view include_dir = lexer->context->include_directories[i];
+        for (long long i = 0; i < lca_da_count(lexer->context->include_directories); i++) {
+            lca_string_view include_dir = lexer->context->include_directories[i];
 
-            string include_path2 = string_create(lexer->context->allocator);
-            string_append_format(&include_path2, "%.*s", STR_EXPAND(include_dir));
-            string_path_append_view(&include_path2, include_path);
+            lca_string include_path2 = lca_string_create(lexer->context->allocator);
+            lca_string_append_format(&include_path2, "%.*s", LCA_STR_EXPAND(include_dir));
+            lca_string_path_append_view(&include_path2, include_path);
             // string_view include_path2 = string_view_path_concat(include_dir, include_path);
 
-            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
-            string_destroy(&include_path2);
+            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, lca_string_as_view(include_path2));
+            lca_string_destroy(&include_path2);
 
             if (include_sourceid > 0) {
                 goto good_include_gogogo;
@@ -858,22 +858,22 @@ good_include_gogogo:;
     c_token_buffer include_token_buffer = c_get_tokens(lexer->context, lexer->tu, include_sourceid);
 
     c_macro_def* include_macro_def = calloc(1, sizeof *include_macro_def);
-    include_macro_def->name = SV_CONSTANT("< include >");
+    include_macro_def->name = LCA_SV_CONSTANT("< include >");
     include_macro_def->body = include_token_buffer.semantic_tokens;
 
-    arr_push(lexer->tu->macro_defs, include_macro_def);
-    c_macro_def* include_macro_def_ptr = *arr_back(lexer->tu->macro_defs);
+    lca_da_push(lexer->tu->macro_defs, include_macro_def);
+    c_macro_def* include_macro_def_ptr = *lca_da_back(lexer->tu->macro_defs);
 
     c_macro_expansion macro_expansion = {
         .def = include_macro_def_ptr,
         .arg_index = -1,
     };
 
-    arr_push(lexer->macro_expansions, macro_expansion);
+    lca_da_push(lexer->macro_expansions, macro_expansion);
     return;
 
 handle_include_error:;
-    lyir_write_error(lexer->context, include_location, "Could not read included file '%.*s'.", STR_EXPAND(include_path));
+    lyir_write_error(lexer->context, include_location, "Could not read included file '%.*s'.", LCA_STR_EXPAND(include_path));
     c_lexer_advance(lexer, true);
 }
 
@@ -900,9 +900,9 @@ static void c_lexer_handle_preprocessor_directive(c_lexer* lexer) {
         }
 
         case C_TOKEN_IDENT: {
-            if (string_view_equals_cstring(token.string_value, "define"))
+            if (lca_string_view_equals_cstring(token.string_value, "define"))
                 c_lexer_handle_define_directive(lexer, token);
-            else if (string_view_equals_cstring(token.string_value, "include"))
+            else if (lca_string_view_equals_cstring(token.string_value, "include"))
                 c_lexer_handle_include_directive(lexer, token);
             else goto invalid_preprocessing_directive;
         } break;

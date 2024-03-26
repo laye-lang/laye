@@ -96,52 +96,13 @@ lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_
 
 lca_string_view lca_string_view_path_file_name(lca_string_view s);
 
-#ifndef LCA_STR_NO_SHORT_NAMES
-#    define SV_EMPTY       LCA_SV_EMPTY
-#    define SV_CONSTANT(C) LCA_SV_CONSTANT(C)
-#    define STR_EXPAND(S)  LCA_STR_EXPAND(S)
-
-typedef struct lca_string string;
-typedef struct lca_string_view string_view;
-
-#    define string_create(A)                lca_string_create(A)
-#    define string_from_data(A, D, L, C)    lca_string_from_data(A, D, L, C)
-#    define string_destroy(S)               lca_string_destroy(S)
-#    define string_as_cstring(S)            lca_string_as_cstring(S)
-#    define string_equals(A, B)             lca_string_equals(A, B)
-#    define string_slice(S, O, L)           lca_string_slice(S, O, L)
-#    define string_format(F, ...)           lca_string_format(F, __VA_ARGS__)
-#    define string_vformat(F, V)            lca_string_vformat(F, V)
-#    define string_append_format(S, F, ...) lca_string_append_format(S, F, __VA_ARGS__)
-#    define string_append_vformat(S, F, V)  lca_string_append_vformat(S, F, V)
-#    define string_append_rune(S, R)        lca_string_append_rune(S, R)
-
-#    define string_path_parent(S)         lca_string_path_parent(S)
-#    define string_path_append_view(P, S) lca_string_path_append_view(P, S)
-
-#    define string_view_from_cstring(S)           lca_string_view_from_cstring(S)
-#    define string_as_view(S)                     lca_string_as_view(S)
-#    define string_view_slice(S, O, L)            lca_string_view_slice(S, O, L)
-#    define string_view_equals(A, B)              lca_string_view_equals(A, B)
-#    define string_view_equals_cstring(A, B)      lca_string_view_equals_cstring(A, B)
-#    define string_view_starts_with(A, B)         lca_string_view_starts_with(A, B)
-#    define string_view_to_string(A, S)           lca_string_view_to_string(A, S)
-#    define string_view_to_cstring(A, S)          lca_string_view_to_cstring(A, S)
-#    define string_view_index_of(S, C)            lca_string_view_index_of(S, C)
-#    define string_view_last_index_of(S, C)       lca_string_view_last_index_of(S, C)
-#    define string_view_ends_with_cstring(S, CS)  lca_string_view_ends_with_cstring(S, CS)
-#    define string_view_change_extension(A, S, E) lca_string_view_change_extension(A, S, E)
-
-#    define string_view_path_file_name(S) lca_string_view_path_file_name(S)
-#endif // !LCA_STR_NO_SHORT_NAMES
-
 #ifdef LCA_STR_IMPLEMENTATION
 
-string lca_string_create(lca_allocator allocator) {
+lca_string lca_string_create(lca_allocator allocator) {
     int64_t capacity = 32;
     char* data = lca_allocate(allocator, (size_t)capacity * sizeof *data);
     assert(data);
-    return (string){
+    return (lca_string){
         .allocator = allocator,
         .data = data,
         .capacity = capacity,
@@ -149,7 +110,7 @@ string lca_string_create(lca_allocator allocator) {
     };
 }
 
-string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, int64_t capacity) {
+lca_string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, int64_t capacity) {
     assert(data);
     assert(capacity > 0);
     assert(count < capacity);
@@ -165,7 +126,7 @@ string lca_string_from_data(lca_allocator allocator, char* data, int64_t count, 
 void lca_string_destroy(lca_string* s) {
     if (s == NULL || s->data == NULL) return;
     lca_deallocate(s->allocator, s->data);
-    *s = (string){0};
+    *s = (lca_string){0};
 }
 
 char* lca_string_as_cstring(lca_string s) {
@@ -280,9 +241,9 @@ void lca_string_path_append_view(lca_string* path, lca_string_view s) {
     }
 
     if (path_ends_with_slash) {
-        lca_string_append_format(path, "%.*s", STR_EXPAND(s));
+        lca_string_append_format(path, "%.*s", LCA_STR_EXPAND(s));
     } else {
-        lca_string_append_format(path, "/%.*s", STR_EXPAND(s));
+        lca_string_append_format(path, "/%.*s", LCA_STR_EXPAND(s));
     }
 }
 
@@ -402,10 +363,10 @@ lca_string lca_string_view_change_extension(lca_allocator allocator, lca_string_
     }
 
     int64_t new_ext_length = strlen(new_ext);
-    string result = string_create(allocator);
+    lca_string result = lca_string_create(allocator);
     lca_string_ensure_capacity(&result, last_dot_index + new_ext_length + 1);
 
-    string_append_format(&result, "%.*s%s", (int)last_dot_index, s.data, new_ext);
+    lca_string_append_format(&result, "%.*s%s", (int)last_dot_index, s.data, new_ext);
 
     return result;
 }

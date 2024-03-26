@@ -147,19 +147,19 @@ typedef struct c_token {
     union {
         int64_t int_value;
         double float_value;
-        string_view string_value;
+        lca_string_view string_value;
     };
 } c_token;
 
 typedef struct c_token_buffer {
-    dynarr(c_token) semantic_tokens;
+    lca_da(c_token) semantic_tokens;
 } c_token_buffer;
 
 typedef struct c_macro_def {
-    string_view name;
+    lca_string_view name;
     bool has_params;
-    dynarr(string_view) params;
-    dynarr(c_token) body;
+    lca_da(lca_string_view) params;
+    lca_da(c_token) body;
 } c_macro_def;
 
 typedef struct c_translation_unit {
@@ -168,13 +168,13 @@ typedef struct c_translation_unit {
 
     lca_arena* arena;
 
-    dynarr(c_macro_def*) macro_defs;
+    lca_da(c_macro_def*) macro_defs;
 
-    //dynarr(c_token) _all_tokens;
+    //lca_da(c_token) _all_tokens;
     c_token_buffer token_buffer;
 } c_translation_unit;
 
-string c_translation_unit_debug_print(c_translation_unit* tu);
+lca_string c_translation_unit_debug_print(c_translation_unit* tu);
 c_translation_unit* c_parse(lyir_context* context, lyir_sourceid sourceid);
 void c_translation_unit_destroy(c_translation_unit* tu);
 

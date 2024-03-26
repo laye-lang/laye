@@ -118,13 +118,13 @@ typedef enum backend {
 } backend;
 
 typedef struct source_file_info {
-    string_view path;
+    lca_string_view path;
     source_file_kind kind;
 } source_file_info;
 
 typedef struct compiler_state {
-    string_view command;
-    string_view program_name;
+    lca_string_view command;
+    lca_string_view program_name;
 
     bool help;
     bool verbose;
@@ -148,28 +148,28 @@ typedef struct compiler_state {
     bool emit_llvm;
     bool emit_c;
 
-    string_view output_file;
+    lca_string_view output_file;
     bool is_output_file_stdout;
 
     source_file_kind override_file_kind;
-    dynarr(source_file_info) input_files;
+    lca_da(source_file_info) input_files;
 
-    dynarr(c_translation_unit*) translation_units;
+    lca_da(c_translation_unit*) translation_units;
 
-    dynarr(string) total_intermediate_files;
-    dynarr(string) c_modules;
-    dynarr(string) llvm_modules;
+    lca_da(lca_string) total_intermediate_files;
+    lca_da(lca_string) c_modules;
+    lca_da(lca_string) llvm_modules;
 
-    dynarr(string_view) include_directories;
-    dynarr(string_view) library_directories;
-    dynarr(string_view) link_libraries;
+    lca_da(lca_string_view) include_directories;
+    lca_da(lca_string_view) library_directories;
+    lca_da(lca_string_view) link_libraries;
 
     lyir_context* context;
 } compiler_state;
 
 static bool parse_args(compiler_state* driver, int* argc, char*** argv);
 
-static string_view file_name_only(string_view full_path) {
+static lca_string_view file_name_only(lca_string_view full_path) {
     int i = full_path.count;
     for (; i >= 0; i--) {
         if (full_path.data[i - 1] == '/' || full_path.data[i - 1] == '\\')
@@ -182,11 +182,11 @@ static string_view file_name_only(string_view full_path) {
     return full_path;
 }
 
-static string_view create_intermediate_file_name(compiler_state* state, string_view name, const char* extension) {
+static lca_string_view create_intermediate_file_name(compiler_state* state, lca_string_view name, const char* extension) {
     name = file_name_only(name);
-    string intermediate_file_name = string_view_change_extension(default_allocator, name, extension);
-    arr_push(state->total_intermediate_files, intermediate_file_name);
-    return string_as_view(intermediate_file_name);
+    lca_string intermediate_file_name = lca_string_view_change_extension(default_allocator, name, extension);
+    lca_da_push(state->total_intermediate_files, intermediate_file_name);
+    return lca_string_as_view(intermediate_file_name);
 }
 
 static int preprocess_only(compiler_state* state) {
@@ -194,11 +194,11 @@ static int preprocess_only(compiler_state* state) {
     return 1;
 }
 
-static laye_module* parse_module(compiler_state* state, lyir_context* context, string_view input_file_path) {
+static laye_module* parse_module(compiler_state* state, lyir_context* context, lca_string_view input_file_path) {
     lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
         const char* error_string = strerror(errno);
-        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
+        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", LCA_STR_EXPAND(input_file_path), error_string);
         return NULL;
     }
 
@@ -208,33 +208,33 @@ static laye_module* parse_module(compiler_state* state, lyir_context* context, s
     return module;
 }
 
-static c_translation_unit* parse_translation_unit(compiler_state* state, lyir_context* context, string_view input_file_path) {
+static c_translation_unit* parse_translation_unit(compiler_state* state, lyir_context* context, lca_string_view input_file_path) {
     lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
         const char* error_string = strerror(errno);
-        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
+        fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", LCA_STR_EXPAND(input_file_path), error_string);
         return NULL;
     }
 
     c_translation_unit* tu = c_parse(context, sourceid);
     assert(tu != NULL);
-    arr_push(state->translation_units, tu);
+    lca_da_push(state->translation_units, tu);
 
     return tu;
 }
 
 static int emit_lyir(compiler_state* state) {
-    for (int64_t i = 0, count = arr_count(state->context->ir_modules); i < count; i++) {
-        bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
+    for (int64_t i = 0, count = lca_da_count(state->context->ir_modules); i < count; i++) {
+        bool is_only_file = state->assemble_only && lca_da_count(state->input_files) == 1;
         bool is_output_file_stdout = state->is_output_file_stdout;
         bool use_color = is_output_file_stdout ? state->use_color : false;
 
         lyir_module* ir_module = state->context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string ir_module_string = lyir_module_print(ir_module, use_color);
-        string_view intermediate_file_name = {0};
-        assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
+        lca_string ir_module_string = lyir_module_print(ir_module, use_color);
+        lca_string_view intermediate_file_name = {0};
+        assert(lca_string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
 
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
@@ -244,16 +244,16 @@ static int emit_lyir(compiler_state* state) {
 
         if (is_output_file_stdout) {
             assert(is_only_file);
-            fprintf(stdout, "%.*s", STR_EXPAND(ir_module_string));
+            fprintf(stdout, "%.*s", LCA_STR_EXPAND(ir_module_string));
         } else {
-            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), ir_module_string.data, (size_t)ir_module_string.count)) {
-                string_destroy(&ir_module_string);
+            if (!nob_write_entire_file(lca_string_view_to_cstring(temp_allocator, intermediate_file_name), ir_module_string.data, (size_t)ir_module_string.count)) {
+                lca_string_destroy(&ir_module_string);
                 return 1;
             }
         }
 
-        // fprintf(stdout, "%.*s\n", STR_EXPAND(ir_module_string));
-        string_destroy(&ir_module_string);
+        // fprintf(stdout, "%.*s\n", LCA_STR_EXPAND(ir_module_string));
+        lca_string_destroy(&ir_module_string);
 
         if (is_only_file) {
             break;
@@ -264,27 +264,27 @@ static int emit_lyir(compiler_state* state) {
 }
 
 static int emit_c(compiler_state* state) {
-    for (int64_t i = 0, count = arr_count(state->c_modules); i < count; i++) {
-        bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
+    for (int64_t i = 0, count = lca_da_count(state->c_modules); i < count; i++) {
+        bool is_only_file = state->assemble_only && lca_da_count(state->input_files) == 1;
         bool is_output_file_stdout = state->is_output_file_stdout;
 
-        string c_module = state->c_modules[i];
+        lca_string c_module = state->c_modules[i];
 
-        string_view intermediate_file_name = {0};
+        lca_string_view intermediate_file_name = {0};
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
         } else {
             lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
+            assert(lca_string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
             intermediate_file_name = create_intermediate_file_name(state, lyir_module_name(ir_module), ".ir.c");
         }
 
         if (is_output_file_stdout) {
             assert(is_only_file);
-            fprintf(stdout, "%.*s", STR_EXPAND(c_module));
+            fprintf(stdout, "%.*s", LCA_STR_EXPAND(c_module));
         } else {
-            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), c_module.data, (size_t)c_module.count)) {
+            if (!nob_write_entire_file(lca_string_view_to_cstring(temp_allocator, intermediate_file_name), c_module.data, (size_t)c_module.count)) {
                 return 1;
             }
         }
@@ -298,27 +298,27 @@ static int emit_c(compiler_state* state) {
 }
 
 static int emit_llvm(compiler_state* state) {
-    for (int64_t i = 0, count = arr_count(state->llvm_modules); i < count; i++) {
-        bool is_only_file = state->assemble_only && arr_count(state->input_files) == 1;
+    for (int64_t i = 0, count = lca_da_count(state->llvm_modules); i < count; i++) {
+        bool is_only_file = state->assemble_only && lca_da_count(state->input_files) == 1;
         bool is_output_file_stdout = state->is_output_file_stdout;
 
-        string llvm_module = state->llvm_modules[i];
+        lca_string llvm_module = state->llvm_modules[i];
 
-        string_view intermediate_file_name = {0};
+        lca_string_view intermediate_file_name = {0};
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
         } else {
             lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
+            assert(lca_string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
             intermediate_file_name = create_intermediate_file_name(state, lyir_module_name(ir_module), ".ll");
         }
 
         if (is_output_file_stdout) {
             assert(is_only_file);
-            fprintf(stdout, "%.*s", STR_EXPAND(llvm_module));
+            fprintf(stdout, "%.*s", LCA_STR_EXPAND(llvm_module));
         } else {
-            if (!nob_write_entire_file(string_view_to_cstring(temp_allocator, intermediate_file_name), llvm_module.data, (size_t)llvm_module.count)) {
+            if (!nob_write_entire_file(lca_string_view_to_cstring(temp_allocator, intermediate_file_name), llvm_module.data, (size_t)llvm_module.count)) {
                 return 1;
             }
         }
@@ -331,10 +331,10 @@ static int emit_llvm(compiler_state* state) {
     return 0;
 }
 
-static void add_stdlib_includes(lyir_context* context, string_view stdlib_root) {
-    string_view liblaye_dir = string_view_from_cstring(lca_temp_sprintf("%.*s/%s", STR_EXPAND(stdlib_root), "liblaye"));
+static void add_stdlib_includes(lyir_context* context, lca_string_view stdlib_root) {
+    lca_string_view liblaye_dir = lca_string_view_from_cstring(lca_temp_sprintf("%.*s/%s", LCA_STR_EXPAND(stdlib_root), "liblaye"));
     if (nob_file_exists(liblaye_dir.data) && nob_get_file_type(liblaye_dir.data) == NOB_FILE_DIRECTORY) {
-        arr_push(context->include_directories, liblaye_dir);
+        lca_da_push(context->include_directories, liblaye_dir);
     } else {
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, while the Laye compiler found the standard `lib/laye` directory, it did not find the `liblaye` standard library directory within it. Because of this, the compiler will be unable to add it as a default include location and you will need to manually include it: `-I path/to/lib/laye`.\n");
     }
@@ -357,11 +357,11 @@ int main(int argc, char** argv) {
         .backend = BACKEND_LLVM,
     };
     if (!parse_args(&state, &argc, &argv) || state.help) {
-        string_view command = state.command;
+        lca_string_view command = state.command;
         if (command.count == 0) {
-            command = SV_CONSTANT("<command>");
+            command = LCA_SV_CONSTANT("<command>");
         }
-        fprintf(stderr, LAYE_HELP_TEXT_USAGE, STR_EXPAND(state.program_name), STR_EXPAND(command));
+        fprintf(stderr, LAYE_HELP_TEXT_USAGE, LCA_STR_EXPAND(state.program_name), LCA_STR_EXPAND(command));
         fprintf(stderr, "%s\n", LAYE_HELP_TEXT);
         return 1;
     }
@@ -370,7 +370,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Laye Compiler " LAYEC_VERSION "\n");
     }
 
-    if (state.is_output_file_stdout && arr_count(state.input_files) != 1) {
+    if (state.is_output_file_stdout && lca_da_count(state.input_files) != 1) {
         fprintf(stderr, "When requesting output to stdout, exactly one input file must be provided.\n");
         return 1;
     }
@@ -419,19 +419,19 @@ int main(int argc, char** argv) {
 
     const char* self_exe = lca_plat_self_exe();
     if (self_exe != NULL) {
-        string libdir_builder = string_create(default_allocator);
-        string_append_format(&libdir_builder, "%s", self_exe);
-        string_path_parent(&libdir_builder);
+        lca_string libdir_builder = lca_string_create(default_allocator);
+        lca_string_append_format(&libdir_builder, "%s", self_exe);
+        lca_string_path_parent(&libdir_builder);
 
         while (libdir_builder.count > 0) {
             int64_t last_count = libdir_builder.count;
 
-            string_path_append_view(&libdir_builder, SV_CONSTANT("lib/laye"));
+            lca_string_path_append_view(&libdir_builder, LCA_SV_CONSTANT("lib/laye"));
             // fprintf(stderr, "looking for '%.*s'\n", STR_EXPAND(libdir_builder));
 
             if (nob_file_exists(libdir_builder.data) && nob_get_file_type(libdir_builder.data) == NOB_FILE_DIRECTORY) {
-                string_view libdir_root = lyir_context_intern_string_view(context, string_as_view(libdir_builder));
-                string_destroy(&libdir_builder);
+                lca_string_view libdir_root = lyir_context_intern_string_view(context, lca_string_as_view(libdir_builder));
+                lca_string_destroy(&libdir_builder);
                 add_stdlib_includes(context, libdir_root);
                 goto found_stdlib;
             }
@@ -439,10 +439,10 @@ int main(int argc, char** argv) {
             memset(libdir_builder.data + last_count, 0, (size_t)(libdir_builder.count - last_count));
             libdir_builder.count = last_count;
 
-            string_path_parent(&libdir_builder);
+            lca_string_path_parent(&libdir_builder);
         }
 
-        string_destroy(&libdir_builder);
+        lca_string_destroy(&libdir_builder);
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, the Laye compiler could not locate the standard library directory. Either it does not exist or is not in a place the compiler looks for it. The Laye compiler searches for the standard library in `./lib/laye`, `../lib/laye`, `../../lib/laye` etc relative to the executable file itself.\n");
     } else {
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, either Laye does not support getting the current executable path on this platform or it could not be obtained for some reason. Because of this, the compiler will be unable to easily infer the location of the standard library and you may need to manually include the standard library path: `-I path/to/lib/laye`.\n");
@@ -452,9 +452,9 @@ found_stdlib:;
 
     if (state.output_file.count == 0) {
 #if _WIN32
-        state.output_file = SV_CONSTANT("./a.exe");
+        state.output_file = LCA_SV_CONSTANT("./a.exe");
 #else
-        state.output_file = SV_CONSTANT("./a.out");
+        state.output_file = LCA_SV_CONSTANT("./a.out");
 #endif
     }
 
@@ -465,12 +465,12 @@ found_stdlib:;
         if (exit_code != 0) goto program_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(state.input_files); i++) {
+    for (int64_t i = 0; i < lca_da_count(state.input_files); i++) {
         source_file_info input_file_info = state.input_files[i];
-        string_view input_file_path = input_file_info.path;
+        lca_string_view input_file_path = input_file_info.path;
         source_file_kind input_file_kind = input_file_info.kind;
 
-        if (input_file_kind == SOURCE_LAYE || (input_file_kind == SOURCE_DEFAULT && string_view_ends_with_cstring(input_file_path, ".laye"))) {
+        if (input_file_kind == SOURCE_LAYE || (input_file_kind == SOURCE_DEFAULT && lca_string_view_ends_with_cstring(input_file_path, ".laye"))) {
             laye_module* module = parse_module(&state, context, input_file_path);
             if (module == NULL) {
                 if (!state.sema_only && !state.parse_only) exit_code = 1;
@@ -478,7 +478,7 @@ found_stdlib:;
             }
 
             assert(module != NULL);
-        } else if (input_file_kind == SOURCE_C || (input_file_kind == SOURCE_DEFAULT && string_view_ends_with_cstring(input_file_path, ".c"))) {
+        } else if (input_file_kind == SOURCE_C || (input_file_kind == SOURCE_DEFAULT && lca_string_view_ends_with_cstring(input_file_path, ".c"))) {
             c_translation_unit* tu = parse_translation_unit(&state, context, input_file_path);
             if (tu == NULL) {
                 if (!state.sema_only && !state.parse_only) exit_code = 1;
@@ -487,7 +487,7 @@ found_stdlib:;
 
             assert(tu != NULL);
         } else {
-            fprintf(stderr, "Unknown source file type for file %.*s\n", STR_EXPAND(input_file_path));
+            fprintf(stderr, "Unknown source file type for file %.*s\n", LCA_STR_EXPAND(input_file_path));
             exit_code = 1;
             goto program_exit;
         }
@@ -500,20 +500,20 @@ found_stdlib:;
 
     // parse-only means no sema, print the untyped tree
     if (state.parse_only) {
-        for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+        for (int64_t i = 0; i < lca_da_count(context->laye_modules); i++) {
             laye_module* module = context->laye_modules[i];
             assert(module != NULL);
-            string module_string = laye_module_debug_print(module);
-            fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
-            string_destroy(&module_string);
+            lca_string module_string = laye_module_debug_print(module);
+            fprintf(stdout, "%.*s\n", LCA_STR_EXPAND(module_string));
+            lca_string_destroy(&module_string);
         }
 
-        for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+        for (int64_t i = 0; i < lca_da_count(state.translation_units); i++) {
             c_translation_unit* tu = state.translation_units[i];
             assert(tu != NULL);
-            string tu_string = c_translation_unit_debug_print(tu);
-            fprintf(stdout, "%.*s\n", STR_EXPAND(tu_string));
-            string_destroy(&tu_string);
+            lca_string tu_string = c_translation_unit_debug_print(tu);
+            fprintf(stdout, "%.*s\n", LCA_STR_EXPAND(tu_string));
+            lca_string_destroy(&tu_string);
         }
 
         goto program_exit;
@@ -527,20 +527,20 @@ found_stdlib:;
     }
 
     if (state.sema_only) {
-        for (int64_t i = 0; i < arr_count(context->laye_modules); i++) {
+        for (int64_t i = 0; i < lca_da_count(context->laye_modules); i++) {
             laye_module* module = context->laye_modules[i];
             assert(module != NULL);
-            string module_string = laye_module_debug_print(module);
-            fprintf(stdout, "%.*s\n", STR_EXPAND(module_string));
-            string_destroy(&module_string);
+            lca_string module_string = laye_module_debug_print(module);
+            fprintf(stdout, "%.*s\n", LCA_STR_EXPAND(module_string));
+            lca_string_destroy(&module_string);
         }
 
-        for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+        for (int64_t i = 0; i < lca_da_count(state.translation_units); i++) {
             c_translation_unit* tu = state.translation_units[i];
             assert(tu != NULL);
-            string tu_string = c_translation_unit_debug_print(tu);
-            fprintf(stdout, "%.*s\n", STR_EXPAND(tu_string));
-            string_destroy(&tu_string);
+            lca_string tu_string = c_translation_unit_debug_print(tu);
+            fprintf(stdout, "%.*s\n", LCA_STR_EXPAND(tu_string));
+            lca_string_destroy(&tu_string);
         }
 
         goto program_exit;
@@ -557,7 +557,7 @@ found_stdlib:;
     // from this point forward, the concept of "Laye" is no more; we deal exclusively in LYIR and beyond.
     // everything after generating LYIR should be identical for other frontends ideally.
     // IF IT IS NOT, then we need to refactor to support that *somehow*, but that time is not now.
-    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+    for (int64_t i = 0; i < lca_da_count(context->ir_modules); i++) {
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
@@ -602,8 +602,8 @@ found_stdlib:;
     // builds so the static analysers (like address sanitizer) can do their magic.
 program_exit:;
     if (!state.assemble_only) {
-        for (int64_t i = 0; i < arr_count(state.total_intermediate_files); i++) {
-            const char* path_cstr = string_as_cstring(state.total_intermediate_files[i]);
+        for (int64_t i = 0; i < lca_da_count(state.total_intermediate_files); i++) {
+            const char* path_cstr = lca_string_as_cstring(state.total_intermediate_files[i]);
             if (nob_file_exists(path_cstr)) {
                 remove(path_cstr);
             }
@@ -611,17 +611,17 @@ program_exit:;
     }
 
 #ifndef NDEBUG
-    for (int64_t i = 0; i < arr_count(state.total_intermediate_files); i++) {
-        string_destroy(&state.total_intermediate_files[i]);
+    for (int64_t i = 0; i < lca_da_count(state.total_intermediate_files); i++) {
+        lca_string_destroy(&state.total_intermediate_files[i]);
     }
 
-    for (int64_t i = 0; i < arr_count(state.translation_units); i++) {
+    for (int64_t i = 0; i < lca_da_count(state.translation_units); i++) {
         c_translation_unit_destroy(state.translation_units[i]);
     }
 
-    arr_free(state.total_intermediate_files);
-    arr_free(state.translation_units);
-    arr_free(state.input_files);
+    lca_da_free(state.total_intermediate_files);
+    lca_da_free(state.translation_units);
+    lca_da_free(state.input_files);
 
     lyir_context_destroy(context);
     lca_temp_allocator_clear();
@@ -635,15 +635,15 @@ static int backend_c(compiler_state* state) {
 
     lyir_context* context = state->context;
 
-    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+    for (int64_t i = 0; i < lca_da_count(context->ir_modules); i++) {
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string c_module_string = lyir_codegen_c(ir_module);
-        arr_push(state->c_modules, c_module_string);
+        lca_string c_module_string = lyir_codegen_c(ir_module);
+        lca_da_push(state->c_modules, c_module_string);
     }
 
-    assert(arr_count(state->c_modules) == arr_count(context->ir_modules));
+    assert(lca_da_count(state->c_modules) == lca_da_count(context->ir_modules));
 
     if (state->emit_c) {
         assert(state->assemble_only);
@@ -651,12 +651,12 @@ static int backend_c(compiler_state* state) {
         goto backend_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(state->c_modules); i++) {
-        string c_module_string = state->c_modules[i];
-        string_view source_input_file_path = string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
+    for (int64_t i = 0; i < lca_da_count(state->c_modules); i++) {
+        lca_string c_module_string = state->c_modules[i];
+        lca_string_view source_input_file_path = lca_string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
-        string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ir.c");
-        arr_push(state->total_intermediate_files, output_file_path_intermediate);
+        lca_string output_file_path_intermediate = lca_string_view_change_extension(default_allocator, source_input_file_path, ".ir.c");
+        lca_da_push(state->total_intermediate_files, output_file_path_intermediate);
 
         bool c_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), c_module_string.data, c_module_string.count);
         if (!c_file_result) {
@@ -675,13 +675,13 @@ static int backend_c(compiler_state* state) {
         lca_string_view_to_cstring(temp_allocator, state->output_file)
     );
 
-    for (int64_t i = 0; i < arr_count(state->link_libraries); i++) {
-        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(state->link_libraries[i]));
+    for (int64_t i = 0; i < lca_da_count(state->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->link_libraries[i]));
         nob_cmd_append(&clang_cc_cmd, s);
     }
 
-    for (int64_t i = 0; i < arr_count(state->total_intermediate_files); i++) {
-        const char* s = string_as_cstring(state->total_intermediate_files[i]);
+    for (int64_t i = 0; i < lca_da_count(state->total_intermediate_files); i++) {
+        const char* s = lca_string_as_cstring(state->total_intermediate_files[i]);
         nob_cmd_append(&clang_cc_cmd, s);
     }
 
@@ -694,11 +694,11 @@ static int backend_c(compiler_state* state) {
     nob_cmd_free(clang_cc_cmd);
 
 backend_exit:;
-    for (int64_t i = 0; i < arr_count(state->c_modules); i++) {
-        string_destroy(&state->c_modules[i]);
+    for (int64_t i = 0; i < lca_da_count(state->c_modules); i++) {
+        lca_string_destroy(&state->c_modules[i]);
     }
 
-    arr_free(state->c_modules);
+    lca_da_free(state->c_modules);
 
     return exit_code;
 }
@@ -708,15 +708,15 @@ static int backend_llvm(compiler_state* state) {
 
     lyir_context* context = state->context;
 
-    for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
+    for (int64_t i = 0; i < lca_da_count(context->ir_modules); i++) {
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string llvm_module_string = lyir_codegen_llvm(ir_module);
-        arr_push(state->llvm_modules, llvm_module_string);
+        lca_string llvm_module_string = lyir_codegen_llvm(ir_module);
+        lca_da_push(state->llvm_modules, llvm_module_string);
     }
 
-    assert(arr_count(state->llvm_modules) == arr_count(context->ir_modules));
+    assert(lca_da_count(state->llvm_modules) == lca_da_count(context->ir_modules));
 
     if (state->emit_llvm) {
         assert(state->assemble_only);
@@ -724,12 +724,12 @@ static int backend_llvm(compiler_state* state) {
         goto backend_exit;
     }
 
-    for (int64_t i = 0; i < arr_count(state->llvm_modules); i++) {
-        string llvm_module_string = state->llvm_modules[i];
-        string_view source_input_file_path = string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
+    for (int64_t i = 0; i < lca_da_count(state->llvm_modules); i++) {
+        lca_string llvm_module_string = state->llvm_modules[i];
+        lca_string_view source_input_file_path = lca_string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
-        string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
-        arr_push(state->total_intermediate_files, output_file_path_intermediate);
+        lca_string output_file_path_intermediate = lca_string_view_change_extension(default_allocator, source_input_file_path, ".ll");
+        lca_da_push(state->total_intermediate_files, output_file_path_intermediate);
 
         bool ll_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), llvm_module_string.data, llvm_module_string.count);
         if (!ll_file_result) {
@@ -748,13 +748,13 @@ static int backend_llvm(compiler_state* state) {
         lca_string_view_to_cstring(temp_allocator, state->output_file)
     );
 
-    for (int64_t i = 0; i < arr_count(state->link_libraries); i++) {
-        const char* s = lca_temp_sprintf("-l%.*s", STR_EXPAND(state->link_libraries[i]));
+    for (int64_t i = 0; i < lca_da_count(state->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->link_libraries[i]));
         nob_cmd_append(&clang_ll_cmd, s);
     }
 
-    for (int64_t i = 0; i < arr_count(state->total_intermediate_files); i++) {
-        const char* s = string_as_cstring(state->total_intermediate_files[i]);
+    for (int64_t i = 0; i < lca_da_count(state->total_intermediate_files); i++) {
+        const char* s = lca_string_as_cstring(state->total_intermediate_files[i]);
         nob_cmd_append(&clang_ll_cmd, s);
     }
 
@@ -767,11 +767,11 @@ static int backend_llvm(compiler_state* state) {
     nob_cmd_free(clang_ll_cmd);
 
 backend_exit:;
-    for (int64_t i = 0; i < arr_count(state->llvm_modules); i++) {
-        string_destroy(&state->llvm_modules[i]);
+    for (int64_t i = 0; i < lca_da_count(state->llvm_modules); i++) {
+        lca_string_destroy(&state->llvm_modules[i]);
     }
 
-    arr_free(state->llvm_modules);
+    lca_da_free(state->llvm_modules);
 
     return exit_code;
 }
@@ -781,33 +781,33 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
     assert(argc != NULL);
     assert(argv != NULL);
 
-    args->program_name = string_view_from_cstring(nob_shift_args(argc, argv));
+    args->program_name = lca_string_view_from_cstring(nob_shift_args(argc, argv));
 
     while (*argc > 0) {
-        string_view arg = string_view_from_cstring(nob_shift_args(argc, argv));
-        if (string_view_equals(arg, SV_CONSTANT("--help"))) {
+        lca_string_view arg = lca_string_view_from_cstring(nob_shift_args(argc, argv));
+        if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--help"))) {
             args->help = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("--verbose"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--verbose"))) {
             args->verbose = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-E")) || string_view_equals(arg, SV_CONSTANT("--preprocess"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-E")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--preprocess"))) {
             args->preprocess_only = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("--ast"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--ast"))) {
             args->parse_only = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-fsyntax-only")) || string_view_equals(arg, SV_CONSTANT("--sema"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-fsyntax-only")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--sema"))) {
             args->sema_only = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-S")) || string_view_equals(arg, SV_CONSTANT("--assemble"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-S")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--assemble"))) {
             args->assemble_only = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-emit-c"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-c"))) {
             args->emit_c = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-emit-lyir"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-lyir"))) {
             args->emit_lyir = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("-emit-llvm"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-llvm"))) {
             args->emit_llvm = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("--nocolor"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--nocolor"))) {
             args->use_color = COLOR_NEVER;
-        } else if (string_view_equals(arg, SV_CONSTANT("--byte-diagnostics"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--byte-diagnostics"))) {
             args->use_byte_positions_in_diagnostics = true;
-        } else if (string_view_equals(arg, SV_CONSTANT("--backend"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("--backend"))) {
             if (argc == 0) {
                 fprintf(stderr, "'--backend' requires an argument\n");
                 return false;
@@ -824,7 +824,7 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
                 fprintf(stderr, "Unknown value for option '--backend': %s\n", backend);
                 return false;
             }
-        } else if (string_view_equals(arg, SV_CONSTANT("-x"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-x"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-x' requires an argument\n");
                 return false;
@@ -845,50 +845,50 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
                 fprintf(stderr, "Unknown value for option '-x': %s\n", backend);
                 return false;
             }
-        } else if (string_view_equals(arg, SV_CONSTANT("-o"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-o"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-o' requires a file path as the output file, but no additional arguments were provided\n");
                 return false;
             } else {
-                args->output_file = string_view_from_cstring(nob_shift_args(argc, argv));
-                if (string_view_equals(args->output_file, SV_CONSTANT("-"))) {
+                args->output_file = lca_string_view_from_cstring(nob_shift_args(argc, argv));
+                if (lca_string_view_equals(args->output_file, LCA_SV_CONSTANT("-"))) {
                     args->is_output_file_stdout = true;
                 }
             }
-        } else if (string_view_equals(arg, SV_CONSTANT("-l"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-l"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-l' requires a file path as the output file, but no additional arguments were provided\n");
                 return false;
             } else {
-                arr_push(args->link_libraries, string_view_from_cstring(nob_shift_args(argc, argv)));
+                lca_da_push(args->link_libraries, lca_string_view_from_cstring(nob_shift_args(argc, argv)));
             }
-        } else if (string_view_equals(arg, SV_CONSTANT("-I"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-I"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-I' requires a file path as an include directory, but no additional arguments were provided\n");
                 return false;
             } else {
-                arr_push(args->include_directories, string_view_from_cstring(nob_shift_args(argc, argv)));
+                lca_da_push(args->include_directories, lca_string_view_from_cstring(nob_shift_args(argc, argv)));
             }
-        } else if (string_view_equals(arg, SV_CONSTANT("-L"))) {
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-L"))) {
             if (argc == 0) {
                 fprintf(stderr, "'-L' requires a file path as a library directory, but no additional arguments were provided\n");
                 return false;
             } else {
-                arr_push(args->library_directories, string_view_from_cstring(nob_shift_args(argc, argv)));
+                lca_da_push(args->library_directories, lca_string_view_from_cstring(nob_shift_args(argc, argv)));
             }
-        } else if (string_view_starts_with(arg, SV_CONSTANT("-l"))) {
-            arr_push(args->link_libraries, string_view_slice(arg, 2, -1));
+        } else if (lca_string_view_starts_with(arg, LCA_SV_CONSTANT("-l"))) {
+            lca_da_push(args->link_libraries, lca_string_view_slice(arg, 2, -1));
         } else {
             source_file_info info = {
                 .path = arg,
                 .kind = args->override_file_kind,
             };
-            arr_push(args->input_files, info);
+            lca_da_push(args->input_files, info);
         }
     }
 
-    if (arr_count(args->input_files) == 0 && !args->help) {
-        fprintf(stderr, "%.*s: no input file(s) given\n", STR_EXPAND(args->program_name));
+    if (lca_da_count(args->input_files) == 0 && !args->help) {
+        fprintf(stderr, "%.*s: no input file(s) given\n", LCA_STR_EXPAND(args->program_name));
         return false;
     }
 

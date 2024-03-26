@@ -16,20 +16,20 @@ typedef struct c_print_context {
     lyir_context* context;
     c_translation_unit* tu;
     bool use_color;
-    string* indents;
-    string* output;
+    lca_string* indents;
+    lca_string* output;
 } c_print_context;
 
-string c_translation_unit_debug_print(c_translation_unit* tu) {
+lca_string c_translation_unit_debug_print(c_translation_unit* tu) {
     assert(tu != NULL);
     assert(tu->context != NULL);
 
-    string output_string = string_create(tu->context->allocator);
+    lca_string output_string = lca_string_create(tu->context->allocator);
 
     int64_t indents_string_capacity = 256;
     char* indents_string_data = lca_allocate(tu->context->allocator, indents_string_capacity);
     assert(indents_string_data != NULL);
-    string indents_string = string_from_data(tu->context->allocator, indents_string_data, 0, indents_string_capacity);
+    lca_string indents_string = lca_string_from_data(tu->context->allocator, indents_string_data, 0, indents_string_capacity);
 
     c_print_context print_context = {
         .context = tu->context,
@@ -40,12 +40,12 @@ string c_translation_unit_debug_print(c_translation_unit* tu) {
     };
 
     bool use_color = print_context.use_color;
-    string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(lyir_context_get_source(tu->context, tu->sourceid).name), COL(RESET));
+    lca_string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), LCA_STR_EXPAND(lyir_context_get_source(tu->context, tu->sourceid).name), COL(RESET));
 
-    for (int64_t i = 0; i < arr_count(tu->token_buffer.semantic_tokens); i++) {
+    for (int64_t i = 0; i < lca_da_count(tu->token_buffer.semantic_tokens); i++) {
         c_token token = tu->token_buffer.semantic_tokens[i];
         lyir_source source = lyir_context_get_source(tu->context, token.location.sourceid);
-        string_append_format(
+        lca_string_append_format(
             print_context.output,
             "%s :: %.*s\n",
             c_token_kind_to_cstring(token.kind),
@@ -54,7 +54,7 @@ string c_translation_unit_debug_print(c_translation_unit* tu) {
         );
     }
 
-    string_destroy(&indents_string);
+    lca_string_destroy(&indents_string);
 
     return output_string;
 }

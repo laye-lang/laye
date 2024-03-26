@@ -36,7 +36,7 @@ void c_translation_unit_destroy(c_translation_unit* tu) {
     lca_allocator allocator = tu->context->allocator;
 
     lca_arena_destroy(tu->arena);
-    arr_free(tu->token_buffer.semantic_tokens);
+    lca_da_free(tu->token_buffer.semantic_tokens);
 
     *tu = (c_translation_unit){0};
     lca_deallocate(allocator, tu);
