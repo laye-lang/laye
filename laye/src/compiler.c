@@ -164,7 +164,7 @@ typedef struct compiler_state {
     dynarr(string_view) library_directories;
     dynarr(string_view) link_libraries;
 
-    layec_context* context;
+    lyir_context* context;
 } compiler_state;
 
 static bool parse_args(compiler_state* driver, int* argc, char*** argv);
@@ -194,8 +194,8 @@ static int preprocess_only(compiler_state* state) {
     return 1;
 }
 
-static laye_module* parse_module(compiler_state* state, layec_context* context, string_view input_file_path) {
-    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
+static laye_module* parse_module(compiler_state* state, lyir_context* context, string_view input_file_path) {
+    lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
         const char* error_string = strerror(errno);
         fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
@@ -208,8 +208,8 @@ static laye_module* parse_module(compiler_state* state, layec_context* context, 
     return module;
 }
 
-static c_translation_unit* parse_translation_unit(compiler_state* state, layec_context* context, string_view input_file_path) {
-    layec_sourceid sourceid = layec_context_get_or_add_source_from_file(context, input_file_path);
+static c_translation_unit* parse_translation_unit(compiler_state* state, lyir_context* context, string_view input_file_path) {
+    lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, input_file_path);
     if (sourceid < 0) {
         const char* error_string = strerror(errno);
         fprintf(stderr, "Error when opening source file \"%.*s\": %s\n", STR_EXPAND(input_file_path), error_string);
@@ -229,7 +229,7 @@ static int emit_lyir(compiler_state* state) {
         bool is_output_file_stdout = state->is_output_file_stdout;
         bool use_color = is_output_file_stdout ? state->use_color : false;
 
-        layec_module* ir_module = state->context->ir_modules[i];
+        lyir_module* ir_module = state->context->ir_modules[i];
         assert(ir_module != NULL);
 
         string ir_module_string = layec_module_print(ir_module, use_color);
@@ -274,7 +274,7 @@ static int emit_c(compiler_state* state) {
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
         } else {
-            layec_module* ir_module = state->context->ir_modules[i];
+            lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
             assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
             intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ir.c");
@@ -308,7 +308,7 @@ static int emit_llvm(compiler_state* state) {
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
         } else {
-            layec_module* ir_module = state->context->ir_modules[i];
+            lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
             assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
             intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ll");
@@ -331,7 +331,7 @@ static int emit_llvm(compiler_state* state) {
     return 0;
 }
 
-static void add_stdlib_includes(layec_context* context, string_view stdlib_root) {
+static void add_stdlib_includes(lyir_context* context, string_view stdlib_root) {
     string_view liblaye_dir = string_view_from_cstring(lca_temp_sprintf("%.*s/%s", STR_EXPAND(stdlib_root), "liblaye"));
     if (nob_file_exists(liblaye_dir.data) && nob_get_file_type(liblaye_dir.data) == NOB_FILE_DIRECTORY) {
         arr_push(context->include_directories, liblaye_dir);
@@ -350,7 +350,7 @@ int main(int argc, char** argv) {
 
     // setup
 
-    layec_init_targets(default_allocator);
+    lyir_init_targets(default_allocator);
 
     compiler_state state = {
         .use_color = COLOR_AUTO,
@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    layec_context* context = layec_context_create(default_allocator);
+    lyir_context* context = lyir_context_create(default_allocator);
     assert(context != NULL);
     state.context = context;
 
@@ -430,7 +430,7 @@ int main(int argc, char** argv) {
             // fprintf(stderr, "looking for '%.*s'\n", STR_EXPAND(libdir_builder));
 
             if (nob_file_exists(libdir_builder.data) && nob_get_file_type(libdir_builder.data) == NOB_FILE_DIRECTORY) {
-                string_view libdir_root = layec_context_intern_string_view(context, string_as_view(libdir_builder));
+                string_view libdir_root = lyir_context_intern_string_view(context, string_as_view(libdir_builder));
                 string_destroy(&libdir_builder);
                 add_stdlib_includes(context, libdir_root);
                 goto found_stdlib;
@@ -558,7 +558,7 @@ found_stdlib:;
     // everything after generating LYIR should be identical for other frontends ideally.
     // IF IT IS NOT, then we need to refactor to support that *somehow*, but that time is not now.
     for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
-        layec_module* ir_module = context->ir_modules[i];
+        lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
         layec_irpass_validate(ir_module);
@@ -623,7 +623,7 @@ program_exit:;
     arr_free(state.translation_units);
     arr_free(state.input_files);
 
-    layec_context_destroy(context);
+    lyir_context_destroy(context);
     lca_temp_allocator_clear();
 #endif // !NDEBUG
 
@@ -633,10 +633,10 @@ program_exit:;
 static int backend_c(compiler_state* state) {
     int exit_code = 0;
 
-    layec_context* context = state->context;
+    lyir_context* context = state->context;
 
     for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
-        layec_module* ir_module = context->ir_modules[i];
+        lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
         string c_module_string = layec_codegen_c(ir_module);
@@ -706,10 +706,10 @@ backend_exit:;
 static int backend_llvm(compiler_state* state) {
     int exit_code = 0;
 
-    layec_context* context = state->context;
+    lyir_context* context = state->context;
 
     for (int64_t i = 0; i < arr_count(context->ir_modules); i++) {
-        layec_module* ir_module = context->ir_modules[i];
+        lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
         string llvm_module_string = layec_codegen_llvm(ir_module);

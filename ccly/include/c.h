@@ -138,7 +138,7 @@ typedef enum c_token_kind {
 
 typedef struct c_token {
     c_token_kind kind;
-    layec_location location;
+    lyir_location location;
 
     bool is_macro_param;
     int macro_param_index;
@@ -163,8 +163,8 @@ typedef struct c_macro_def {
 } c_macro_def;
 
 typedef struct c_translation_unit {
-    layec_context* context;
-    layec_sourceid sourceid;
+    lyir_context* context;
+    lyir_sourceid sourceid;
 
     lca_arena* arena;
 
@@ -175,7 +175,7 @@ typedef struct c_translation_unit {
 } c_translation_unit;
 
 string c_translation_unit_debug_print(c_translation_unit* tu);
-c_translation_unit* c_parse(layec_context* context, layec_sourceid sourceid);
+c_translation_unit* c_parse(lyir_context* context, lyir_sourceid sourceid);
 void c_translation_unit_destroy(c_translation_unit* tu);
 
 //

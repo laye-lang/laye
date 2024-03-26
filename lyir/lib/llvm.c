@@ -49,16 +49,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LLVM_MEMSET_INTRINSIC "llvm.memset.p0.i64"
 
 typedef struct llvm_codegen {
-    layec_context* context;
+    lyir_context* context;
     bool use_color;
     string* output;
 } llvm_codegen;
 
-static void llvm_print_module(llvm_codegen* codegen, layec_module* module);
+static void llvm_print_module(llvm_codegen* codegen, lyir_module* module);
 
-string layec_codegen_llvm(layec_module* module) {
+string layec_codegen_llvm(lyir_module* module) {
     assert(module != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
 
     string output_string = string_create(context->allocator);
@@ -74,24 +74,24 @@ string layec_codegen_llvm(layec_module* module) {
     return output_string;
 }
 
-static void llvm_print_header(llvm_codegen* codegen, layec_module* module);
-static void llvm_print_struct_type(llvm_codegen* codegen, layec_type* struct_type);
-static void llvm_print_global(llvm_codegen* codegen, layec_value* global);
-static void llvm_print_function(llvm_codegen* codegen, layec_value* function);
+static void llvm_print_header(llvm_codegen* codegen, lyir_module* module);
+static void llvm_print_struct_type(llvm_codegen* codegen, lyir_type* struct_type);
+static void llvm_print_global(llvm_codegen* codegen, lyir_value* global);
+static void llvm_print_function(llvm_codegen* codegen, lyir_value* function);
 
-static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* type);
-static void llvm_print_type(llvm_codegen* codegen, layec_type* type);
-static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool include_type);
+static void llvm_print_type_struct_literally(llvm_codegen* codegen, lyir_type* type);
+static void llvm_print_type(llvm_codegen* codegen, lyir_type* type);
+static void llvm_print_value(llvm_codegen* codegen, lyir_value* value, bool include_type);
 
-static void llvm_print_block(llvm_codegen* codegen, layec_value* block);
-static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instruction);
+static void llvm_print_block(llvm_codegen* codegen, lyir_value* block);
+static void llvm_print_instruction(llvm_codegen* codegen, lyir_value* instruction);
 
-static void llvm_print_module(llvm_codegen* codegen, layec_module* module) {
+static void llvm_print_module(llvm_codegen* codegen, lyir_module* module) {
     llvm_print_header(codegen, module);
 
     for (int64_t i = 0, count = layec_module_global_count(module); i < count; i++) {
         if (i > 0) lca_string_append_format(codegen->output, "\n");
-        layec_value* global = layec_module_get_global_at_index(module, i);
+        lyir_value* global = layec_module_get_global_at_index(module, i);
         llvm_print_global(codegen, global);
     }
 
@@ -99,18 +99,18 @@ static void llvm_print_module(llvm_codegen* codegen, layec_module* module) {
 
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         if (i > 0) lca_string_append_format(codegen->output,  "\n");
-        layec_value* function = layec_module_get_function_at_index(module, i);
+        lyir_value* function = layec_module_get_function_at_index(module, i);
         llvm_print_function(codegen, function);
     }
 }
 
-static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
+static void llvm_print_header(llvm_codegen* codegen, lyir_module* module) {
     lca_string_append_format(codegen->output, "; ModuleID = '%.*s'\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "source_filename = \"%.*s\"\n", STR_EXPAND(layec_module_name(module)));
     lca_string_append_format(codegen->output, "\n");
 
     for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
-        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        lyir_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
         if (layec_type_struct_is_named(struct_type)) {
             lca_string_append_format(codegen->output, "%%%.*s = ", STR_EXPAND(layec_type_struct_name(struct_type)));
             llvm_print_type_struct_literally(codegen, struct_type);
@@ -125,7 +125,7 @@ static void llvm_print_header(llvm_codegen* codegen, layec_module* module) {
     lca_string_append_format(codegen->output, "\n");
 }
 
-static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
+static void llvm_print_global(llvm_codegen* codegen, lyir_value* global) {
     string_view name = layec_value_name(global);
     if (name.count == 0) {
         int64_t index = layec_value_index(global);
@@ -134,8 +134,8 @@ static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
         lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(name));
     }
 
-    layec_linkage linkage = layec_value_linkage(global);
-    lca_string_append_format(codegen->output, " = %s", linkage == LAYEC_LINK_IMPORTED ? "external" : "private");
+    lyir_linkage linkage = layec_value_linkage(global);
+    lca_string_append_format(codegen->output, " = %s", linkage == LYIR_LINK_IMPORTED ? "external" : "private");
 
     bool is_string = layec_instruction_global_is_string(global);
 
@@ -148,7 +148,7 @@ static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
     lca_string_append_format(codegen->output, " ");
     llvm_print_type(codegen, layec_instruction_get_alloca_type(global));
 
-    layec_value* value = layec_instruction_get_value(global);
+    lyir_value* value = layec_instruction_get_value(global);
     if (value == NULL) {
         lca_string_append_format(codegen->output, " zeroinitializer");
     } else {
@@ -159,7 +159,7 @@ static void llvm_print_global(llvm_codegen* codegen, layec_value* global) {
     lca_string_append_format(codegen->output, ", align %d\n", layec_type_align_in_bytes(layec_value_get_type(global)));
 }
 
-static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
+static void llvm_print_function(llvm_codegen* codegen, lyir_value* function) {
     int64_t block_count = layec_function_block_count(function);
 
     lca_string_append_format(
@@ -176,14 +176,14 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
         STR_EXPAND(layec_function_name(function))
     );
 
-    layec_type* function_type = layec_value_get_type(function);
+    lyir_type* function_type = layec_value_get_type(function);
     assert(layec_type_is_function(function_type));
     for (int64_t i = 0, count = layec_function_type_parameter_count(function_type); i < count; i++) {
         if (i > 0) {
             lca_string_append_format(codegen->output, ", ");
         }
 
-        layec_type* parameter_type = layec_function_type_get_parameter_type_at_index(function_type, i);
+        lyir_type* parameter_type = layec_function_type_get_parameter_type_at_index(function_type, i);
         llvm_print_type(codegen, parameter_type);
         lca_string_append_format(codegen->output, " %%%lld", i);
     }
@@ -212,7 +212,7 @@ static void llvm_print_function(llvm_codegen* codegen, layec_value* function) {
     lca_string_append_format(codegen->output, "}\n");
 }
 
-static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* type) {
+static void llvm_print_type_struct_literally(llvm_codegen* codegen, lyir_type* type) {
     lca_string_append_format(codegen->output, "type { ");
 
     for (int64_t i = 0; i < layec_type_struct_member_count(type); i++) {
@@ -220,33 +220,33 @@ static void llvm_print_type_struct_literally(llvm_codegen* codegen, layec_type* 
             lca_string_append_format(codegen->output, ", ");
         }
 
-        layec_type* member_type = layec_type_struct_get_member_type_at_index(type, i);
+        lyir_type* member_type = layec_type_struct_get_member_type_at_index(type, i);
         llvm_print_type(codegen, member_type);
     }
 
     lca_string_append_format(codegen->output, "}");
 }
 
-static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
+static void llvm_print_type(llvm_codegen* codegen, lyir_type* type) {
     switch (layec_type_get_kind(type)) {
         default: {
             fprintf(stderr, "for type kind %s\n", layec_type_kind_to_cstring(layec_type_get_kind(type)));
             assert(false && "unimplemented kind in llvm_print_type");
         } break;
 
-        case LAYEC_TYPE_POINTER: {
+        case LYIR_TYPE_POINTER: {
             lca_string_append_format(codegen->output, "ptr");
         } break;
 
-        case LAYEC_TYPE_VOID: {
+        case LYIR_TYPE_VOID: {
             lca_string_append_format(codegen->output, "void");
         } break;
 
-        case LAYEC_TYPE_INTEGER: {
+        case LYIR_TYPE_INTEGER: {
             lca_string_append_format(codegen->output, "i%d", layec_type_size_in_bits(type));
         } break;
 
-        case LAYEC_TYPE_FLOAT: {
+        case LYIR_TYPE_FLOAT: {
             switch (layec_type_size_in_bits(type)) {
                 default: {
                     fprintf(stderr, "for bitwidth %d\n", layec_type_size_in_bits(type));
@@ -263,14 +263,14 @@ static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
             }
         } break;
 
-        case LAYEC_TYPE_ARRAY: {
-            layec_type* element_type = layec_type_element_type(type);
+        case LYIR_TYPE_ARRAY: {
+            lyir_type* element_type = layec_type_element_type(type);
             lca_string_append_format(codegen->output, "[%lld x ", layec_type_array_length(type));
             llvm_print_type(codegen, element_type);
             lca_string_append_format(codegen->output, "]");
         } break;
 
-        case LAYEC_TYPE_STRUCT: {
+        case LYIR_TYPE_STRUCT: {
             if (layec_type_struct_is_named(type)) {
                 lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(layec_type_struct_name(type)));
             } else {
@@ -280,7 +280,7 @@ static void llvm_print_type(llvm_codegen* codegen, layec_type* type) {
     }
 }
 
-static void llvm_print_block(llvm_codegen* codegen, layec_value* block) {
+static void llvm_print_block(llvm_codegen* codegen, lyir_value* block) {
     int64_t instruction_count = layec_block_instruction_count(block);
 
     if (layec_block_has_name(block)) {
@@ -290,14 +290,14 @@ static void llvm_print_block(llvm_codegen* codegen, layec_value* block) {
     }
 
     for (int64_t i = 0; i < instruction_count; i++) {
-        layec_value* instruction = layec_block_get_instruction_at_index(block, i);
+        lyir_value* instruction = layec_block_get_instruction_at_index(block, i);
         llvm_print_instruction(codegen, instruction);
     }
 }
 
-static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instruction) {
-    layec_value_kind kind = layec_value_get_kind(instruction);
-    if (kind == LAYEC_IR_NOP) {
+static void llvm_print_instruction(llvm_codegen* codegen, lyir_value* instruction) {
+    lyir_value_kind kind = layec_value_get_kind(instruction);
+    if (kind == LYIR_IR_NOP) {
         return;
     }
 
@@ -314,11 +314,11 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             assert(false && "unimplemented instruction in llvm_print_instruction");
         } break;
 
-        case LAYEC_IR_UNREACHABLE: {
+        case LYIR_IR_UNREACHABLE: {
             lca_string_append_format(codegen->output, "unreachable");
         } break;
 
-        case LAYEC_IR_RETURN: {
+        case LYIR_IR_RETURN: {
             lca_string_append_format(codegen->output, "ret ");
             if (layec_instruction_return_has_value(instruction)) {
                 llvm_print_value(codegen, layec_instruction_return_value(instruction), true);
@@ -327,13 +327,13 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             }
         } break;
 
-        case LAYEC_IR_ALLOCA: {
+        case LYIR_IR_ALLOCA: {
             lca_string_append_format(codegen->output, "alloca ");
             llvm_print_type(codegen, layec_instruction_get_alloca_type(instruction));
             lca_string_append_format(codegen->output, ", i64 1");
         } break;
 
-        case LAYEC_IR_STORE: {
+        case LYIR_IR_STORE: {
             lca_string_append_format(codegen->output, "store ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, ", ");
@@ -341,14 +341,14 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             lca_string_append_format(codegen->output, ", align %d", layec_type_align_in_bytes(layec_value_get_type(layec_instruction_get_operand(instruction))));
         } break;
 
-        case LAYEC_IR_LOAD: {
+        case LYIR_IR_LOAD: {
             lca_string_append_format(codegen->output, "load ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_get_address(instruction), true);
         } break;
 
-        case LAYEC_IR_CALL: {
+        case LYIR_IR_CALL: {
             lca_string_append_format(codegen->output, "call ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
             lca_string_append_format(codegen->output, " ");
@@ -360,22 +360,22 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                     lca_string_append_format(codegen->output, ", ");
                 }
 
-                layec_value* argument = layec_instruction_call_get_argument_at_index(instruction, i);
+                lyir_value* argument = layec_instruction_call_get_argument_at_index(instruction, i);
                 llvm_print_value(codegen, argument, true);
             }
 
             lca_string_append_format(codegen->output, ")");
         } break;
 
-        case LAYEC_IR_PTRADD: {
+        case LYIR_IR_PTRADD: {
             lca_string_append_format(codegen->output, "getelementptr inbounds i8, ");
             llvm_print_value(codegen, layec_instruction_get_address(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
         } break;
 
-        case LAYEC_IR_BUILTIN: {
-            layec_builtin_kind builtin_kind = layec_instruction_builtin_kind(instruction);
+        case LYIR_IR_BUILTIN: {
+            lyir_builtin_kind builtin_kind = layec_instruction_builtin_kind(instruction);
 
             const char* intrinsic_name = "";
             switch (builtin_kind) {
@@ -383,8 +383,8 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                     assert(false && "unsupported intrinsic in LLVM IR backend");
                 }
 
-                case LAYEC_BUILTIN_MEMCOPY: intrinsic_name = LLVM_MEMCPY_INTRINSIC; break;
-                case LAYEC_BUILTIN_MEMSET: intrinsic_name = LLVM_MEMSET_INTRINSIC; break;
+                case LYIR_BUILTIN_MEMCOPY: intrinsic_name = LLVM_MEMCPY_INTRINSIC; break;
+                case LYIR_BUILTIN_MEMSET: intrinsic_name = LLVM_MEMSET_INTRINSIC; break;
             }
 
             lca_string_append_format(codegen->output, "call void @%s(", intrinsic_name);
@@ -394,7 +394,7 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                     lca_string_append_format(codegen->output, ", ");
                 }
 
-                layec_value* argument = layec_instruction_builtin_get_argument_at_index(instruction, i);
+                lyir_value* argument = layec_instruction_builtin_get_argument_at_index(instruction, i);
                 llvm_print_value(codegen, argument, true);
             }
 
@@ -403,19 +403,19 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
                     assert(false && "unsupported intrinsic in LLVM IR backend");
                 }
 
-                case LAYEC_BUILTIN_MEMCOPY:
-                case LAYEC_BUILTIN_MEMSET: lca_string_append_format(codegen->output, ", i1 false"); break;
+                case LYIR_BUILTIN_MEMCOPY:
+                case LYIR_BUILTIN_MEMSET: lca_string_append_format(codegen->output, ", i1 false"); break;
             }
 
             lca_string_append_format(codegen->output, ")");
         } break;
 
-        case LAYEC_IR_BRANCH: {
+        case LYIR_IR_BRANCH: {
             lca_string_append_format(codegen->output, "br label ");
             llvm_print_value(codegen, layec_instruction_branch_get_pass(instruction), false);
         } break;
 
-        case LAYEC_IR_COND_BRANCH: {
+        case LYIR_IR_COND_BRANCH: {
             lca_string_append_format(codegen->output, "br i1 ");
             llvm_print_value(codegen, layec_instruction_get_value(instruction), false);
             lca_string_append_format(codegen->output, ", label ");
@@ -424,7 +424,7 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             llvm_print_value(codegen, layec_instruction_branch_get_fail(instruction), false);
         } break;
 
-        case LAYEC_IR_PHI: {
+        case LYIR_IR_PHI: {
             lca_string_append_format(codegen->output, "phi ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
 
@@ -438,36 +438,36 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             }
         } break;
 
-        case LAYEC_IR_SEXT: {
+        case LYIR_IR_SEXT: {
             lca_string_append_format(codegen->output, "sext ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_ZEXT: {
+        case LYIR_IR_ZEXT: {
             lca_string_append_format(codegen->output, "zext ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_TRUNC: {
+        case LYIR_IR_TRUNC: {
             lca_string_append_format(codegen->output, "trunc ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_BITCAST: {
+        case LYIR_IR_BITCAST: {
             lca_string_append_format(codegen->output, "bitcast ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_NEG: {
-            layec_value* operand = layec_instruction_get_operand(instruction);
+        case LYIR_IR_NEG: {
+            lyir_value* operand = layec_instruction_get_operand(instruction);
             if (layec_type_is_float(layec_value_get_type(operand))) {
                 lca_string_append_format(codegen->output, "fsub ");
                 llvm_print_type(codegen, layec_value_get_type(operand));
@@ -480,356 +480,356 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
             llvm_print_value(codegen, operand, false);
         } break;
 
-        case LAYEC_IR_COMPL: {
+        case LYIR_IR_COMPL: {
             lca_string_append_format(codegen->output, "xor ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, ", -1");
         } break;
 
-        case LAYEC_IR_FPTOUI: {
+        case LYIR_IR_FPTOUI: {
             lca_string_append_format(codegen->output, "fptoui ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_FPTOSI: {
+        case LYIR_IR_FPTOSI: {
             lca_string_append_format(codegen->output, "fptosi ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_UITOFP: {
+        case LYIR_IR_UITOFP: {
             lca_string_append_format(codegen->output, "uitofp ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_SITOFP: {
+        case LYIR_IR_SITOFP: {
             lca_string_append_format(codegen->output, "sitofp ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_FPEXT: {
+        case LYIR_IR_FPEXT: {
             lca_string_append_format(codegen->output, "fpext ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_FPTRUNC: {
+        case LYIR_IR_FPTRUNC: {
             lca_string_append_format(codegen->output, "fptrunc ");
             llvm_print_value(codegen, layec_instruction_get_operand(instruction), true);
             lca_string_append_format(codegen->output, " to ");
             llvm_print_type(codegen, layec_value_get_type(instruction));
         } break;
 
-        case LAYEC_IR_ADD: {
+        case LYIR_IR_ADD: {
             lca_string_append_format(codegen->output, "add ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FADD: {
+        case LYIR_IR_FADD: {
             lca_string_append_format(codegen->output, "fadd ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SUB: {
+        case LYIR_IR_SUB: {
             lca_string_append_format(codegen->output, "sub ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FSUB: {
+        case LYIR_IR_FSUB: {
             lca_string_append_format(codegen->output, "fsub ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_MUL: {
+        case LYIR_IR_MUL: {
             lca_string_append_format(codegen->output, "mul ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FMUL: {
+        case LYIR_IR_FMUL: {
             lca_string_append_format(codegen->output, "fmul ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SDIV: {
+        case LYIR_IR_SDIV: {
             lca_string_append_format(codegen->output, "sdiv ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_UDIV: {
+        case LYIR_IR_UDIV: {
             lca_string_append_format(codegen->output, "udiv ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FDIV: {
+        case LYIR_IR_FDIV: {
             lca_string_append_format(codegen->output, "fdiv ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SMOD: {
+        case LYIR_IR_SMOD: {
             lca_string_append_format(codegen->output, "srem ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_UMOD: {
+        case LYIR_IR_UMOD: {
             lca_string_append_format(codegen->output, "urem ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FMOD: {
+        case LYIR_IR_FMOD: {
             lca_string_append_format(codegen->output, "frem ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_AND: {
+        case LYIR_IR_AND: {
             lca_string_append_format(codegen->output, "and ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_OR: {
+        case LYIR_IR_OR: {
             lca_string_append_format(codegen->output, "or ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_XOR: {
+        case LYIR_IR_XOR: {
             lca_string_append_format(codegen->output, "xor ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SHL: {
+        case LYIR_IR_SHL: {
             lca_string_append_format(codegen->output, "shl ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SAR: {
+        case LYIR_IR_SAR: {
             lca_string_append_format(codegen->output, "ashr ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_SHR: {
+        case LYIR_IR_SHR: {
             lca_string_append_format(codegen->output, "lshr ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_EQ: {
+        case LYIR_IR_ICMP_EQ: {
             lca_string_append_format(codegen->output, "icmp eq ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_NE: {
+        case LYIR_IR_ICMP_NE: {
             lca_string_append_format(codegen->output, "icmp ne ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_SLT: {
+        case LYIR_IR_ICMP_SLT: {
             lca_string_append_format(codegen->output, "icmp slt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_ULT: {
+        case LYIR_IR_ICMP_ULT: {
             lca_string_append_format(codegen->output, "icmp ult ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_SLE: {
+        case LYIR_IR_ICMP_SLE: {
             lca_string_append_format(codegen->output, "icmp sle ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_ULE: {
+        case LYIR_IR_ICMP_ULE: {
             lca_string_append_format(codegen->output, "icmp ule ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_SGT: {
+        case LYIR_IR_ICMP_SGT: {
             lca_string_append_format(codegen->output, "icmp sgt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_UGT: {
+        case LYIR_IR_ICMP_UGT: {
             lca_string_append_format(codegen->output, "icmp ugt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_SGE: {
+        case LYIR_IR_ICMP_SGE: {
             lca_string_append_format(codegen->output, "icmp sge ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_ICMP_UGE: {
+        case LYIR_IR_ICMP_UGE: {
             lca_string_append_format(codegen->output, "icmp uge ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_FALSE: {
+        case LYIR_IR_FCMP_FALSE: {
             lca_string_append_format(codegen->output, "fcmp false ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_OEQ: {
+        case LYIR_IR_FCMP_OEQ: {
             lca_string_append_format(codegen->output, "fcmp oeq ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_OGT: {
+        case LYIR_IR_FCMP_OGT: {
             lca_string_append_format(codegen->output, "fcmp ogt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_OGE: {
+        case LYIR_IR_FCMP_OGE: {
             lca_string_append_format(codegen->output, "fcmp oge ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_OLT: {
+        case LYIR_IR_FCMP_OLT: {
             lca_string_append_format(codegen->output, "fcmp olt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_OLE: {
+        case LYIR_IR_FCMP_OLE: {
             lca_string_append_format(codegen->output, "fcmp ole ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_ONE: {
+        case LYIR_IR_FCMP_ONE: {
             lca_string_append_format(codegen->output, "fcmp one ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_ORD: {
+        case LYIR_IR_FCMP_ORD: {
             lca_string_append_format(codegen->output, "fcmp ord ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_UEQ: {
+        case LYIR_IR_FCMP_UEQ: {
             lca_string_append_format(codegen->output, "fcmp ueq ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_UGT: {
+        case LYIR_IR_FCMP_UGT: {
             lca_string_append_format(codegen->output, "fcmp ugt ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_UGE: {
+        case LYIR_IR_FCMP_UGE: {
             lca_string_append_format(codegen->output, "fcmp uge ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_ULT: {
+        case LYIR_IR_FCMP_ULT: {
             lca_string_append_format(codegen->output, "fcmp ult ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_ULE: {
+        case LYIR_IR_FCMP_ULE: {
             lca_string_append_format(codegen->output, "fcmp ule ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_UNE: {
+        case LYIR_IR_FCMP_UNE: {
             lca_string_append_format(codegen->output, "fcmp une ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_UNO: {
+        case LYIR_IR_FCMP_UNO: {
             lca_string_append_format(codegen->output, "fcmp uno ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
             llvm_print_value(codegen, layec_instruction_binary_get_rhs(instruction), false);
         } break;
 
-        case LAYEC_IR_FCMP_TRUE: {
+        case LYIR_IR_FCMP_TRUE: {
             lca_string_append_format(codegen->output, "fcmp true ");
             llvm_print_value(codegen, layec_instruction_binary_get_lhs(instruction), true);
             lca_string_append_format(codegen->output, ", ");
@@ -840,8 +840,8 @@ static void llvm_print_instruction(llvm_codegen* codegen, layec_value* instructi
     lca_string_append_format(codegen->output, "\n");
 }
 
-static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool include_type) {
-    layec_value_kind kind = layec_value_get_kind(value);
+static void llvm_print_value(llvm_codegen* codegen, lyir_value* value, bool include_type) {
+    lyir_value_kind kind = layec_value_get_kind(value);
 
     if (include_type) {
         llvm_print_type(codegen, layec_value_get_type(value));
@@ -859,18 +859,18 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
             }
         } break;
 
-        case LAYEC_IR_FUNCTION: {
+        case LYIR_IR_FUNCTION: {
             lca_string_append_format(codegen->output, "@%.*s", STR_EXPAND(layec_function_name(value)));
         } break;
 
-        case LAYEC_IR_INTEGER_CONSTANT: {
+        case LYIR_IR_INTEGER_CONSTANT: {
             int64_t ival = layec_value_integer_constant(value);
             if (layec_type_is_ptr(layec_value_get_type(value)) && ival == 0)
                 lca_string_append_format(codegen->output, "null");
             else lca_string_append_format(codegen->output, "%lld", ival);
         } break;
 
-        case LAYEC_IR_FLOAT_CONSTANT: {
+        case LYIR_IR_FLOAT_CONSTANT: {
             double float_value = layec_value_float_constant(value);
             if (float_value == 0.0) {
                 lca_string_append_format(codegen->output, "0.0");
@@ -879,7 +879,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
             }
         } break;
 
-        case LAYEC_IR_GLOBAL_VARIABLE: {
+        case LYIR_IR_GLOBAL_VARIABLE: {
             string_view name = layec_value_name(value);
             if (name.count == 0) {
                 int64_t index = layec_value_index(value);
@@ -889,7 +889,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
             }
         } break;
 
-        case LAYEC_IR_BLOCK: {
+        case LYIR_IR_BLOCK: {
             if (layec_block_has_name(value)) {
                 lca_string_append_format(codegen->output, "%%%.*s", STR_EXPAND(layec_block_name(value)));
             } else {
@@ -897,7 +897,7 @@ static void llvm_print_value(llvm_codegen* codegen, layec_value* value, bool inc
             }
         } break;
 
-        case LAYEC_IR_ARRAY_CONSTANT: {
+        case LYIR_IR_ARRAY_CONSTANT: {
             bool is_string = layec_array_constant_is_string(value);
             if (is_string) {
                 lca_string_append_format(codegen->output, "c\"");

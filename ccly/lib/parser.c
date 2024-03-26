@@ -9,10 +9,10 @@ typedef struct c_macro_expansion c_macro_expansion;
 typedef struct keyword_info keyword_info;
 
 struct c_lexer {
-    layec_context* context;
+    lyir_context* context;
     c_translation_unit* tu;
     int sourceid;
-    layec_source source_buffer;
+    lyir_source source_buffer;
 
     const char* cur;
     const char* end;
@@ -91,8 +91,8 @@ struct keyword_info c89_keywords[] = {
     {0},
 };
 
-static layec_location c_lexer_get_location(c_lexer* lexer) {
-    return (layec_location){
+static lyir_location c_lexer_get_location(c_lexer* lexer) {
+    return (lyir_location){
         .sourceid = lexer->sourceid,
         .offset = lexer->current_char_location - lexer->source_buffer.text.data,
         .length = 1,
@@ -104,7 +104,7 @@ static void c_lexer_advance(c_lexer* lexer, bool allow_comments);
 static int c_lexer_peek_no_process(c_lexer* lexer, int ahead);
 static void c_lexer_read_token(c_lexer* lexer, c_token* out_token);
 
-c_token_buffer c_get_tokens(layec_context* context, c_translation_unit* tu, layec_sourceid sourceid) {
+c_token_buffer c_get_tokens(lyir_context* context, c_translation_unit* tu, lyir_sourceid sourceid) {
     assert(context);
 
     c_lexer lexer = {
@@ -114,7 +114,7 @@ c_token_buffer c_get_tokens(layec_context* context, c_translation_unit* tu, laye
         .at_start_of_line = true,
     };
 
-    lexer.source_buffer = layec_context_get_source(context, sourceid);
+    lexer.source_buffer = lyir_context_get_source(context, sourceid);
     lexer.cur = lexer.source_buffer.text.data;
     lexer.end = lexer.cur + lexer.source_buffer.text.count;
 
@@ -143,13 +143,13 @@ static int c_lexer_read_escape_sequence(c_lexer* lexer, bool allow_comments) {
     assert(lexer->current_char == '\\' && c_lexer_peek_no_process(lexer, 1) != '\n' && c_lexer_peek_no_process(lexer, 1) != '\r');
     c_lexer_advance(lexer, allow_comments);
     if (c_lexer_at_eof(lexer)) {
-        layec_write_error(lexer->context, c_lexer_get_location(lexer), "End of file reached when lexing escape sequence");
+        lyir_write_error(lexer->context, c_lexer_get_location(lexer), "End of file reached when lexing escape sequence");
         return 0;
     }
 
     switch (lexer->current_char) {
         default: {
-            layec_write_error(lexer->context, c_lexer_get_location(lexer), "Unrecognized escape sequence");
+            lyir_write_error(lexer->context, c_lexer_get_location(lexer), "Unrecognized escape sequence");
             c_lexer_advance(lexer, allow_comments);
             return 0;
         }
@@ -175,7 +175,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
         return;
     }
 
-    layec_location start_location = c_lexer_get_location(lexer);
+    lyir_location start_location = c_lexer_get_location(lexer);
     out_token->location = start_location;
 
     int cur = lexer->current_char;
@@ -338,7 +338,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
             c_lexer_advance(lexer, false);
             out_token->kind = C_TOKEN_LIT_CHAR;
             if (lexer->current_char == '\'') {
-                layec_write_error(lexer->context, start_location, "Quoted character should contain at least one character.");
+                lyir_write_error(lexer->context, start_location, "Quoted character should contain at least one character.");
                 c_lexer_advance(lexer, false);
             } else {
                 if (lexer->current_char == '\\')
@@ -350,7 +350,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
             }
 
             if (lexer->current_char != '\'') {
-                layec_write_error(lexer->context, start_location, "Missing close quote.");
+                lyir_write_error(lexer->context, start_location, "Missing close quote.");
                 c_lexer_advance(lexer, true);
             } else c_lexer_advance(lexer, false);
         } break;
@@ -365,7 +365,7 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
 
             while (lexer->current_char != end_delim) {
                 if (c_lexer_at_eof(lexer)) {
-                    layec_write_error(lexer->context, start_location, "Unfinished string.");
+                    lyir_write_error(lexer->context, start_location, "Unfinished string.");
                     c_lexer_advance(lexer, false);
                     goto finish_token;
                 } else if (lexer->current_char == '\\' && !lexer->is_in_include)
@@ -377,11 +377,11 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
             }
 
             if (lexer->current_char != end_delim) {
-                layec_write_error(lexer->context, start_location, "Missing close quote.");
+                lyir_write_error(lexer->context, start_location, "Missing close quote.");
                 c_lexer_advance(lexer, true);
             } else c_lexer_advance(lexer, false);
 
-            out_token->string_value = layec_context_intern_string_view(lexer->context, string_as_view(builder));
+            out_token->string_value = lyir_context_intern_string_view(lexer->context, string_as_view(builder));
             string_destroy(&builder);
         } break;
 
@@ -415,15 +415,15 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
 
             string_view suffix_view = {0};
             if (is_alpha_numeric(lexer->current_char)) {
-                layec_location suffix_location = c_lexer_get_location(lexer);
+                lyir_location suffix_location = c_lexer_get_location(lexer);
                 do c_lexer_advance(lexer, true);
                 while (is_alpha_numeric(lexer->current_char));
-                layec_location suffix_end_location = c_lexer_get_location(lexer);
+                lyir_location suffix_end_location = c_lexer_get_location(lexer);
                 out_token->string_value = string_view_slice(string_as_view(lexer->source_buffer.text), suffix_location.offset, suffix_end_location.offset - suffix_location.offset);
             }
 
             if (suffix_view.count != 0) {
-                layec_write_error(lexer->context, start_location, "Integer literal suffixes are not yet supported.");
+                lyir_write_error(lexer->context, start_location, "Integer literal suffixes are not yet supported.");
                 c_lexer_advance(lexer, true);
             }
 
@@ -490,18 +490,18 @@ static void c_lexer_read_token_no_preprocess(c_lexer* lexer, c_token* out_token)
             while (is_alpha_numeric(lexer->current_char) || lexer->current_char == '_')
                 c_lexer_advance(lexer, true);
 
-            layec_location ident_end_location = c_lexer_get_location(lexer);
+            lyir_location ident_end_location = c_lexer_get_location(lexer);
             out_token->string_value = string_view_slice(string_as_view(lexer->source_buffer.text), start_location.offset, ident_end_location.offset - start_location.offset);
         } break;
 
         default: {
-            layec_write_error(lexer->context, start_location, "Invalid character in source text.");
+            lyir_write_error(lexer->context, start_location, "Invalid character in source text.");
             c_lexer_advance(lexer, true);
         } break;
     }
 
 finish_token:;
-    layec_location end_location = c_lexer_get_location(lexer);
+    lyir_location end_location = c_lexer_get_location(lexer);
     out_token->location.length = end_location.offset - start_location.offset;
 }
 
@@ -593,7 +593,7 @@ regular_lex_token:;
                 dynarr(c_token) current_arg = NULL;
                 for (;;) {
                     if (c_lexer_at_eof(lexer)) {
-                        layec_write_error(lexer->context, c_lexer_get_location(lexer), "Expected ')' in macro argument list.");
+                        lyir_write_error(lexer->context, c_lexer_get_location(lexer), "Expected ')' in macro argument list.");
                         c_lexer_advance(lexer, true);
                         out_token->kind = C_TOKEN_EOF;
                         break;
@@ -663,16 +663,16 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
     assert(token.kind == C_TOKEN_IDENT);
     assert(string_view_equals_cstring(token.string_value, "define"));
 
-    layec_location start_location = token.location;
+    lyir_location start_location = token.location;
     c_lexer_read_token_no_preprocess(lexer, &token);
 
     if (token.kind == C_TOKEN_EOF) {
-        layec_write_error(lexer->context, token.location, "Macro name missing.");
+        lyir_write_error(lexer->context, token.location, "Macro name missing.");
         return;
     }
 
     if (token.kind != C_TOKEN_IDENT) {
-        layec_write_error(lexer->context, token.location, "Macro name must be an identifier.");
+        lyir_write_error(lexer->context, token.location, "Macro name must be an identifier.");
         c_lexer_skip_to_end_of_directive(lexer, token);
         return;
     }
@@ -701,14 +701,14 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
             }
 
             if (token.kind == C_TOKEN_EOF || token.kind == '\n') {
-                layec_write_error(lexer->context, token.location, "Expected ')' in macro parameter list.");
+                lyir_write_error(lexer->context, token.location, "Expected ')' in macro parameter list.");
                 c_lexer_advance(lexer, true);
                 c_lexer_skip_to_end_of_directive(lexer, token);
                 return;
             }
 
             if (token.kind != C_TOKEN_IDENT) {
-                layec_write_error(lexer->context, token.location, "Invalid token in macro parameter list (expected identifier.)");
+                lyir_write_error(lexer->context, token.location, "Invalid token in macro parameter list (expected identifier.)");
                 c_lexer_advance(lexer, true);
                 c_lexer_skip_to_end_of_directive(lexer, token);
                 return;
@@ -721,7 +721,7 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
             if (token.kind == ')')
                 break;
             else if (token.kind != ',') {
-                layec_write_error(lexer->context, token.location, "Expected comma in macro parameter list.");
+                lyir_write_error(lexer->context, token.location, "Expected comma in macro parameter list.");
                 c_lexer_skip_to_end_of_directive(lexer, token);
                 return;
             }
@@ -729,7 +729,7 @@ static void c_lexer_handle_define_directive(c_lexer* lexer, c_token token) {
 
         // c_lexer_read_token_no_preprocess(lexer, &token);
         if (token.kind != ')') {
-            layec_write_error(lexer->context, token.location, "Expected ')' in macro parameter list.");
+            lyir_write_error(lexer->context, token.location, "Expected ')' in macro parameter list.");
             c_lexer_advance(lexer, true);
             c_lexer_skip_to_end_of_directive(lexer, token);
             return;
@@ -779,7 +779,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     assert(token.kind == C_TOKEN_IDENT);
     assert(string_view_equals_cstring(token.string_value, "include"));
 
-    layec_location include_location = token.location;
+    lyir_location include_location = token.location;
 
     lexer->is_in_include = true;
     c_lexer_read_token_no_preprocess(lexer, &token);
@@ -788,7 +788,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     string_view include_path = {0};
 
     if (token.kind == '\n') {
-        layec_write_error(lexer->context, token.location, "Expected a file name.");
+        lyir_write_error(lexer->context, token.location, "Expected a file name.");
         c_lexer_advance(lexer, true);
         c_lexer_skip_to_end_of_directive(lexer, token);
         return;
@@ -799,7 +799,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
         include_path = token.string_value;
     } else {
         // TODO(local): computed #include
-        layec_write_error(lexer->context, token.location, "Expected a file name.");
+        lyir_write_error(lexer->context, token.location, "Expected a file name.");
         c_lexer_advance(lexer, true);
     }
 
@@ -809,7 +809,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
     lexer->is_in_include = false;
 
     // TODO(local): process the include
-    int include_sourceid = layec_context_get_or_add_source_from_file(lexer->context, include_path);
+    int include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, include_path);
     if (include_sourceid <= 0) {
         // TODO(local): only do this for quote strings, not angle strings
         if (!is_angle_string) {
@@ -823,7 +823,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
             // string_view parent_dir = string_as_view(lexer->source_buffer.name);
             // string_view include_path2 = string_view_path_concat(parent_dir, include_path);
 
-            include_sourceid = layec_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
+            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
             string_destroy(&include_path2);
 
             if (include_sourceid > 0) {
@@ -841,7 +841,7 @@ static void c_lexer_handle_include_directive(c_lexer* lexer, c_token token) {
             string_path_append_view(&include_path2, include_path);
             // string_view include_path2 = string_view_path_concat(include_dir, include_path);
 
-            include_sourceid = layec_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
+            include_sourceid = lyir_context_get_or_add_source_from_file(lexer->context, string_as_view(include_path2));
             string_destroy(&include_path2);
 
             if (include_sourceid > 0) {
@@ -873,7 +873,7 @@ good_include_gogogo:;
     return;
 
 handle_include_error:;
-    layec_write_error(lexer->context, include_location, "Could not read included file '%.*s'.", STR_EXPAND(include_path));
+    lyir_write_error(lexer->context, include_location, "Could not read included file '%.*s'.", STR_EXPAND(include_path));
     c_lexer_advance(lexer, true);
 }
 
@@ -885,7 +885,7 @@ static void c_lexer_handle_preprocessor_directive(c_lexer* lexer) {
     lexer->is_in_preprocessor = true;
     c_lexer_advance(lexer, true);
 
-    layec_location start_location = c_lexer_get_location(lexer);
+    lyir_location start_location = c_lexer_get_location(lexer);
 
     c_token token = {0};
     c_lexer_read_token_no_preprocess(lexer, &token);
@@ -893,7 +893,7 @@ static void c_lexer_handle_preprocessor_directive(c_lexer* lexer) {
     switch (token.kind) {
         default: {
         invalid_preprocessing_directive:;
-            layec_write_error(lexer->context, token.location, "Invalid preprocessing directive.");
+            lyir_write_error(lexer->context, token.location, "Invalid preprocessing directive.");
             c_lexer_advance(lexer, true);
             c_lexer_skip_to_end_of_directive(lexer, token);
             return;
@@ -952,12 +952,12 @@ static int c_lexer_read_next_char(c_lexer* lexer, bool allow_comments) {
                 if (*lexer->cur == '\\' && c_lexer_skip_backslash_newline(lexer)) {
                     if (!has_warned) {
                         // TODO(local): we could track the total length of the comment and report it after
-                        layec_location location = (layec_location){
+                        lyir_location location = (lyir_location){
                             .sourceid = lexer->sourceid,
                             .offset = lexer->cur - lexer->source_buffer.text.data,
                             .length = 1,
                         };
-                        layec_write_warn(lexer->context, location, "Multiline // comment.");
+                        lyir_write_warn(lexer->context, location, "Multiline // comment.");
                     }
 
                     has_warned = true;
@@ -980,12 +980,12 @@ static int c_lexer_read_next_char(c_lexer* lexer, bool allow_comments) {
 
                 if (LEXER_PAST_EOF(lexer)) {
                     // TODO(local): we could track the total length of the comment and report it after
-                    layec_location location = (layec_location){
+                    lyir_location location = (lyir_location){
                         .sourceid = lexer->sourceid,
                         .offset = lexer->cur - lexer->source_buffer.text.data,
                         .length = 1,
                     };
-                    layec_write_warn(lexer->context, location, "Unfinished /* comment.");
+                    lyir_write_warn(lexer->context, location, "Unfinished /* comment.");
                     break;
                 }
 
@@ -1031,7 +1031,7 @@ static void c_lexer_advance(c_lexer* lexer, bool allow_comments) {
     if (lexer->current_char != 0) assert(lexer->current_char_location < lexer->cur);
 }
 
-c_translation_unit* c_parse(layec_context* context, layec_sourceid sourceid) {
+c_translation_unit* c_parse(lyir_context* context, lyir_sourceid sourceid) {
     assert(context != NULL);
     assert(sourceid >= 0);
 
