@@ -20,16 +20,16 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     lyir_context* context = lyir_context_create(default_allocator);
     context->use_color = false;
 
-    string_view name = SV_CONSTANT("<fuzz-input>");
-    string_view data = {
+    lca_string_view name = LCA_SV_CONSTANT("<fuzz-input>");
+    lca_string_view data = {
         .data = (char*)Data,
         .count = (int64_t)Size,
     };
 
     lyir_sourceid sourceid = lyir_context_get_or_add_source_from_string(
         context,
-        string_view_to_string(default_allocator, name),
-        string_view_to_string(default_allocator, data)
+        lca_string_view_to_string(default_allocator, name),
+        lca_string_view_to_string(default_allocator, data)
     );
 
     laye_module* module = laye_parse(context, sourceid);

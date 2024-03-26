@@ -91,7 +91,7 @@ typedef struct lca_arena_block {
 
 struct lca_arena {
     lca_allocator allocator;
-    dynarr(lca_arena_block) blocks;
+    lca_da(lca_arena_block) blocks;
     int64_t block_size;
 };
 
@@ -203,13 +203,13 @@ void lca_arena_destroy(lca_arena* arena) {
 
     lca_allocator allocator = arena->allocator;
 
-    for (int64_t i = 0, count = arr_count(arena->blocks); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(arena->blocks); i < count; i++) {
         lca_arena_block* block = &arena->blocks[i];
         lca_deallocate(allocator, block->memory);
         *block = (lca_arena_block){0};
     }
 
-    arr_free(arena->blocks);
+    lca_da_free(arena->blocks);
 
     *arena = (lca_arena){0};
     lca_deallocate(allocator, arena);

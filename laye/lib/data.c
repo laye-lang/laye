@@ -42,7 +42,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, string_view name) {
+laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, lca_string_view name) {
     if (kind == LAYE_SYMBOL_ENTITY) {
         assert(name.count > 0);
     }
@@ -51,17 +51,17 @@ laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, stri
     assert(symbol != NULL);
     symbol->kind = kind;
     symbol->name = name;
-    arr_push(module->_all_symbols, symbol);
+    lca_da_push(module->_all_symbols, symbol);
     return symbol;
 }
 
-laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, string_view name) {
+laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, lca_string_view name) {
     assert(symbol_namespace != NULL);
     assert(symbol_namespace->kind == LAYE_SYMBOL_NAMESPACE);
 
-    for (int64_t i = 0, count = arr_count(symbol_namespace->symbols); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(symbol_namespace->symbols); i < count; i++) {
         laye_symbol* lookup = symbol_namespace->symbols[i];
-        if (string_view_equals(name, lookup->name)) {
+        if (lca_string_view_equals(name, lookup->name)) {
             return lookup;
         }
     }
@@ -73,9 +73,9 @@ void laye_symbol_destroy(laye_symbol* symbol) {
     if (symbol == NULL) return;
 
     if (symbol->kind == LAYE_SYMBOL_ENTITY) {
-        arr_free(symbol->nodes);
+        lca_da_free(symbol->nodes);
     } else {
-        arr_free(symbol->symbols);
+        lca_da_free(symbol->symbols);
     }
 }
 
@@ -85,37 +85,37 @@ void laye_module_destroy(laye_module* module) {
     assert(module->context != NULL);
     lca_allocator allocator = module->context->allocator;
 
-    for (int64_t i = 0, count = arr_count(module->_all_tokens); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->_all_tokens); i < count; i++) {
         laye_token token = module->_all_tokens[i];
-        arr_free(token.leading_trivia);
-        arr_free(token.trailing_trivia);
+        lca_da_free(token.leading_trivia);
+        lca_da_free(token.trailing_trivia);
     }
 
-    for (int64_t i = 0, count = arr_count(module->_all_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->_all_nodes); i < count; i++) {
         laye_node* node = module->_all_nodes[i];
         assert(node != NULL);
         laye_node_destroy(node);
     }
 
-    for (int64_t i = 0, count = arr_count(module->_all_scopes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->_all_scopes); i < count; i++) {
         laye_scope* scope = module->_all_scopes[i];
         assert(scope != NULL);
         laye_scope_destroy(scope);
     }
 
-    for (int64_t i = 0, count = arr_count(module->_all_symbols); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->_all_symbols); i < count; i++) {
         laye_symbol* symbol = module->_all_symbols[i];
         assert(symbol != NULL);
         laye_symbol_destroy(symbol);
     }
 
-    arr_free(module->_all_tokens);
-    arr_free(module->_all_nodes);
-    arr_free(module->_all_scopes);
-    arr_free(module->_all_symbols);
+    lca_da_free(module->_all_tokens);
+    lca_da_free(module->_all_nodes);
+    lca_da_free(module->_all_scopes);
+    lca_da_free(module->_all_symbols);
 
-    arr_free(module->top_level_nodes);
-    //arr_free(module->imports);
+    lca_da_free(module->top_level_nodes);
+    //lca_da_free(module->imports);
 
     lca_arena_destroy(module->arena);
 
@@ -137,14 +137,14 @@ laye_scope* laye_scope_create(laye_module* module, laye_scope* parent) {
     assert(scope != NULL);
     scope->module = module;
     scope->parent = parent;
-    arr_push(module->_all_scopes, scope);
+    lca_da_push(module->_all_scopes, scope);
     return scope;
 }
 
 void laye_scope_destroy(laye_scope* scope) {
     if (scope == NULL) return;
-    arr_free(scope->type_declarations);
-    arr_free(scope->value_declarations);
+    lca_da_free(scope->type_declarations);
+    lca_da_free(scope->value_declarations);
     *scope = (laye_scope){0};
 }
 
@@ -152,7 +152,7 @@ void laye_scope_declare(laye_scope* scope, laye_node* declaration) {
     laye_scope_declare_aliased(scope, declaration, declaration->declared_name);
 }
 
-void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, string_view alias) {
+void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, lca_string_view alias) {
     assert(scope != NULL);
     assert(declaration != NULL);
     assert(laye_node_is_decl(declaration));
@@ -163,55 +163,55 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, strin
     assert(module != NULL);
 
     bool is_type_declaration = declaration->kind == LAYE_NODE_DECL_STRUCT || declaration->kind == LAYE_NODE_DECL_ENUM || declaration->kind == LAYE_NODE_DECL_ALIAS || declaration->kind == LAYE_NODE_DECL_TEMPLATE_TYPE;
-    dynarr(laye_aliased_node)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
+    lca_da(laye_aliased_node)* entity_namespace = is_type_declaration ? &scope->type_declarations : &scope->value_declarations;
     assert(entity_namespace != NULL);
 
     if (!is_type_declaration) {
-        for (int64_t i = 0, count = arr_count(*entity_namespace); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(*entity_namespace); i < count; i++) {
             laye_aliased_node entry = (*entity_namespace)[i];
             
-            string_view existing_name = entry.name;
+            lca_string_view existing_name = entry.name;
             laye_node* existing_declaration = entry.node;
             assert(existing_declaration != NULL);
 
             if (
-                string_view_equals(existing_name, alias) &&
+                lca_string_view_equals(existing_name, alias) &&
                 (declaration->kind != LAYE_NODE_DECL_FUNCTION || existing_declaration->kind != LAYE_NODE_DECL_FUNCTION)
             ) {
                 assert(module->context != NULL);
-                lyir_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", STR_EXPAND(alias));
+                lyir_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", LCA_STR_EXPAND(alias));
                 return;
             }
         }
     }
 
-    arr_push(*entity_namespace, ((laye_aliased_node){
+    lca_da_push(*entity_namespace, ((laye_aliased_node){
         .name = alias,
         .node = declaration,
     }));
 }
 
-static laye_node* laye_scope_lookup_from(laye_scope* scope, dynarr(laye_aliased_node) declarations, string_view name) {
+static laye_node* laye_scope_lookup_from(laye_scope* scope, lca_da(laye_aliased_node) declarations, lca_string_view name) {
     assert(scope != NULL);
     assert(scope->module != NULL);
 
-    for (int64_t i = 0, count = arr_count(declarations); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(declarations); i < count; i++) {
         laye_aliased_node entry = declarations[i];
         assert(entry.node != NULL);
 
-        if (string_view_equals(entry.name, name))
+        if (lca_string_view_equals(entry.name, name))
             return entry.node;
     }
 
     return NULL;
 }
 
-laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name) {
+laye_node* laye_scope_lookup_value(laye_scope* scope, lca_string_view value_name) {
     assert(scope != NULL);
     return laye_scope_lookup_from(scope, scope->value_declarations, value_name);
 }
 
-laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name) {
+laye_node* laye_scope_lookup_type(laye_scope* scope, lca_string_view type_name) {
     assert(scope != NULL);
     return laye_scope_lookup_from(scope, scope->type_declarations, type_name);
 }
@@ -224,7 +224,7 @@ laye_node* laye_node_create(laye_module* module, laye_node_kind kind, lyir_locat
     assert(laye_node_is_type(type.node));
     laye_node* node = lca_arena_push(module->arena, sizeof *node);
     assert(node != NULL);
-    arr_push(module->_all_nodes, node);
+    lca_da_push(module->_all_nodes, node);
     node->module = module;
     node->context = module->context;
     node->kind = kind;
@@ -247,76 +247,76 @@ laye_node* laye_node_create_in_context(lyir_context* context, laye_node_kind kin
 void laye_node_destroy(laye_node* node) {
     if (node == NULL) return;
 
-    arr_free(node->template_parameters);
-    arr_free(node->attribute_nodes);
+    lca_da_free(node->template_parameters);
+    lca_da_free(node->attribute_nodes);
 
     switch (node->kind) {
         default: break;
 
         case LAYE_NODE_DECL_IMPORT: {
-            arr_free(node->decl_import.import_queries);
+            lca_da_free(node->decl_import.import_queries);
         } break;
 
         case LAYE_NODE_IMPORT_QUERY: {
-            arr_free(node->import_query.pieces);
+            lca_da_free(node->import_query.pieces);
         } break;
 
         case LAYE_NODE_DECL_OVERLOADS: {
-            arr_free(node->decl_overloads.declarations);
+            lca_da_free(node->decl_overloads.declarations);
         } break;
 
         case LAYE_NODE_DECL_FUNCTION: {
-            arr_free(node->decl_function.parameter_declarations);
+            lca_da_free(node->decl_function.parameter_declarations);
         } break;
 
         case LAYE_NODE_DECL_STRUCT: {
-            arr_free(node->decl_struct.field_declarations);
-            arr_free(node->decl_struct.variant_declarations);
+            lca_da_free(node->decl_struct.field_declarations);
+            lca_da_free(node->decl_struct.variant_declarations);
         } break;
 
         case LAYE_NODE_DECL_ENUM: {
-            arr_free(node->decl_enum.variants);
+            lca_da_free(node->decl_enum.variants);
         } break;
 
         case LAYE_NODE_DECL_TEST: {
-            arr_free(node->decl_test.nameref.pieces);
-            arr_free(node->decl_test.nameref.template_arguments);
+            lca_da_free(node->decl_test.nameref.pieces);
+            lca_da_free(node->decl_test.nameref.template_arguments);
         } break;
 
         case LAYE_NODE_IF: {
-            arr_free(node->_if.conditions);
-            arr_free(node->_if.passes);
+            lca_da_free(node->_if.conditions);
+            lca_da_free(node->_if.passes);
         } break;
 
         case LAYE_NODE_COMPOUND: {
-            arr_free(node->compound.children);
+            lca_da_free(node->compound.children);
         } break;
 
         case LAYE_NODE_SWITCH: {
-            arr_free(node->_switch.cases);
+            lca_da_free(node->_switch.cases);
         } break;
 
         case LAYE_NODE_NAMEREF:
         case LAYE_NODE_TYPE_NAMEREF: {
-            arr_free(node->nameref.pieces);
-            arr_free(node->nameref.template_arguments);
+            lca_da_free(node->nameref.pieces);
+            lca_da_free(node->nameref.template_arguments);
         } break;
 
         case LAYE_NODE_INDEX: {
-            arr_free(node->index.indices);
+            lca_da_free(node->index.indices);
         } break;
 
         case LAYE_NODE_CALL: {
-            arr_free(node->call.arguments);
+            lca_da_free(node->call.arguments);
         } break;
 
         case LAYE_NODE_CTOR: {
-            arr_free(node->ctor.initializers);
+            lca_da_free(node->ctor.initializers);
         } break;
 
         case LAYE_NODE_NEW: {
-            arr_free(node->new.arguments);
-            arr_free(node->new.initializers);
+            lca_da_free(node->new.arguments);
+            lca_da_free(node->new.initializers);
         } break;
 
         case LAYE_NODE_TYPE_NILABLE:
@@ -325,20 +325,20 @@ void laye_node_destroy(laye_node* node) {
         case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
-            arr_free(node->type_container.length_values);
+            lca_da_free(node->type_container.length_values);
         } break;
 
         case LAYE_NODE_TYPE_FUNCTION: {
-            arr_free(node->type_function.parameter_types);
+            lca_da_free(node->type_function.parameter_types);
         } break;
 
         case LAYE_NODE_TYPE_STRUCT: {
-            arr_free(node->type_struct.fields);
-            arr_free(node->type_struct.variants);
+            lca_da_free(node->type_struct.fields);
+            lca_da_free(node->type_struct.variants);
         } break;
 
         case LAYE_NODE_TYPE_ENUM: {
-            arr_free(node->type_enum.variants);
+            lca_da_free(node->type_enum.variants);
         } break;
     }
 
@@ -391,7 +391,7 @@ bool laye_decl_is_exported(laye_node* decl) {
 bool laye_decl_is_template(laye_node* decl) {
     assert(decl != NULL);
     assert(laye_node_is_decl(decl));
-    return arr_count(decl->template_parameters) > 0;
+    return lca_da_count(decl->template_parameters) > 0;
 }
 
 laye_type laye_expr_type(laye_node* expr) {
@@ -450,7 +450,7 @@ bool laye_expr_evaluate(laye_node* expr, lyir_evaluated_constant* out_constant, 
 
 #if false
         case LAYE_NODE_COMPOUND: {
-            if (arr_count(expr->compound.children) == 1 && expr->compound.children[0]->kind == LAYE_NODE_YIELD) {
+            if (lca_da_count(expr->compound.children) == 1 && expr->compound.children[0]->kind == LAYE_NODE_YIELD) {
                 return laye_expr_evaluate(expr->compound.children[0]->yield.value, out_constant, is_required);
             }
 
@@ -529,7 +529,7 @@ int laye_type_size_in_bits(laye_type type) {
             int element_size = laye_type_size_in_bytes(type.node->type_container.element_type);// * 8;
             int64_t constant_value = 1;
 
-            for (int64_t i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(type.node->type_container.length_values); i < count; i++) {
                 laye_node* length_value = type.node->type_container.length_values[i];
                 if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT && length_value->evaluated_constant.result.kind == LYIR_EVAL_INT) {
                     constant_value *= length_value->evaluated_constant.result.int_value;
@@ -549,11 +549,11 @@ int laye_type_size_in_bits(laye_type type) {
             // for debug use. Fine to not cache it.
             int size = 0;
             // NOTE(local): generation of this struct should include padding, so we don't consider it here
-            for (int64_t i = 0, count = arr_count(type.node->type_struct.fields); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(type.node->type_struct.fields); i < count; i++) {
                 size += laye_type_size_in_bits(type.node->type_struct.fields[i].type);
             }
             // TODO(local): include largest variant
-            assert(arr_count(type.node->type_struct.variants) == 0);
+            assert(lca_da_count(type.node->type_struct.variants) == 0);
 
             return size;
         }
@@ -616,14 +616,14 @@ int laye_type_align_in_bytes(laye_type type) {
             // we don't usually care about the size that often. this is most likely
             // for debug use. Fine to not cache it.
             int align = 1;
-            for (int64_t i = 0, count = arr_count(type.node->type_struct.fields); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(type.node->type_struct.fields); i < count; i++) {
                 int f_align = laye_type_align_in_bytes(type.node->type_struct.fields[i].type);
                 if (f_align > align) {
                     align = f_align;
                 }
             }
             // TODO(local): include largest variant
-            assert(arr_count(type.node->type_struct.variants) == 0);
+            assert(lca_da_count(type.node->type_struct.variants) == 0);
 
             return align;
         }
@@ -989,10 +989,10 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
             assert(a->type_container.element_type.node != NULL);
             assert(b->type_container.element_type.node != NULL);
 
-            if (arr_count(a->type_container.length_values) != arr_count(b->type_container.length_values))
+            if (lca_da_count(a->type_container.length_values) != lca_da_count(b->type_container.length_values))
                 return false;
 
-            for (int64_t i = 0, count = arr_count(a->type_container.length_values); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(a->type_container.length_values); i < count; i++) {
                 laye_node* a_expr = a->type_container.length_values[i];
                 laye_node* b_expr = b->type_container.length_values[i];
 
@@ -1025,13 +1025,13 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
             if (a->type_function.varargs_style != b->type_function.varargs_style)
                 return false;
 
-            if (arr_count(a->type_function.parameter_types) != arr_count(b->type_function.parameter_types))
+            if (lca_da_count(a->type_function.parameter_types) != lca_da_count(b->type_function.parameter_types))
                 return false;
 
             if (!laye_type_equals(a->type_function.return_type, b->type_function.return_type, mut_compare))
                 return false;
 
-            for (int64_t i = 0, count = arr_count(a->type_function.parameter_types); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(a->type_function.parameter_types); i < count; i++) {
                 laye_type a_param_type = a->type_function.parameter_types[i];
                 laye_type b_param_type = b->type_function.parameter_types[i];
 
@@ -1060,5 +1060,5 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
 int laye_type_array_rank(laye_type array_type) {
     assert(array_type.node != NULL);
     assert(laye_type_is_array(array_type));
-    return (int)arr_count(array_type.node->type_container.length_values);
+    return (int)lca_da_count(array_type.node->type_container.length_values);
 }

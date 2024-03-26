@@ -51,7 +51,7 @@ typedef struct laye_token laye_token;
 typedef struct laye_attributes {
     // if a declaration is marked as `foreign` *and* a name was specified,
     // this field represents that name. `foreign` also controls name mangling.
-    string_view foreign_name;
+    lca_string_view foreign_name;
     // the linkage for this declaration.
     lyir_linkage linkage;
     // the name mangling strategy to use for this declaration, if any.
@@ -95,12 +95,12 @@ typedef enum laye_cast_kind {
 
 typedef struct laye_module_import {
     bool is_exported;
-    string_view name;
+    lca_string_view name;
     struct laye_module* referenced_module;
 } laye_module_import;
 
 typedef struct laye_aliased_node {
-    string_view name;
+    lca_string_view name;
     laye_node* node;
 } laye_aliased_node;
 
@@ -111,10 +111,10 @@ typedef enum laye_symbol_kind {
 
 typedef struct laye_symbol {
     laye_symbol_kind kind;
-    string_view name;
+    lca_string_view name;
     union {
-        dynarr(laye_node*) nodes;
-        dynarr(struct laye_symbol*) symbols;
+        lca_da(laye_node*) nodes;
+        lca_da(struct laye_symbol*) symbols;
     };
 } laye_symbol;
 
@@ -130,19 +130,19 @@ typedef struct laye_module {
     laye_scope* scope;
     lca_arena* arena;
 
-    dynarr(laye_node*) top_level_nodes;
+    lca_da(laye_node*) top_level_nodes;
 
     // namespaces to reference when traversing imports.
     // *only* for imports which generate namespaces.
-    //dynarr(laye_module_import) imports;
+    //lca_da(laye_module_import) imports;
 
     laye_symbol* exports;
     laye_symbol* imports;
 
-    dynarr(laye_token) _all_tokens;
-    dynarr(laye_node*) _all_nodes;
-    dynarr(laye_scope*) _all_scopes;
-    dynarr(laye_symbol*) _all_symbols;
+    lca_da(laye_token) _all_tokens;
+    lca_da(laye_node*) _all_nodes;
+    lca_da(laye_scope*) _all_scopes;
+    lca_da(laye_symbol*) _all_symbols;
 } laye_module;
 
 struct laye_scope {
@@ -152,14 +152,14 @@ struct laye_scope {
     laye_scope* parent;
     // the name of this scope, if any.
     // used mostly for debugging.
-    string_view name;
+    lca_string_view name;
     // true if this is a function scope (outermost scope containing a function body).
     bool is_function_scope;
     // "value"s declared in this scope.
     // here, "value" refers to non-type declarations like variables or functions.
-    dynarr(laye_aliased_node) value_declarations;
+    lca_da(laye_aliased_node) value_declarations;
     // types declared in this scope.
-    dynarr(laye_aliased_node) type_declarations;
+    lca_da(laye_aliased_node) type_declarations;
 };
 
 typedef enum laye_mut_compare {
@@ -282,7 +282,7 @@ LAYE_TRIVIA_KINDS(X)
 typedef struct laye_trivia {
     laye_trivia_kind kind;
     lyir_location location;
-    string_view text;
+    lca_string_view text;
 } laye_trivia;
 
 // clang-format off
@@ -327,12 +327,12 @@ typedef enum laye_token_kind {
 struct laye_token {
     laye_token_kind kind;
     lyir_location location;
-    dynarr(laye_trivia) leading_trivia;
-    dynarr(laye_trivia) trailing_trivia;
+    lca_da(laye_trivia) leading_trivia;
+    lca_da(laye_trivia) trailing_trivia;
     union {
         int64_t int_value;
         double float_value;
-        string_view string_value;
+        lca_string_view string_value;
     };
 };
 
@@ -477,9 +477,9 @@ typedef struct laye_nameref {
     // a single identifier is still a one-element list, to ease name resolution
     // implementations.
     // every token in this list is assumed to be an identifier.
-    dynarr(laye_token) pieces;
+    lca_da(laye_token) pieces;
     // template arguments provided to this name for instantiation.
-    dynarr(laye_template_arg) template_arguments;
+    lca_da(laye_template_arg) template_arguments;
 
     // the declaration this name references, once it has been resolved.
     laye_node* referenced_declaration;
@@ -489,17 +489,17 @@ typedef struct laye_nameref {
 
 typedef struct laye_struct_type_field {
     laye_type type;
-    string_view name;
+    lca_string_view name;
     lyir_evaluated_constant initial_value;
 } laye_struct_type_field;
 
 typedef struct laye_struct_type_variant {
     laye_type type;
-    string_view name;
+    lca_string_view name;
 } laye_struct_type_variant;
 
 typedef struct laye_enum_type_variant {
-    string_view name;
+    lca_string_view name;
     int64_t value;
 } laye_enum_type_variant;
 
@@ -544,12 +544,12 @@ struct laye_node {
     // if either `import.is_wildcard` is set to true *or* `import.imported_names`
     // contains values, then this is assumed to be empty except for to report a syntax
     // error when used imporperly.
-    string_view declared_name;
+    lca_string_view declared_name;
     // attributes for this declaration that aren't covered by other standard cases.
     laye_attributes attributes;
     // template parameters for this declaration, if there are any.
     // will contain template type and value declarations.
-    dynarr(laye_node*) template_parameters;
+    lca_da(laye_node*) template_parameters;
     // the declared type of this declaration, if one is required for this node.
     // this is used for the type of a binding, the combined type of a function,
     // and the types declared by struct, enum or alias declarations.
@@ -558,7 +558,7 @@ struct laye_node {
 
     // should not contain any unique information when compared to the shared fields above,
     // but for syntactic preservation these nodes are stored with every declaration anyway.
-    dynarr(laye_node*) attribute_nodes;
+    lca_da(laye_node*) attribute_nodes;
 
     // populated during IRgen, makes it easier to keep track of
     // since we don't have usable hash tables woot.
@@ -573,7 +573,7 @@ struct laye_node {
             // the list of names this import declaration specifies, if any.
             // if there are no names specified or the `is_wildcard` field is set to
             // true, then this list is assumed empty except to report a syntax error.
-            dynarr(laye_node*) import_queries;
+            lca_da(laye_node*) import_queries;
             // the name of the module to import. This can be either a string literal
             // or a Laye identifier. They are allowed to have different semantics, but
             // their representation in this string does not have to be unique. In cases
@@ -589,7 +589,7 @@ struct laye_node {
 
         struct {
             bool is_wildcard;
-            dynarr(laye_token) pieces;
+            lca_da(laye_token) pieces;
             laye_token alias;
         } import_query;
 
@@ -603,14 +603,14 @@ struct laye_node {
         // if the overload resolution fails or is not semantically valid in that context.
         struct {
             // the list of declarations participating in this overload.
-            dynarr(laye_node*) declarations;
+            lca_da(laye_node*) declarations;
         } decl_overloads;
 
         struct {
             // the return type of this function.
             laye_type return_type;
             // the parameter declarations of this function (of type `FUNCTION_PARAMETER`).
-            dynarr(laye_node*) parameter_declarations;
+            lca_da(laye_node*) parameter_declarations;
             // the body of the function.
             // by the time sema is complete for this node,
             // this should always be a compound statement node.
@@ -638,10 +638,10 @@ struct laye_node {
         // despite the shared declaration node data.
         struct {
             // the fields declared by this struct (of type `STRUCT_FIELD`).
-            dynarr(laye_node*) field_declarations;
+            lca_da(laye_node*) field_declarations;
             // child variant declarations within this struct type.
             // yes, variants can contain other variants.
-            dynarr(laye_node*) variant_declarations;
+            lca_da(laye_node*) variant_declarations;
         } decl_struct;
 
         struct {
@@ -656,13 +656,13 @@ struct laye_node {
             laye_node* underlying_type;
             // the enum variants (of type `ENUM_VARIANT`).
             // an enum variant is a name with an optional assigned constant integral value.
-            dynarr(laye_node*) variants;
+            lca_da(laye_node*) variants;
         } decl_enum;
 
         // used exclusively within enum declarations.
         struct {
             // the name of this enum variant.
-            string name;
+            lca_string name;
             // the value of this enum variant, if provided.
             laye_node* value;
         } decl_enum_variant;
@@ -713,9 +713,9 @@ struct laye_node {
             // the scope name of a block is also the name of a label declared by the
             // identifier + colon construct. This is an additional special-case of the
             // syntax and is not a distinct part of the compound statement.
-            string_view scope_name;
+            lca_string_view scope_name;
             // the children of this compound node.
-            dynarr(laye_node*) children;
+            lca_da(laye_node*) children;
         } compound;
 
         struct {
@@ -737,14 +737,14 @@ struct laye_node {
         struct {
             bool is_expr;
             // the conditions of this if(/else if) statement.
-            dynarr(laye_node*) conditions;
+            lca_da(laye_node*) conditions;
             // if a label was specified on the pass body, it is stored here and
             // should be handled accordingly. since the pass or fail statements
             // must only be a single node, the case of labeling the node is handled
             // like this, explicitly.
             // laye_node* pass_label;
             // statements to be executed if the coresponding condition evaluates to true.
-            dynarr(laye_node*) passes;
+            lca_da(laye_node*) passes;
             // if a label was specified on the fail body, it is stored here and
             // should be handled accordingly. since the pass or fail statements
             // must only be a single node, the case of labeling the node is handled
@@ -879,7 +879,7 @@ struct laye_node {
             laye_node* value;
             // the list of cases in this switch statement, in the same order they're declared
             // in the source text.
-            dynarr(laye_node*) cases;
+            lca_da(laye_node*) cases;
         } _switch;
 
         struct {
@@ -903,7 +903,7 @@ struct laye_node {
             // optionally, the labeled statement to break out of.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string_view target;
+            lca_string_view target;
             // the syntax node to break out of. currently populated during sema,
             // but could be handled at parse time pretty easily instead.
             laye_node* target_node;
@@ -913,7 +913,7 @@ struct laye_node {
             // optionally, the labeled statement to continue from.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string_view target;
+            lca_string_view target;
             // the syntax node to continue to. currently populated during sema,
             // but could be handled at parse time pretty easily instead.
             laye_node* target_node;
@@ -925,7 +925,7 @@ struct laye_node {
             // optionally, the labeled statement to yield from.
             // applies to loops and switch which have a label associated with
             // their primary "body".
-            string_view target;
+            lca_string_view target;
             // the value to yield from this compound expression.
             laye_node* value;
         } yield;
@@ -941,7 +941,7 @@ struct laye_node {
 
         struct {
             // the label to go to.
-            string_view label;
+            lca_string_view label;
             // the syntax node to go to. this will be the label itself, not the node it
             // could be labeling.
             laye_node* target_node;
@@ -1013,7 +1013,7 @@ struct laye_node {
             // the list of indices.
             // multi-dimensional arrays are supported, and index operator overloading
             // is planned to be supported eventually, so yes there can be multiple indices.
-            dynarr(laye_node*) indices;
+            lca_da(laye_node*) indices;
         } index;
 
         struct {
@@ -1032,23 +1032,23 @@ struct laye_node {
             // which overloads the call operator.
             laye_node* callee;
             // the arguments to this call.
-            dynarr(laye_node*) arguments;
+            lca_da(laye_node*) arguments;
         } call;
 
         // note that the type to be constructed is stored in the `expr.type` field.
         // note also that this is not the case for the `new` expression, since it
         // returns a pointer (or an overloaded return) to the type instead.
         struct {
-            dynarr(laye_node*) initializers;
+            lca_da(laye_node*) initializers;
         } ctor;
 
         struct {
             // the type argument to the new operator.
             laye_type type;
             // additional arguments to the new operator.
-            dynarr(laye_node*) arguments;
+            lca_da(laye_node*) arguments;
             // member initializers.
-            dynarr(laye_node*) initializers;
+            lca_da(laye_node*) initializers;
         } new;
 
         struct {
@@ -1110,7 +1110,7 @@ struct laye_node {
         } litfloat;
 
         struct {
-            string_view value;
+            lca_string_view value;
         } litstring;
 
         struct {
@@ -1139,7 +1139,7 @@ struct laye_node {
 
         struct {
             laye_type element_type;
-            dynarr(laye_node*) length_values;
+            lca_da(laye_node*) length_values;
         } type_container;
 
         struct {
@@ -1150,15 +1150,15 @@ struct laye_node {
             // the return type of this function.
             laye_type return_type;
             // the parameter types for this function, without parameter name information.
-            dynarr(laye_type) parameter_types;
+            lca_da(laye_type) parameter_types;
         } type_function;
 
         // note that while struct and variant *types* are distinct,
         // they still have identical type data and therefore will share this struct.
         struct {
-            string_view name;
-            dynarr(laye_struct_type_field) fields;
-            dynarr(laye_struct_type_variant) variants;
+            lca_string_view name;
+            lca_da(laye_struct_type_field) fields;
+            lca_da(laye_struct_type_variant) variants;
             // NOTE(local): The parent struct type need not be as `laye_type`,
             // as it will never be qualified or come from any source other than its declaration.
             laye_node* parent_struct_type;
@@ -1168,14 +1168,14 @@ struct laye_node {
         } type_struct;
 
         struct {
-            string_view name;
+            lca_string_view name;
             // NOTE(local): the underlying type of an enum is heavily restricted, and cannot be qualified.
             laye_node* underlying_type;
-            dynarr(laye_enum_type_variant) variants;
+            lca_da(laye_enum_type_variant) variants;
         } type_enum;
 
         struct {
-            string_view name;
+            lca_string_view name;
             // NOTE(local): while I think you can obviously still apply type qualifiers to
             // aliased types, allowing them at the alias declaration site (at least for the
             // outermost type) might be semantically invalid in the future.
@@ -1192,7 +1192,7 @@ struct laye_node {
             // if the attribute can affect the name of this declaration in
             // generated code (the foreign name), it will be populated here
             // if specified. (usually just the `foreign` attribute with a name).
-            string_view foreign_name;
+            lca_string_view foreign_name;
             // if the attribute can affect the name mangling scheme for this declaration,
             // it is specified here. (usually just the `foreign` attribute with a
             // mangling scheme argument).
@@ -1211,7 +1211,7 @@ struct laye_node {
 
 //
 
-string laye_module_debug_print(laye_module* module);
+lca_string laye_module_debug_print(laye_module* module);
 laye_module* laye_parse(lyir_context* context, lyir_sourceid sourceid);
 void laye_analyse(lyir_context* context);
 void laye_generate_ir(lyir_context* context);
@@ -1219,9 +1219,9 @@ void laye_module_destroy(laye_module* module);
 
 //
 
-laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, string_view name);
+laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, lca_string_view name);
 void laye_symbol_destroy(laye_symbol* symbol);
-laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, string_view name);
+laye_symbol* laye_symbol_lookup(laye_symbol* symbol_namespace, lca_string_view name);
 
 //
 
@@ -1246,9 +1246,9 @@ lyir_source laye_module_get_source(laye_module* module);
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent);
 void laye_scope_destroy(laye_scope* scope);
 void laye_scope_declare(laye_scope* scope, laye_node* declaration);
-void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, string_view alias);
-laye_node* laye_scope_lookup_value(laye_scope* scope, string_view value_name);
-laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name);
+void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, lca_string_view alias);
+laye_node* laye_scope_lookup_value(laye_scope* scope, lca_string_view value_name);
+laye_node* laye_scope_lookup_type(laye_scope* scope, lca_string_view type_name);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, lyir_location location, laye_type type);
 laye_node* laye_node_create_in_context(lyir_context* context, laye_node_kind kind, laye_type type);
@@ -1311,7 +1311,7 @@ laye_type laye_type_strip_references(laye_type type);
 
 bool laye_type_equals(laye_type a, laye_type b, laye_mut_compare mut_compare);
 
-void laye_type_print_to_string(laye_type type, string* s, bool use_color);
+void laye_type_print_to_string(laye_type type, lca_string* s, bool use_color);
 
 int laye_type_array_rank(laye_type array_type);
 

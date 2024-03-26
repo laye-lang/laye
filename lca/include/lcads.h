@@ -71,7 +71,7 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
 #define lca_da_capacity(V)   ((V) ? lca_da_get_header(V)->capacity : 0)
 #define lca_da_reserve(V, N) \
     do { lca_da_maybe_expand((void**)&(V), (int64_t)sizeof *(V), N); } while (0)
-#define lca_da_set_count(V, N)                    \
+#define lca_da_count_set(V, N)                    \
     do {                                          \
         lca_da_reserve(V, N);                     \
         if (V) lca_da_get_header(V)->count = (N); \
@@ -89,7 +89,7 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
 #define lca_da_insert(V, I, E)                                                                 \
     assert((I) > 0);                                                                           \
     do {                                                                                       \
-        lca_da_set_count((V), lca_da_count((V)) + 1);                                          \
+        lca_da_count_set((V), lca_da_count((V)) + 1);                                          \
         memmove(&(V)[(I) + 1], &(V)[(I)], sizeof(*(V)) * (size_t)(lca_da_count((V)) - (I)-1)); \
         (V)[(I)] = (E);                                                                        \
     } while (0)
@@ -111,24 +111,8 @@ void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_c
             (V) = NULL;                                                                                          \
         }                                                                                                        \
     } while (0)
-#define lca_da_foreach(T, N, V)     for (T N, *N##_ptr = V, *N##_endptr = V + lca_da_count(V); (N##_ptr < N##_endptr) && (N = *N##_ptr, true); N##_ptr += 1)
-#define lca_da_foreach_ptr(T, N, V) for (T N, **N##_ptr = (T*)V, **N##_endptr = (T*)V + lca_da_count(V); (N##_ptr < N##_endptr) && (N = *N##_ptr, true); N##_ptr += 1)
-
-#ifndef LCA_DA_NO_SHORT_NAMES
-#    define dynarr(T)                T*
-#    define arr_count(V)             lca_da_count(V)
-#    define arr_capacity(V)          lca_da_capacity(V)
-#    define arr_reserve(V, N)        lca_da_reserve(V, N)
-#    define arr_set_count(V, N)      lca_da_set_count(V, N)
-#    define arr_push(V, E)           lca_da_push(V, E)
-#    define arr_pop(V)               lca_da_pop(V)
-#    define arr_insert(V, I, E)      lca_da_insert(V, I, E)
-#    define arr_back(V)              lca_da_back(V)
-#    define arr_free(V)              lca_da_free(V)
-#    define arr_free_all(V, F)       lca_da_free_all(V, F)
-#    define arr_foreach(T, N, V)     lca_da_foreach (T, N, V)
-#    define arr_foreach_ptr(T, N, V) lca_da_foreach_ptr (T, N, V)
-#endif // !LCA_DA_NO_SHORT_NAMES
+//#define lca_da_foreach(T, N, V)     for (T N, *N##_ptr = V, *N##_endptr = V + lca_da_count(V); (N##_ptr < N##_endptr) && (N = *N##_ptr, true); N##_ptr += 1)
+//#define lca_da_foreach_ptr(T, N, V) for (T N, **N##_ptr = (T*)V, **N##_endptr = (T*)V + lca_da_count(V); (N##_ptr < N##_endptr) && (N = *N##_ptr, true); N##_ptr += 1)
 
 #ifdef LCA_DA_IMPLEMENTATION
 

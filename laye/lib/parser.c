@@ -43,7 +43,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <assert.h>
 
 typedef struct break_continue_target {
-    string_view name;
+    lca_string_view name;
     laye_node* target;
 } break_continue_target;
 
@@ -61,12 +61,12 @@ typedef struct laye_parser {
 
     laye_scope* scope;
 
-    dynarr(break_continue_target) break_continue_stack;
+    lca_da(break_continue_target) break_continue_stack;
 } laye_parser;
 
 typedef struct laye_parse_result {
     bool success;
-    dynarr(lyir_diag) diags;
+    lca_da(lyir_diag) diags;
     // even if success is false, this node/type should be populated with data
     // representing the portion of the source where parsing was attempted.
     // basically, if any tokens are consumed, something should be here
@@ -108,7 +108,7 @@ static laye_parse_result laye_parse_result_failure(laye_node* node, lyir_diag di
         .success = false,
         .node = node,
     };
-    arr_push(result.diags, diag);
+    lca_da_push(result.diags, diag);
     return result;
 }
 
@@ -117,7 +117,7 @@ static laye_parse_result laye_parse_result_failure_type(laye_type type, lyir_dia
         .success = false,
         .type = type,
     };
-    arr_push(result.diags, diag);
+    lca_da_push(result.diags, diag);
     return result;
 }
 
@@ -126,19 +126,19 @@ static void laye_parse_result_copy_diags(laye_parse_result* target, laye_parse_r
         target->success = false;
     }
 
-    for (int64_t i = 0, count = arr_count(from.diags); i < count; i++) {
-        arr_push(target->diags, from.diags[i]);
+    for (int64_t i = 0, count = lca_da_count(from.diags); i < count; i++) {
+        lca_da_push(target->diags, from.diags[i]);
     }
 }
 
 static void laye_parse_result_write_diags(lyir_context* context, laye_parse_result result) {
-    for (int64_t i = 0, count = arr_count(result.diags); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(result.diags); i < count; i++) {
         lyir_write_diag(context, result.diags[i]);
     }
 }
 
 static void laye_parse_result_destroy(laye_parse_result result) {
-    arr_free(result.diags);
+    lca_da_free(result.diags);
 }
 
 static laye_parse_result laye_parse_result_combine(laye_parse_result a, laye_parse_result b) {
@@ -172,22 +172,22 @@ const char* laye_trivia_kind_to_cstring(laye_trivia_kind kind) {
     }
 }
 
-static void laye_parser_push_break_continue_target(laye_parser* p, string_view name, laye_node* target) {
+static void laye_parser_push_break_continue_target(laye_parser* p, lca_string_view name, laye_node* target) {
     break_continue_target t = {
         .name = name,
         .target = target,
     };
-    arr_push(p->break_continue_stack, t);
+    lca_da_push(p->break_continue_stack, t);
 }
 
 static void laye_parser_pop_break_continue_target(laye_parser* p) {
-    assert(arr_count(p->break_continue_stack) != 0);
-    arr_pop(p->break_continue_stack);
+    assert(lca_da_count(p->break_continue_stack) != 0);
+    lca_da_pop(p->break_continue_stack);
 }
 
 static break_continue_target laye_parser_peek_break_continue_target(laye_parser* p) {
-    assert(arr_count(p->break_continue_stack) != 0);
-    return p->break_continue_stack[arr_count(p->break_continue_stack) - 1];
+    assert(lca_da_count(p->break_continue_stack) != 0);
+    return p->break_continue_stack[lca_da_count(p->break_continue_stack) - 1];
 }
 
 const char* laye_token_kind_to_cstring(laye_token_kind kind) {
@@ -244,7 +244,7 @@ laye_module* laye_parse(lyir_context* context, lyir_sourceid sourceid) {
     module->sourceid = sourceid;
     module->arena = lca_arena_create(context->allocator, 1024 * 1024);
     assert(module->arena);
-    arr_push(context->laye_modules, module);
+    lca_da_push(context->laye_modules, module);
 
     laye_scope* module_scope = laye_scope_create(module, NULL);
     assert(module_scope != NULL);
@@ -275,10 +275,10 @@ laye_module* laye_parse(lyir_context* context, lyir_sourceid sourceid) {
         assert(p.token.location.offset != node_start_location.offset);
         assert(p.scope == module_scope);
 
-        arr_push(module->top_level_nodes, top_level_node);
+        lca_da_push(module->top_level_nodes, top_level_node);
     }
 
-    arr_free(p.break_continue_stack);
+    lca_da_free(p.break_continue_stack);
 
     return module;
 }
@@ -412,7 +412,7 @@ static void laye_parser_expect(laye_parser* p, laye_token_kind kind, laye_parse_
 
     if (!laye_parser_consume(p, kind, NULL)) {
         assert((kind > __LAYE_PRINTABLE_TOKEN_START__ && kind <= __LAYE_PRINTABLE_TOKEN_END__) && "support certain non-printable kinds");
-        arr_push(result->diags, lyir_error(p->context, p->token.location, "Expected '%c'.", (int)kind));
+        lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected '%c'.", (int)kind));
     }
 }
 
@@ -465,7 +465,7 @@ static laye_node* laye_parser_create_invalid_node_from_child(laye_parser* p, lay
     return invalid_node;
 }
 
-static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result);
+static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result);
 static bool laye_can_parse_type(laye_parser* p);
 static laye_parse_result laye_parse_type(laye_parser* p);
 static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expression, bool consume_semi);
@@ -496,7 +496,7 @@ static bool laye_parse_type_modifiable_modifiers(laye_parser* p, laye_parse_resu
             if (type_is_modifiable && result->success) {
                 result->success = false;
                 if (allocate) {
-                    arr_push(result->diags, lyir_error(p->context, mut_token.location, "Duplicate type modifier 'mut'."));
+                    lca_da_push(result->diags, lyir_error(p->context, mut_token.location, "Duplicate type modifier 'mut'."));
                 }
             }
 
@@ -535,14 +535,14 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_type 
                     result.type.node->type_container.element_type = type;
                 }
             } else {
-                dynarr(laye_node*) length_values = NULL;
+                lca_da(laye_node*) length_values = NULL;
 
                 laye_parse_result expr_result = laye_parse_expression(p);
                 assert(expr_result.node != NULL);
                 laye_parse_result_copy_diags(&result, expr_result);
                 laye_parse_result_destroy(expr_result);
                 if (allocate) {
-                    arr_push(length_values, expr_result.type.node);
+                    lca_da_push(length_values, expr_result.type.node);
                 }
 
                 // laye_parse_result
@@ -550,7 +550,7 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_type 
                 if (allocate) {
                     result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_ARRAY, type.node->location, LTY(p->context->laye_types.type));
                     assert(result.type.node != NULL);
-                    assert(arr_count(length_values) != 0);
+                    assert(lca_da_count(length_values) != 0);
                     result.type.node->type_container.length_values = length_values;
                     result.type.node->type_container.element_type = type;
                 }
@@ -560,7 +560,7 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_type 
             if (!laye_parser_consume(p, ']', &closing_token)) {
                 if (allocate) {
                     result.success = false;
-                    arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
+                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
                 }
             }
 
@@ -651,7 +651,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             assert(type_nameref.scope != NULL);
 
             if (allocate) {
-                assert(arr_count(type_nameref.pieces) > 0);
+                assert(lca_da_count(type_nameref.pieces) > 0);
                 result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_NAMEREF, p->token.location, LTY(p->context->laye_types.type));
                 assert(result.type.node != NULL);
                 result.type.node->nameref = type_nameref;
@@ -800,7 +800,7 @@ static laye_type laye_parse_type_or_error(laye_parser* p) {
 
     laye_parse_result result = laye_try_parse_type_impl(p, true, true);
     if (result.success) {
-        assert(arr_count(result.diags) == 0);
+        assert(lca_da_count(result.diags) == 0);
         assert(result.node != NULL);
         return result.type;
     }
@@ -810,13 +810,13 @@ static laye_type laye_parse_type_or_error(laye_parser* p) {
     return result.type;
 }
 
-static void laye_apply_attributes(laye_node* node, dynarr(laye_node*) attributes) {
+static void laye_apply_attributes(laye_node* node, lca_da(laye_node*) attributes) {
     assert(node != NULL);
     assert(laye_node_is_decl(node));
 
     node->attribute_nodes = attributes;
 
-    for (int64_t i = 0, count = arr_count(attributes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(attributes); i < count; i++) {
         laye_node* attribute = attributes[i];
         assert(attribute != NULL);
 
@@ -853,20 +853,20 @@ static void laye_expect_semi(laye_parser* p, laye_parse_result* result) {
 
     if (!laye_parser_consume(p, ';', NULL)) {
         if (result) {
-            arr_push(result->diags, lyir_error(p->context, p->token.location, "Expected ';'."));
+            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected ';'."));
         } else {
             lyir_write_error(p->context, p->token.location, "Expected ';'.");
         }
     }
 }
 
-static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result) {
+static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_result* result) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
-    dynarr(laye_node*) attributes = NULL;
+    lca_da(laye_node*) attributes = NULL;
 
     int64_t last_iteration_token_position = p->token.location.offset;
     while (p->token.kind != LAYE_TOKEN_EOF) {
@@ -883,7 +883,7 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                 simple_attribute_node->meta_attribute.keyword_token = p->token;
 
                 laye_next_token(p);
-                arr_push(attributes, simple_attribute_node);
+                lca_da_push(attributes, simple_attribute_node);
             } break;
 
             case LAYE_TOKEN_FOREIGN: {
@@ -894,21 +894,21 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                 foreign_node->meta_attribute.mangling = LYIR_MANGLE_NONE;
 
                 laye_next_token(p);
-                arr_push(attributes, foreign_node);
+                lca_da_push(attributes, foreign_node);
 
                 if (laye_parser_consume(p, '(', NULL)) {
                     if (p->token.kind == LAYE_TOKEN_IDENT) {
-                        string_view mangling_kind_name = p->token.string_value;
-                        if (string_view_equals(mangling_kind_name, SV_CONSTANT("none"))) {
+                        lca_string_view mangling_kind_name = p->token.string_value;
+                        if (lca_string_view_equals(mangling_kind_name, LCA_SV_CONSTANT("none"))) {
                             foreign_node->meta_attribute.mangling = LYIR_MANGLE_NONE;
-                        } else if (string_view_equals(mangling_kind_name, SV_CONSTANT("laye"))) {
+                        } else if (lca_string_view_equals(mangling_kind_name, LCA_SV_CONSTANT("laye"))) {
                             foreign_node->meta_attribute.mangling = LYIR_MANGLE_LAYE;
                         } else {
                             lyir_write_error(
                                 p->context,
                                 p->token.location,
                                 "Unknown name mangling kind '%.*s'. Expected one of 'none' or 'laye'.",
-                                STR_EXPAND(mangling_kind_name)
+                                LCA_STR_EXPAND(mangling_kind_name)
                             );
                         }
 
@@ -941,21 +941,21 @@ static dynarr(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                 callconv_node->meta_attribute.keyword_token = p->token;
 
                 laye_next_token(p);
-                arr_push(attributes, callconv_node);
+                lca_da_push(attributes, callconv_node);
 
                 if (laye_parser_consume(p, '(', NULL)) {
                     if (p->token.kind == LAYE_TOKEN_IDENT) {
-                        string_view callconv_kind_name = p->token.string_value;
-                        if (string_view_equals(callconv_kind_name, SV_CONSTANT("cdecl"))) {
+                        lca_string_view callconv_kind_name = p->token.string_value;
+                        if (lca_string_view_equals(callconv_kind_name, LCA_SV_CONSTANT("cdecl"))) {
                             callconv_node->meta_attribute.calling_convention = LYIR_CCC;
-                        } else if (string_view_equals(callconv_kind_name, SV_CONSTANT("laye"))) {
+                        } else if (lca_string_view_equals(callconv_kind_name, LCA_SV_CONSTANT("laye"))) {
                             callconv_node->meta_attribute.calling_convention = LYIR_LAYECC;
                         } else {
                             lyir_write_error(
                                 p->context,
                                 p->token.location,
                                 "Unknown calling convention kind '%.*s'. Expected one of 'cdecl' or 'laye'.",
-                                STR_EXPAND(callconv_kind_name)
+                                LCA_STR_EXPAND(callconv_kind_name)
                             );
                         }
 
@@ -1001,7 +1001,7 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
         result = laye_parse_result_combine(result, laye_parse_declaration(p, true, true));
         assert(result.node != NULL);
-        arr_push(compound_expression->compound.children, result.node);
+        lca_da_push(compound_expression->compound.children, result.node);
     }
 
     result.node = compound_expression;
@@ -1013,10 +1013,10 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
         assert(closing_token.kind == '}');
         end_location = closing_token.location;
     } else {
-        if (arr_count(compound_expression->compound.children) == 0) {
+        if (lca_da_count(compound_expression->compound.children) == 0) {
             end_location = start_location;
         } else {
-            end_location = (*arr_back(compound_expression->compound.children))->location;
+            end_location = (*lca_da_back(compound_expression->compound.children))->location;
         }
 
         result = laye_parse_result_combine(
@@ -1036,7 +1036,7 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     return result;
 }
 
-static laye_parse_result laye_parse_import_declaration(laye_parser* p, dynarr(laye_node*) attributes) {
+static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(laye_node*) attributes) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1059,7 +1059,7 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, dynarr(la
     do {
         if (laye_parser_consume(p, '*', &temp_token)) {
             if (import_decl->decl_import.is_wildcard) {
-                arr_push(result.diags, lyir_error(p->context, temp_token.location, "Duplicate wildcard specifier in import declaration."));
+                lca_da_push(result.diags, lyir_error(p->context, temp_token.location, "Duplicate wildcard specifier in import declaration."));
             }
 
             import_decl->decl_import.is_wildcard = true;
@@ -1067,75 +1067,75 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, dynarr(la
             laye_node* query_wildcard = laye_node_create(p->module, LAYE_NODE_IMPORT_QUERY, temp_token.location, LTY(p->context->laye_types._void));
             query_wildcard->import_query.is_wildcard = true;
 
-            arr_push(import_decl->decl_import.import_queries, query_wildcard);
+            lca_da_push(import_decl->decl_import.import_queries, query_wildcard);
             continue;
         }
 
-        dynarr(laye_token) pieces = NULL;
+        lca_da(laye_token) pieces = NULL;
         laye_token alias = {0};
 
         laye_token identifier_token = {0};
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
-            arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query."));
+            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query."));
             continue;
         } else {
-            arr_push(pieces, identifier_token);
+            lca_da_push(pieces, identifier_token);
         }
 
         while (laye_parser_consume(p, LAYE_TOKEN_COLONCOLON, NULL)) {
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier to continue import query."));
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier to continue import query."));
                 break;
             } else {
-                arr_push(pieces, identifier_token);
+                lca_da_push(pieces, identifier_token);
             }
         }
 
         if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &alias)) {
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query alias."));
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query alias."));
             }
         }
 
-        if (laye_parser_at(p, ';') && !import_decl->decl_import.is_wildcard && arr_count(import_decl->decl_import.import_queries) == 0 && arr_count(pieces) == 1) {
+        if (laye_parser_at(p, ';') && !import_decl->decl_import.is_wildcard && lca_da_count(import_decl->decl_import.import_queries) == 0 && lca_da_count(pieces) == 1) {
             import_decl->decl_import.module_name = pieces[0];
             import_decl->decl_import.import_alias = alias;
-            arr_free(pieces);
+            lca_da_free(pieces);
             goto parse_end;
         }
 
-        assert(arr_count(pieces) > 0);
+        assert(lca_da_count(pieces) > 0);
 
         lyir_location query_location = pieces[0].location;
         if (alias.kind != 0) {
             query_location = alias.location;
-        } else if (arr_count(pieces) > 1) {
-            query_location = pieces[arr_count(pieces) - 1].location;
+        } else if (lca_da_count(pieces) > 1) {
+            query_location = pieces[lca_da_count(pieces) - 1].location;
         }
 
         laye_node* query = laye_node_create(p->module, LAYE_NODE_IMPORT_QUERY, query_location, LTY(p->context->laye_types._void));
         query->import_query.pieces = pieces;
         query->import_query.alias = alias;
 
-        arr_push(import_decl->decl_import.import_queries, query);
+        lca_da_push(import_decl->decl_import.import_queries, query);
     } while (laye_parser_consume(p, ',', NULL));
 
     if (!laye_parser_consume(p, LAYE_TOKEN_FROM, NULL)) {
-        arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected 'from'."));
+        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected 'from'."));
     }
 
     if (laye_parser_at2(p, LAYE_TOKEN_LITSTRING, LAYE_TOKEN_IDENT) && (laye_parser_peek_at(p, ';') || laye_parser_peek_at(p, LAYE_TOKEN_AS))) {
         import_decl->decl_import.module_name = p->token;
         laye_next_token(p);
     } else {
-        arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier or string as module name."));
+        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier or string as module name."));
     }
 
 parse_alias_or_end:;
 
     if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &import_decl->decl_import.import_alias)) {
-            arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as import declaration alias."));
+            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as import declaration alias."));
         }
     }
 
@@ -1145,7 +1145,7 @@ parse_end:;
     return result;
 }
 
-static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(laye_node*) attributes) {
+static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(laye_node*) attributes) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
@@ -1199,7 +1199,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(la
                 result = laye_parse_result_combine(result, variant_result);
                 result.node = struct_decl;
 
-                arr_push(struct_decl->decl_struct.variant_declarations, variant_node);
+                lca_da_push(struct_decl->decl_struct.variant_declarations, variant_node);
             }
 
             continue;
@@ -1223,7 +1223,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, dynarr(la
         field_node->declared_type = field_type;
         field_node->declared_name = field_name_token.string_value;
 
-        arr_push(struct_decl->decl_struct.field_declarations, field_node);
+        lca_da_push(struct_decl->decl_struct.field_declarations, field_node);
     }
 
     if (!laye_parser_consume(p, '}', NULL)) {
@@ -1257,12 +1257,12 @@ static laye_parse_result laye_parse_test_declaration(laye_parser* p) {
             test_node->decl_test.is_named = true;
             test_node->decl_test.nameref = laye_parse_nameref(p, &result, NULL, true);
         } else {
-            arr_push(result.diags, lyir_error(p->context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
+            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
         }
     }
 
     if (!laye_parser_at(p, '{')) {
-        arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected a test body, starting with a '{'."));
+        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected a test body, starting with a '{'."));
         goto return_test_decl;
     }
 
@@ -1275,15 +1275,15 @@ return_test_decl:;
     return result;
 }
 
-static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(laye_node*) attributes, laye_type declared_type, laye_token name_token, bool consume_semi) {
+static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(laye_node*) attributes, laye_type declared_type, laye_token name_token, bool consume_semi) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
     if (laye_parser_consume(p, '(', NULL)) {
-        dynarr(laye_type) parameter_types = NULL;
-        dynarr(laye_node*) parameters = NULL;
+        lca_da(laye_type) parameter_types = NULL;
+        lca_da(laye_node*) parameters = NULL;
 
         laye_varargs_style varargs_style = LAYE_VARARGS_NONE;
         bool has_errored_for_additional_params = false;
@@ -1305,14 +1305,14 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
 
             laye_type parameter_type = laye_parse_type_or_error(p);
             assert(parameter_type.node != NULL);
-            arr_push(parameter_types, parameter_type);
+            lca_da_push(parameter_types, parameter_type);
 
             laye_token name_token = p->token;
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, NULL)) {
                 lyir_write_error(p->context, p->token.location, "Expected an identifier.");
                 name_token.kind = LAYE_TOKEN_INVALID;
                 name_token.location.length = 0;
-                name_token.string_value = SV_CONSTANT("<invalid>");
+                name_token.string_value = LCA_SV_CONSTANT("<invalid>");
             }
 
             lyir_location parameter_location = name_token.location.length != 0 ? name_token.location : parameter_type.node->location;
@@ -1322,7 +1322,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
             parameter_node->declared_name = name_token.string_value;
             assert(parameter_node->declared_name.count > 0);
 
-            arr_push(parameters, parameter_node);
+            lca_da_push(parameters, parameter_node);
 
             if (laye_parser_consume(p, ',', NULL)) {
                 if (laye_parser_at2(p, LAYE_TOKEN_EOF, ')')) {
@@ -1361,7 +1361,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
         p->scope->name = name_token.string_value;
         p->scope->is_function_scope = true;
 
-        for (int64_t i = 0, count = arr_count(parameters); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(parameters); i < count; i++) {
             laye_scope_declare(p->scope, parameters[i]);
         }
 
@@ -1384,8 +1384,8 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, dynarr(
                 assert(function_body != NULL);
                 function_body->compiler_generated = true;
                 //function_body->compound.scope_name = name_token.string_value;
-                arr_push(function_body->compound.children, implicit_return_node);
-                assert(1 == arr_count(function_body->compound.children));
+                lca_da_push(function_body->compound.children, implicit_return_node);
+                assert(1 == lca_da_count(function_body->compound.children));
             } else {
                 if (!laye_parser_at(p, '{')) {
                     lyir_write_error(p->context, p->token.location, "Expected '{'.");
@@ -1441,7 +1441,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         .success = true,
     };
 
-    dynarr(laye_node*) attributes = laye_parse_attributes(p, &result);
+    lca_da(laye_node*) attributes = laye_parse_attributes(p, &result);
 
     switch (p->token.kind) {
         case LAYE_TOKEN_INVALID: assert(false && "unreachable"); return (laye_parse_result){0};
@@ -1455,10 +1455,10 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         case LAYE_TOKEN_CONTINUE:
         case LAYE_TOKEN_YIELD:
         case LAYE_TOKEN_XYZZY: {
-            if (arr_count(attributes) != 0) {
+            if (lca_da_count(attributes) != 0) {
                 result.success = false;
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to statements."));
-                arr_free(attributes);
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to statements."));
+                lca_da_free(attributes);
             }
 
             return laye_parse_result_combine(result, laye_parse_statement(p, consume_semi));
@@ -1473,10 +1473,10 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         }
 
         case LAYE_TOKEN_TEST: {
-            if (arr_count(attributes) != 0) {
+            if (lca_da_count(attributes) != 0) {
                 result.success = false;
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to test declarations."));
-                arr_free(attributes);
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to test declarations."));
+                lca_da_free(attributes);
             }
 
             return laye_parse_result_combine(result, laye_parse_test_declaration(p));
@@ -1488,7 +1488,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
 
             if (!declared_type_result.success) {
                 laye_parse_result_destroy(declared_type_result);
-                arr_free(attributes);
+                lca_da_free(attributes);
 
                 if (can_be_expression) {
                     laye_parser_reset_to_mark(p, start_mark);
@@ -1505,7 +1505,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &name_token)) {
                 if (can_be_expression) {
                     laye_parse_result_destroy(declared_type_result);
-                    arr_free(attributes);
+                    lca_da_free(attributes);
                     laye_parser_reset_to_mark(p, start_mark);
                     return laye_parse_statement(p, consume_semi);
                 }
@@ -1548,7 +1548,7 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
             laye_next_token(p);
 
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &field_token)) {
-                arr_push(result.diags, lyir_error(p->context, field_token.location, "Expected an identifier as the member name."));
+                lca_da_push(result.diags, lyir_error(p->context, field_token.location, "Expected an identifier as the member name."));
             }
             
             laye_node* member_expr = laye_node_create(p->module, LAYE_NODE_MEMBER, field_token.location, LTY(p->context->laye_types.unknown));
@@ -1562,17 +1562,17 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
         case '(': {
             laye_next_token(p);
 
-            dynarr(laye_node*) arguments = NULL;
+            lca_da(laye_node*) arguments = NULL;
             if (!laye_parser_at(p, ')')) {
                 do {
                     result = laye_parse_result_combine(result, laye_parse_expression(p));
                     assert(result.node != NULL);
-                    arr_push(arguments, result.node);
+                    lca_da_push(arguments, result.node);
                 } while (laye_parser_consume(p, ',', NULL));
             }
 
             if (!laye_parser_consume(p, ')', NULL)) {
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
             }
 
             laye_node* call_expr = laye_node_create(p->module, LAYE_NODE_CALL, primary_expr->location, LTY(p->context->laye_types.unknown));
@@ -1586,17 +1586,17 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
         case '[': {
             laye_next_token(p);
 
-            dynarr(laye_node*) indices = NULL;
+            lca_da(laye_node*) indices = NULL;
             if (!laye_parser_at(p, ']')) {
                 do {
                     result = laye_parse_result_combine(result, laye_parse_expression(p));
                     assert(result.node != NULL);
-                    arr_push(indices, result.node);
+                    lca_da_push(indices, result.node);
                 } while (laye_parser_consume(p, ',', NULL));
             }
 
             if (!laye_parser_consume(p, ']', NULL)) {
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
             }
 
             laye_node* index_expr = laye_node_create(p->module, LAYE_NODE_INDEX, primary_expr->location, LTY(p->context->laye_types.unknown));
@@ -1644,7 +1644,7 @@ static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_parse_res
             *result = laye_parse_result_combine(*result, laye_parse_expression(p));
             if_body = result->node;
         } else {
-            arr_push(result->diags, lyir_error(p->context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)"));
             *result = laye_parse_result_combine(*result, laye_parse_statement(p, true));
             if_body = result->node;
         }
@@ -1681,8 +1681,8 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
     laye_node* if_result = laye_node_create(p->module, LAYE_NODE_IF, total_location, LTY(p->context->laye_types._void));
     assert(if_result != NULL);
 
-    arr_push(if_result->_if.conditions, if_condition);
-    arr_push(if_result->_if.passes, if_body);
+    lca_da_push(if_result->_if.conditions, if_condition);
+    lca_da_push(if_result->_if.passes, if_body);
 
     while (laye_parser_at(p, LAYE_TOKEN_ELSE)) {
         laye_next_token(p);
@@ -1696,8 +1696,8 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
             assert(elseif_condition != NULL);
             assert(elseif_body != NULL);
 
-            arr_push(if_result->_if.conditions, elseif_condition);
-            arr_push(if_result->_if.passes, elseif_body);
+            lca_da_push(if_result->_if.conditions, elseif_condition);
+            lca_da_push(if_result->_if.passes, elseif_body);
 
             total_location = lyir_location_combine(total_location, elseif_body->location);
         } else {
@@ -1711,7 +1711,7 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
                     result = laye_parse_result_combine(result, laye_parse_expression(p));
                     else_body = result.node;
                 } else {
-                    arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
                     result = laye_parse_result_combine(result, laye_parse_statement(p, true));
                     else_body = result.node;
                 }
@@ -1747,7 +1747,7 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
     }
 
     if (allocate) {
-        arr_push(nameref.pieces, p->token);
+        lca_da_push(nameref.pieces, p->token);
     }
     laye_next_token(p);
 
@@ -1757,7 +1757,7 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
         laye_token next_piece = {0};
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &next_piece)) {
             result->success = false;
-            arr_push(result->diags, lyir_error(p->context, p->token.location, "Expected identifier."));
+            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected identifier."));
             break;
         }
 
@@ -1767,7 +1767,7 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
         }
 
         if (allocate) {
-            arr_push(nameref.pieces, next_piece);
+            lca_da_push(nameref.pieces, next_piece);
         }
     }
 
@@ -1999,11 +1999,11 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
             assert(p->scope != NULL);
             laye_scope_declare(p->scope, foreach_node->foreach.index_binding);
         } else {
-            arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator index binding name."));
+            lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator index binding name."));
         }
 
         if (!laye_parser_consume(p, ',', NULL)) {
-            arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ','."));
+            lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ','."));
         }
     }
 
@@ -2016,13 +2016,13 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
         assert(p->scope != NULL);
         laye_scope_declare(p->scope, foreach_node->foreach.element_binding);
     } else {
-        arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator element binding name."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator element binding name."));
     }
 
     assert(foreach_node->foreach.element_binding != NULL);
 
     if (!laye_parser_consume(p, ':', NULL)) {
-        arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ':'."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ':'."));
     }
 
     foreach_result = laye_parse_result_combine(foreach_result, laye_parse_expression(p));
@@ -2030,14 +2030,14 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
     foreach_node->foreach.iterable = foreach_result.node;
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         foreach_result = laye_parse_result_combine(foreach_result, laye_parse_compound_expression(p));
         foreach_node->foreach.pass = foreach_result.node;
     } else {
-        arr_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
         foreach_result = laye_parse_result_combine(foreach_result, laye_parse_statement(p, true));
         foreach_node->foreach.pass = foreach_result.node;
     }
@@ -2057,12 +2057,12 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
 
     laye_node* for_node = laye_node_create(p->module, LAYE_NODE_FOR, for_location, LTY(p->context->laye_types._void));
     assert(for_node != NULL);
-    laye_parser_push_break_continue_target(p, SV_EMPTY, for_node);
+    laye_parser_push_break_continue_target(p, LCA_SV_EMPTY, for_node);
 
     laye_parse_result for_result = laye_parse_result_success(for_node);
 
     if (!laye_parser_consume(p, '(', NULL)) {
-        arr_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
+        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
     }
 
     if (laye_parser_at(p, LAYE_TOKEN_ENUM) || (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, ':'))) {
@@ -2111,14 +2111,14 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
     assert(for_node->_for.increment != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        arr_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
         for_node->_for.pass = for_result.node;
     } else {
-        arr_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
         for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
         for_node->_for.pass = for_result.node;
     }
@@ -2128,7 +2128,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
             for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
             for_node->_for.fail = for_result.node;
         } else {
-            arr_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
             for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
             for_node->_for.fail = for_result.node;
         }
@@ -2149,7 +2149,7 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
 
     laye_node* while_node = laye_node_create(p->module, LAYE_NODE_WHILE, while_location, LTY(p->context->laye_types._void));
     assert(while_node != NULL);
-    laye_parser_push_break_continue_target(p, SV_EMPTY, while_node);
+    laye_parser_push_break_continue_target(p, LCA_SV_EMPTY, while_node);
 
     laye_parse_result while_result = laye_parse_result_success(while_node);
 
@@ -2163,7 +2163,7 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
     }
 
     if (!laye_parser_consume(p, '(', NULL)) {
-        arr_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
+        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
     }
 
     while_result = laye_parse_result_combine(while_result, laye_parse_expression(p));
@@ -2171,14 +2171,14 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
     assert(while_node->_while.condition != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        arr_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
         while_node->_while.pass = while_result.node;
     } else {
-        arr_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` body. (Compound expressions are currently required, but may not be in future versions.)"));
         while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
         while_node->_while.pass = while_result.node;
     }
@@ -2188,7 +2188,7 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
             while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
             while_node->_while.fail = while_result.node;
         } else {
-            arr_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
             while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
             while_node->_while.fail = while_result.node;
         }
@@ -2266,7 +2266,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
 
             if (laye_parser_consume(p, ',', NULL)) {
                 if (!laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &assert_node->_assert.message)) {
-                    arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected string literal for assert message."));
+                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected string literal for assert message."));
                 }
             }
 
@@ -2281,9 +2281,9 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
 
         case LAYE_TOKEN_FOR: {
             laye_parser_push_scope(p);
-            int64_t initial_break_continue_count = arr_count(p->break_continue_stack);
+            int64_t initial_break_continue_count = lca_da_count(p->break_continue_stack);
             result = laye_parse_for(p);
-            assert(initial_break_continue_count + 1 == arr_count(p->break_continue_stack));
+            assert(initial_break_continue_count + 1 == lca_da_count(p->break_continue_stack));
             laye_parser_pop_break_continue_target(p);
             laye_parser_pop_scope(p);
             assert(result.node != NULL);
@@ -2291,9 +2291,9 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
 
         case LAYE_TOKEN_WHILE: {
             laye_parser_push_scope(p);
-            int64_t initial_break_continue_count = arr_count(p->break_continue_stack);
+            int64_t initial_break_continue_count = lca_da_count(p->break_continue_stack);
             result = laye_parse_while(p);
-            assert(initial_break_continue_count + 1 == arr_count(p->break_continue_stack));
+            assert(initial_break_continue_count + 1 == lca_da_count(p->break_continue_stack));
             laye_parser_pop_break_continue_target(p);
             laye_parser_pop_scope(p);
             assert(result.node != NULL);
@@ -2339,7 +2339,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             }
             if (consume_semi) laye_expect_semi(p, &result);
 
-            if (arr_count(p->break_continue_stack) == 0) {
+            if (lca_da_count(p->break_continue_stack) == 0) {
                 lyir_write_error(p->context, result.node->location, "`break` statement can only occur within a `for` loop.");
             } else {
                 if (result.node->_break.target.count != 0) {
@@ -2377,7 +2377,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             }
             if (consume_semi) laye_expect_semi(p, &result);
 
-            if (arr_count(p->break_continue_stack) == 0) {
+            if (lca_da_count(p->break_continue_stack) == 0) {
                 lyir_write_error(p->context, result.node->location, "`continue` statement can only occur within a `for` loop.");
             } else {
                 if (result.node->_continue.target.count != 0) {
@@ -2413,7 +2413,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &target_label)) {
                 result.node->_goto.label = target_label.string_value;
             } else {
-                arr_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as `goto` target label name."));
+                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as `goto` target label name."));
             }
             if (consume_semi) laye_expect_semi(p, &result);
         } break;
@@ -2578,8 +2578,8 @@ static lyir_location laye_char_location(laye_parser* p) {
     };
 }
 
-static /* dynarr(laye_trivia) */ void laye_read_trivia(laye_parser* p, bool leading) {
-    // dynarr(laye_trivia) trivia = NULL;
+static /* lca_da(laye_trivia) */ void laye_read_trivia(laye_parser* p, bool leading) {
+    // lca_da(laye_trivia) trivia = NULL;
 
 try_again:;
     while (p->current_char != 0) {
@@ -2611,12 +2611,12 @@ try_again:;
                 }
 
                 int64_t text_end_position = p->lexer_position;
-                string_view line_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
+                lca_string_view line_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                 line_trivia.location.length = line_comment_text.count - 2;
                 line_trivia.text = lyir_context_intern_string_view(p->context, line_comment_text);
 
-                // arr_push(trivia, line_trivia);
+                // lca_da_push(trivia, line_trivia);
 
                 if (!leading) goto exit_loop;
             } break;
@@ -2638,12 +2638,12 @@ try_again:;
                     }
 
                     int64_t text_end_position = p->lexer_position;
-                    string_view line_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
+                    lca_string_view line_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     line_trivia.location.length = line_comment_text.count - 2;
                     line_trivia.text = lyir_context_intern_string_view(p->context, line_comment_text);
 
-                    // arr_push(trivia, line_trivia);
+                    // lca_da_push(trivia, line_trivia);
 
                     if (!leading) goto exit_loop;
                 } else if (laye_char_peek(p) == '*') {
@@ -2679,7 +2679,7 @@ try_again:;
                     }
 
                     int64_t text_end_position = p->lexer_position - (nesting_count == 0 ? 2 : 0);
-                    string_view block_comment_text = string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
+                    lca_string_view block_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     block_trivia.location.length = p->lexer_position - block_trivia.location.offset;
                     block_trivia.text = lyir_context_intern_string_view(p->context, block_comment_text);
@@ -2688,7 +2688,7 @@ try_again:;
                         lyir_write_error(p->context, block_trivia.location, "Unterminated delimimted comment.");
                     }
 
-                    // arr_push(trivia, block_trivia);
+                    // lca_da_push(trivia, block_trivia);
 
                     if (!leading && newline_encountered) goto exit_loop;
                 } else {
@@ -3005,7 +3005,7 @@ restart_token:;
 
             laye_char_advance(p);
 
-            dynarr(char) string_data = NULL;
+            lca_da(char) string_data = NULL;
 
             bool error_char = false;
             while (p->current_char != 0 && p->current_char != terminator) {
@@ -3029,62 +3029,62 @@ restart_token:;
                             }, "Invalid character in escape string sequence.");
                             // clang-format on
 
-                            arr_push(string_data, c);
+                            lca_da_push(string_data, c);
                             laye_char_advance(p);
                         } break;
 
                         case '\\': {
-                            arr_push(string_data, '\\');
+                            lca_da_push(string_data, '\\');
                             laye_char_advance(p);
                         } break;
 
                         case '"': {
-                            arr_push(string_data, '"');
+                            lca_da_push(string_data, '"');
                             laye_char_advance(p);
                         } break;
 
                         case '\'': {
-                            arr_push(string_data, '\'');
+                            lca_da_push(string_data, '\'');
                             laye_char_advance(p);
                         } break;
 
                         case 'a': {
-                            arr_push(string_data, '\a');
+                            lca_da_push(string_data, '\a');
                             laye_char_advance(p);
                         } break;
 
                         case 'b': {
-                            arr_push(string_data, '\b');
+                            lca_da_push(string_data, '\b');
                             laye_char_advance(p);
                         } break;
 
                         case 'f': {
-                            arr_push(string_data, '\f');
+                            lca_da_push(string_data, '\f');
                             laye_char_advance(p);
                         } break;
 
                         case 'n': {
-                            arr_push(string_data, '\n');
+                            lca_da_push(string_data, '\n');
                             laye_char_advance(p);
                         } break;
 
                         case 'r': {
-                            arr_push(string_data, '\r');
+                            lca_da_push(string_data, '\r');
                             laye_char_advance(p);
                         } break;
 
                         case 't': {
-                            arr_push(string_data, '\t');
+                            lca_da_push(string_data, '\t');
                             laye_char_advance(p);
                         } break;
 
                         case 'v': {
-                            arr_push(string_data, '\v');
+                            lca_da_push(string_data, '\v');
                             laye_char_advance(p);
                         } break;
 
                         case '0': {
-                            arr_push(string_data, '\0');
+                            lca_da_push(string_data, '\0');
                             laye_char_advance(p);
                         } break;
 
@@ -3103,17 +3103,17 @@ restart_token:;
                                 laye_char_advance(p);
                             }
 
-                            arr_push(string_data, (char)(value & 0xFF));
+                            lca_da_push(string_data, (char)(value & 0xFF));
                         } break;
                     }
                 } else {
-                    arr_push(string_data, c);
+                    lca_da_push(string_data, c);
                     laye_char_advance(p);
                 }
             }
 
-            token.string_value = lyir_context_intern_string_view(p->context, (string_view){.data = string_data, .count = arr_count(string_data)});
-            arr_free(string_data);
+            token.string_value = lyir_context_intern_string_view(p->context, (lca_string_view){.data = string_data, .count = lca_da_count(string_data)});
+            lca_da_free(string_data);
 
             if (p->current_char != terminator) {
                 token.location.length = p->lexer_position - token.location.offset;
@@ -3319,10 +3319,10 @@ restart_token:;
 
             token.location.length = p->lexer_position - token.location.offset;
             assert(token.location.length > 0);
-            string_view identifier_source_view = string_slice(p->source.text, token.location.offset, token.location.length);
+            lca_string_view identifier_source_view = lca_string_slice(p->source.text, token.location.offset, token.location.length);
 
             for (int64_t i = 0; laye_keywords[i].kind != 0; i++) {
-                if (string_view_equals_cstring(identifier_source_view, laye_keywords[i].text)) {
+                if (lca_string_view_equals_cstring(identifier_source_view, laye_keywords[i].text)) {
                     token.kind = laye_keywords[i].kind;
                     goto token_finished;
                 }
@@ -3380,7 +3380,7 @@ restart_token:;
             token.location.length = p->lexer_position - token.location.offset;
             lyir_write_error(p->context, token.location, "Invalid character in Laye source file.");
 
-            arr_push(p->module->_all_tokens, token);
+            lca_da_push(p->module->_all_tokens, token);
 
             //laye_next_token(p);
             goto restart_token;
@@ -3396,5 +3396,5 @@ token_finished:;
     /* token.trailing_trivia = */ laye_read_trivia(p, false);
     p->token = token;
 
-    arr_push(p->module->_all_tokens, token);
+    lca_da_push(p->module->_all_tokens, token);
 }

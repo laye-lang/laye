@@ -88,8 +88,8 @@ static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref
     laye_scope* search_scope = nameref.scope;
     assert(search_scope != NULL);
 
-    assert(arr_count(nameref.pieces) >= 1);
-    string_view first_name = nameref.pieces[0].string_value;
+    assert(lca_da_count(nameref.pieces) >= 1);
+    lca_string_view first_name = nameref.pieces[0].string_value;
 
     assert(nameref.kind == LAYE_NAMEREF_DEFAULT && "only the default representation of a nameref is supported at this time");
 
@@ -110,17 +110,17 @@ static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref
         assert(search_namespace != NULL); // TODO(local): is this actually true?
         assert(search_namespace->kind == LAYE_SYMBOL_NAMESPACE);
 
-        for (int64_t name_index = 0, name_count = arr_count(nameref.pieces); name_index < name_count; name_index++) {
+        for (int64_t name_index = 0, name_count = lca_da_count(nameref.pieces); name_index < name_count; name_index++) {
             // bool is_last_name = name_index == name_count - 1;
             laye_token name_piece_token = nameref.pieces[name_index];
-            string_view name_piece = name_piece_token.string_value;
+            lca_string_view name_piece = name_piece_token.string_value;
 
             laye_symbol* symbol_matching = NULL;
-            for (int64_t symbol_index = 0, symbol_count = arr_count(search_namespace->symbols); symbol_index < symbol_count && symbol_matching == NULL; symbol_index++) {
+            for (int64_t symbol_index = 0, symbol_count = lca_da_count(search_namespace->symbols); symbol_index < symbol_count && symbol_matching == NULL; symbol_index++) {
                 laye_symbol* symbol_imported = search_namespace->symbols[symbol_index];
                 assert(symbol_imported != NULL);
 
-                if (string_view_equals(symbol_imported->name, name_piece)) {
+                if (lca_string_view_equals(symbol_imported->name, name_piece)) {
                     symbol_matching = symbol_imported;
                 }
             }
@@ -130,15 +130,15 @@ static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref
                     from_module->context,
                     name_piece_token.location,
                     "Unable to resolve identifier '%.*s' in this context.",
-                    STR_EXPAND(name_piece)
+                    LCA_STR_EXPAND(name_piece)
                 );
                 return NULL;
             }
 
             if (symbol_matching->kind == LAYE_SYMBOL_ENTITY) {
                 if (name_index == name_count - 1) {
-                    assert(arr_count(symbol_matching->nodes) > 0 && "the symbol exists, so it should have at least one node in it");
-                    assert(arr_count(symbol_matching->nodes) == 1 && "no support for overloads just yet");
+                    assert(lca_da_count(symbol_matching->nodes) > 0 && "the symbol exists, so it should have at least one node in it");
+                    assert(lca_da_count(symbol_matching->nodes) == 1 && "no support for overloads just yet");
                     return symbol_matching->nodes[0];
                 }
 
@@ -147,7 +147,7 @@ static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref
                     from_module->context,
                     name_piece_token.location,
                     "Entity '%.*s' is not a namespace in this context.",
-                    STR_EXPAND(name_piece)
+                    LCA_STR_EXPAND(name_piece)
                 );
                 return NULL;
             } else {
@@ -180,7 +180,7 @@ static void laye_generate_dependencies_for_node(lyir_dependency_graph* graph, la
         } break;
 
         case LAYE_NODE_DECL_STRUCT: {
-            for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->decl_struct.field_declarations); i < count; i++) {
                 laye_node* field_decl = node->decl_struct.field_declarations[i];
                 laye_generate_dependencies_for_node(graph, dep_parent, field_decl->declared_type.node);
             }
@@ -221,7 +221,7 @@ static void laye_generate_dependencies_for_module(lyir_dependency_graph* graph, 
         return;
     }
 
-    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
         assert(top_level_node != NULL);
 
@@ -243,7 +243,7 @@ static void laye_generate_dependencies_for_module(lyir_dependency_graph* graph, 
                 lyir_depgraph_ensure_tracked(graph, top_level_node);
 
                 laye_generate_dependencies_for_node(graph, top_level_node, top_level_node->decl_function.return_type.node);
-                for (int64_t i = 0, count = arr_count(top_level_node->decl_function.parameter_declarations); i < count; i++) {
+                for (int64_t i = 0, count = lca_da_count(top_level_node->decl_function.parameter_declarations); i < count; i++) {
                     laye_generate_dependencies_for_node(graph, top_level_node, top_level_node->decl_function.parameter_declarations[i]->declared_type.node);
                 }
             } break;
@@ -273,24 +273,24 @@ static bool is_identifier_char(int c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c >= 256;
 }
 
-static string_view import_string_to_laye_identifier_string(laye_node* import_node) {
+static lca_string_view import_string_to_laye_identifier_string(laye_node* import_node) {
     assert(import_node != NULL);
     assert(import_node->module != NULL);
     assert(import_node->module->context != NULL);
 
     lyir_context* context = import_node->module->context;
 
-    string_view module_name = import_node->decl_import.import_alias.string_value;
+    lca_string_view module_name = import_node->decl_import.import_alias.string_value;
     if (module_name.count == 0) {
-        module_name = string_as_view(lyir_context_get_source(context, import_node->decl_import.referenced_module->sourceid).name);
+        module_name = lca_string_as_view(lyir_context_get_source(context, import_node->decl_import.referenced_module->sourceid).name);
 
-        int64_t last_slash_index = maxi(string_view_last_index_of(module_name, '/'), string_view_last_index_of(module_name, '\\'));
+        int64_t last_slash_index = maxi(lca_string_view_last_index_of(module_name, '/'), lca_string_view_last_index_of(module_name, '\\'));
         if (last_slash_index >= 0) {
             module_name.data += (last_slash_index + 1);
             module_name.count -= (last_slash_index + 1);
         }
 
-        int64_t first_dot_index = string_view_index_of(module_name, '.');
+        int64_t first_dot_index = lca_string_view_index_of(module_name, '.');
         if (first_dot_index >= 0) {
             module_name.count = first_dot_index;
         }
@@ -306,7 +306,7 @@ static string_view import_string_to_laye_identifier_string(laye_node* import_nod
             }
         }
 
-        // lyir_write_note(context, import_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", STR_EXPAND(module_name));
+        // lyir_write_note(context, import_node->decl_import.module_name.location, "calculated module name: '%.*s'\n", LCA_STR_EXPAND(module_name));
     }
 
     return module_name;
@@ -316,7 +316,7 @@ static void laye_sema_add_symbol_shallow_copy(lyir_context* context, laye_module
     laye_symbol* existing_symbol = laye_symbol_lookup(namespace_symbol, symbol->name);
     if (existing_symbol == NULL) {
         existing_symbol = laye_symbol_create(module, symbol->kind, symbol->name);
-        arr_push(namespace_symbol->symbols, existing_symbol);
+        lca_da_push(namespace_symbol->symbols, existing_symbol);
     }
 
     assert(existing_symbol != NULL);
@@ -325,16 +325,16 @@ static void laye_sema_add_symbol_shallow_copy(lyir_context* context, laye_module
     if (symbol->kind == LAYE_SYMBOL_NAMESPACE) {
         assert(existing_symbol->kind == LAYE_SYMBOL_NAMESPACE);
         // this node should also be freshly created
-        assert(arr_count(existing_symbol->symbols) == 0);
+        assert(lca_da_count(existing_symbol->symbols) == 0);
 
-        for (int64_t j = 0, j_count = arr_count(symbol->symbols); j < j_count; j++) {
-            arr_push(existing_symbol->symbols, symbol->symbols[j]);
+        for (int64_t j = 0, j_count = lca_da_count(symbol->symbols); j < j_count; j++) {
+            lca_da_push(existing_symbol->symbols, symbol->symbols[j]);
         }
     } else {
         assert(existing_symbol->kind == LAYE_SYMBOL_ENTITY);
 
-        for (int64_t j = 0, j_count = arr_count(symbol->nodes); j < j_count; j++) {
-            arr_push(existing_symbol->nodes, symbol->nodes[j]);
+        for (int64_t j = 0, j_count = lca_da_count(symbol->nodes); j < j_count; j++) {
+            lca_da_push(existing_symbol->nodes, symbol->nodes[j]);
         }
     }
 }
@@ -348,7 +348,7 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
     laye_symbol* search_namespace = search_module->exports;
 
     if (query->import_query.is_wildcard) {
-        for (int64_t i = 0, count = arr_count(search_namespace->symbols); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(search_namespace->symbols); i < count; i++) {
             laye_symbol* exported_symbol = search_namespace->symbols[i];
             assert(exported_symbol != NULL);
             assert(exported_symbol->name.count > 0);
@@ -357,7 +357,7 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
             if (imported_symbol == NULL) {
                 imported_symbol = laye_symbol_create(module, exported_symbol->kind, exported_symbol->name);
                 assert(imported_symbol != NULL);
-                arr_push(module->imports->symbols, imported_symbol);
+                lca_da_push(module->imports->symbols, imported_symbol);
             } else {
                 if (exported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
                     lyir_write_error(context, query->location, "Wildcard imports symbol '%.*s', which is a namespace. This symbol has already been declared, and namespace names cannot be overloaded.");
@@ -375,16 +375,16 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
             if (exported_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
                 assert(imported_symbol->kind == LAYE_SYMBOL_NAMESPACE);
                 // this node should also be freshly created
-                assert(arr_count(imported_symbol->symbols) == 0);
+                assert(lca_da_count(imported_symbol->symbols) == 0);
 
-                for (int64_t j = 0, j_count = arr_count(exported_symbol->symbols); j < j_count; j++) {
-                    arr_push(imported_symbol->symbols, exported_symbol->symbols[j]);
+                for (int64_t j = 0, j_count = lca_da_count(exported_symbol->symbols); j < j_count; j++) {
+                    lca_da_push(imported_symbol->symbols, exported_symbol->symbols[j]);
                 }
             } else {
                 assert(imported_symbol->kind == LAYE_SYMBOL_ENTITY);
 
-                for (int64_t j = 0, j_count = arr_count(exported_symbol->nodes); j < j_count; j++) {
-                    arr_push(imported_symbol->nodes, exported_symbol->nodes[j]);
+                for (int64_t j = 0, j_count = lca_da_count(exported_symbol->nodes); j < j_count; j++) {
+                    lca_da_push(imported_symbol->nodes, exported_symbol->nodes[j]);
                 }
             }
 
@@ -393,14 +393,14 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
             }
         }
     } else {
-        assert(arr_count(query->import_query.pieces) > 0);
+        assert(lca_da_count(query->import_query.pieces) > 0);
 
         laye_symbol* resolved_symbol = NULL;
-        for (int64_t i = 0, count = arr_count(query->import_query.pieces); i < count; i++) {
+        for (int64_t i = 0, count = lca_da_count(query->import_query.pieces); i < count; i++) {
             bool is_last_name_in_path = i == count - 1;
 
             laye_token search_token = query->import_query.pieces[i];
-            string_view search_name = search_token.string_value;
+            lca_string_view search_name = search_token.string_value;
 
             assert(search_namespace != NULL);
 
@@ -411,8 +411,8 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
                     context,
                     previous_search_token.location,
                     "The imported name '%.*s' does not resolve to a namespace. Cannot search it for a child entity named '%.*s'.",
-                    STR_EXPAND(previous_search_token.string_value),
-                    STR_EXPAND(search_name)
+                    LCA_STR_EXPAND(previous_search_token.string_value),
+                    LCA_STR_EXPAND(search_name)
                 );
                 break;
             }
@@ -420,11 +420,11 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
             assert(search_namespace->kind == LAYE_SYMBOL_NAMESPACE);
 
             laye_symbol* found_lookup_symbol = NULL;
-            for (int64_t j = 0, j_count = arr_count(search_namespace->symbols); j < j_count; j++) {
+            for (int64_t j = 0, j_count = lca_da_count(search_namespace->symbols); j < j_count; j++) {
                 laye_symbol* search_symbol = search_namespace->symbols[j];
                 assert(search_symbol != NULL);
 
-                if (string_view_equals(search_symbol->name, search_name)) {
+                if (lca_string_view_equals(search_symbol->name, search_name)) {
                     found_lookup_symbol = search_symbol;
                     break;
                 }
@@ -435,7 +435,7 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
                     context,
                     search_token.location,
                     "The name '%.*s' does not exist in this context.",
-                    STR_EXPAND(search_name)
+                    LCA_STR_EXPAND(search_name)
                 );
                 break;
             }
@@ -452,16 +452,16 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
             return;
         }
 
-        string_view query_result_name = query->import_query.alias.string_value;
+        lca_string_view query_result_name = query->import_query.alias.string_value;
         if (query_result_name.count == 0) {
-            query_result_name = query->import_query.pieces[arr_count(query->import_query.pieces) - 1].string_value;
+            query_result_name = query->import_query.pieces[lca_da_count(query->import_query.pieces) - 1].string_value;
         }
 
         laye_symbol* imported_symbol = laye_symbol_lookup(module->imports, query_result_name);
         if (imported_symbol == NULL) {
             imported_symbol = laye_symbol_create(module, resolved_symbol->kind, query_result_name);
             assert(imported_symbol != NULL);
-            arr_push(module->imports->symbols, imported_symbol);
+            lca_da_push(module->imports->symbols, imported_symbol);
         } else {
             if (resolved_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
                 lyir_write_error(context, query->location, "Query imports symbol '%.*s', which is a namespace. This symbol has already been declared, and namespace names cannot be overloaded.");
@@ -477,23 +477,23 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
         if (resolved_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
             assert(imported_symbol->kind == LAYE_SYMBOL_NAMESPACE);
             // this node should also be freshly created
-            assert(arr_count(imported_symbol->symbols) == 0);
+            assert(lca_da_count(imported_symbol->symbols) == 0);
 
-            for (int64_t j = 0, j_count = arr_count(resolved_symbol->symbols); j < j_count; j++) {
-                arr_push(imported_symbol->symbols, resolved_symbol->symbols[j]);
+            for (int64_t j = 0, j_count = lca_da_count(resolved_symbol->symbols); j < j_count; j++) {
+                lca_da_push(imported_symbol->symbols, resolved_symbol->symbols[j]);
             }
         } else {
             assert(imported_symbol->kind == LAYE_SYMBOL_ENTITY);
 
-            for (int64_t j = 0, j_count = arr_count(resolved_symbol->nodes); j < j_count; j++) {
-                arr_push(imported_symbol->nodes, resolved_symbol->nodes[j]);
+            for (int64_t j = 0, j_count = lca_da_count(resolved_symbol->nodes); j < j_count; j++) {
+                lca_da_push(imported_symbol->nodes, resolved_symbol->nodes[j]);
             }
         }
         
         /*
 
         // populate the module's scope with the imported entities.
-        for (int64_t k = 0, k_count = arr_count(query->import_query.imported_entities); k < k_count; k++) {
+        for (int64_t k = 0, k_count = lca_da_count(query->import_query.imported_entities); k < k_count; k++) {
             laye_node* entity = query->import_query.imported_entities[k];
             assert(laye_node_is_decl(entity));
             assert(entity->declared_name.count > 0);
@@ -505,45 +505,45 @@ static void laye_sema_resolve_import_query(lyir_context* context, laye_module* m
         }
 
         // add imported modules to the same import module array as import declarations with namespaces.
-        for (int64_t k = 0, k_count = arr_count(query->import_query.imported_modules); k < k_count; k++) {
-            arr_push(module->imports, query->import_query.imported_modules[k]);
+        for (int64_t k = 0, k_count = lca_da_count(query->import_query.imported_modules); k < k_count; k++) {
+            lca_da_push(module->imports, query->import_query.imported_modules[k]);
         }
 
         */
     }
 }
 
-static string laye_sema_get_module_import_file_path(lyir_context* context, string_view relative_module_path, string_view import_name) {
+static lca_string laye_sema_get_module_import_file_path(lyir_context* context, lca_string_view relative_module_path, lca_string_view import_name) {
     // first try to find the file based on the relative directory of the module requesting it
-    int64_t last_slash_index = maxi(string_view_last_index_of(relative_module_path, '/'), string_view_last_index_of(relative_module_path, '\\'));
+    int64_t last_slash_index = maxi(lca_string_view_last_index_of(relative_module_path, '/'), lca_string_view_last_index_of(relative_module_path, '\\'));
 
-    string lookup_path = string_create(default_allocator);
+    lca_string lookup_path = lca_string_create(default_allocator);
     if (last_slash_index < 0) {
         lca_string_append_format(&lookup_path, "./");
     } else {
         relative_module_path.count = last_slash_index;
-        string_append_format(&lookup_path, "%.*s", STR_EXPAND(relative_module_path));
+        lca_string_append_format(&lookup_path, "%.*s", LCA_STR_EXPAND(relative_module_path));
     }
 
-    string_path_append_view(&lookup_path, import_name);
-    if (lca_plat_file_exists(string_as_cstring(lookup_path))) {
+    lca_string_path_append_view(&lookup_path, import_name);
+    if (lca_plat_file_exists(lca_string_as_cstring(lookup_path))) {
         return lookup_path;
     }
 
-    for (int64_t include_index = 0, include_count = arr_count(context->include_directories); include_index < include_count; include_index++) {
-        string_view include_path = context->include_directories[include_index];
+    for (int64_t include_index = 0, include_count = lca_da_count(context->include_directories); include_index < include_count; include_index++) {
+        lca_string_view include_path = context->include_directories[include_index];
 
         memset(lookup_path.data, 0, (size_t)lookup_path.count);
         lookup_path.count = 0;
 
-        string_append_format(&lookup_path, "%.*s", STR_EXPAND(include_path));
-        string_path_append_view(&lookup_path, import_name);
-        if (lca_plat_file_exists(string_as_cstring(lookup_path))) {
+        lca_string_append_format(&lookup_path, "%.*s", LCA_STR_EXPAND(include_path));
+        lca_string_path_append_view(&lookup_path, import_name);
+        if (lca_plat_file_exists(lca_string_as_cstring(lookup_path))) {
             return lookup_path;
         }
     }
 
-    string_destroy(&lookup_path);
+    lca_string_destroy(&lookup_path);
     return (lca_string){0};
 }
 
@@ -559,7 +559,7 @@ static void laye_sema_resolve_module_import_declarations(lyir_context* context, 
 
     lyir_depgraph_ensure_tracked(import_graph, module);
 
-    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
         assert(top_level_node != NULL);
 
@@ -574,19 +574,19 @@ static void laye_sema_resolve_module_import_declarations(lyir_context* context, 
                 }
 
                 lyir_source source = lyir_context_get_source(context, module->sourceid);
-                string lookup_path = laye_sema_get_module_import_file_path(context, string_as_view(source.name), module_name_token.string_value);
+                lca_string lookup_path = laye_sema_get_module_import_file_path(context, lca_string_as_view(source.name), module_name_token.string_value);
 
                 if (lookup_path.count == 0) {
                     top_level_node->sema_state = LYIR_SEMA_ERRORED;
-                    lyir_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", STR_EXPAND(module_name_token.string_value));
+                    lyir_write_error(context, module_name_token.location, "Cannot find module file to import: '%.*s'", LCA_STR_EXPAND(module_name_token.string_value));
                     continue;
                 }
 
-                lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, string_as_view(lookup_path));
-                string_destroy(&lookup_path);
+                lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context, lca_string_as_view(lookup_path));
+                lca_string_destroy(&lookup_path);
 
                 laye_module* found = NULL;
-                for (int64_t i = 0, count = arr_count(context->laye_modules); i < count && found == NULL; i++) {
+                for (int64_t i = 0, count = lca_da_count(context->laye_modules); i < count && found == NULL; i++) {
                     laye_module* module = context->laye_modules[i];
                     if (module->sourceid == sourceid) {
                         found = module;
@@ -613,14 +613,14 @@ static void laye_sema_build_module_symbol_tables(lyir_context* context, laye_mod
     assert(module != NULL);
 
     assert(module->exports == NULL);
-    module->exports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
+    module->exports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, LCA_SV_EMPTY);
     assert(module->exports != NULL);
 
     assert(module->imports == NULL);
-    module->imports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, SV_EMPTY);
+    module->imports = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, LCA_SV_EMPTY);
     assert(module->imports != NULL);
 
-    for (int64_t i = 0, count = arr_count(module->top_level_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
         if (top_level_node->sema_state == LYIR_SEMA_ERRORED) {
             continue;
@@ -633,21 +633,21 @@ static void laye_sema_build_module_symbol_tables(lyir_context* context, laye_mod
                 assert(top_level_node->decl_import.referenced_module != NULL);
                 bool is_export_import = top_level_node->attributes.linkage == LYIR_LINK_EXPORTED;
 
-                if (arr_count(top_level_node->decl_import.import_queries) == 0) {
-                    string_view module_name = import_string_to_laye_identifier_string(top_level_node);
+                if (lca_da_count(top_level_node->decl_import.import_queries) == 0) {
+                    lca_string_view module_name = import_string_to_laye_identifier_string(top_level_node);
                     assert(module_name.count > 0);
 
                     if (laye_symbol_lookup(module->imports, module_name) != NULL) {
-                        lyir_write_error(module->context, top_level_node->location, "Redeclaration of name '%.*s'.", STR_EXPAND(module_name));
+                        lyir_write_error(module->context, top_level_node->location, "Redeclaration of name '%.*s'.", LCA_STR_EXPAND(module_name));
                     } else {
                         laye_symbol* import_scope = laye_symbol_create(module, LAYE_SYMBOL_NAMESPACE, module_name);
                         assert(import_scope != NULL);
 
-                        arr_push(module->imports->symbols, import_scope);
+                        lca_da_push(module->imports->symbols, import_scope);
 
                         if (is_export_import) {
                             assert(laye_symbol_lookup(module->exports, module_name) == NULL && "somehow, this module already exports something with the same name");
-                            arr_push(module->exports->symbols, import_scope);
+                            lca_da_push(module->exports->symbols, import_scope);
                         }
 
                         // shallow-copy all of the referenced module's exports into this new scope for our own imports (and potentially exports)
@@ -655,17 +655,17 @@ static void laye_sema_build_module_symbol_tables(lyir_context* context, laye_mod
                         assert(referenced_module != NULL);
                         assert(referenced_module->exports != NULL);
 
-                        for (int64_t export_index = 0, export_count = arr_count(referenced_module->exports->symbols); export_index < export_count; export_index++) {
+                        for (int64_t export_index = 0, export_count = lca_da_count(referenced_module->exports->symbols); export_index < export_count; export_index++) {
                             laye_symbol* imported_symbol = referenced_module->exports->symbols[export_index];
                             assert(imported_symbol != NULL);
                             assert(laye_symbol_lookup(import_scope, imported_symbol->name) == NULL);
-                            arr_push(import_scope->symbols, imported_symbol);
+                            lca_da_push(import_scope->symbols, imported_symbol);
                         }
                     }
                 } else {
                     // no import namespaces, populate this scope directly
-                    dynarr(laye_node*) queries = top_level_node->decl_import.import_queries;
-                    for (int64_t j = 0, j_count = arr_count(queries); j < j_count; j++) {
+                    lca_da(laye_node*) queries = top_level_node->decl_import.import_queries;
+                    for (int64_t j = 0, j_count = lca_da_count(queries); j < j_count; j++) {
                         laye_node* query = queries[j];
                         assert(query != NULL);
 
@@ -686,18 +686,18 @@ static void laye_sema_build_module_symbol_tables(lyir_context* context, laye_mod
                 laye_symbol* export_symbol = laye_symbol_lookup(module->exports, top_level_node->declared_name);
                 if (export_symbol != NULL) {
                     if (export_symbol->kind == LAYE_SYMBOL_NAMESPACE) {
-                        lyir_write_error(module->context, top_level_node->location, "Redeclaration of symbol '%.*s', previously declared as a namespace.", STR_EXPAND(top_level_node->declared_name));
+                        lyir_write_error(module->context, top_level_node->location, "Redeclaration of symbol '%.*s', previously declared as a namespace.", LCA_STR_EXPAND(top_level_node->declared_name));
                         break;
                     }
                 } else {
                     export_symbol = laye_symbol_create(module, LAYE_SYMBOL_ENTITY, top_level_node->declared_name);
-                    arr_push(module->exports->symbols, export_symbol);
+                    lca_da_push(module->exports->symbols, export_symbol);
                 }
 
                 assert(export_symbol != NULL);
                 assert(export_symbol->kind == LAYE_SYMBOL_ENTITY);
 
-                arr_push(export_symbol->nodes, top_level_node);
+                lca_da_push(export_symbol->nodes, top_level_node);
             } break;
         }
     }
@@ -718,7 +718,7 @@ void laye_analyse(lyir_context* context) {
     // We walk through all import declarations recursively for all modules and resolve them to a valid module pointer.
     // This may involve parsing all new source files if they haven't been parsed yet.
     // NOTHING ELSE HAPPENS IN THIS STAGE
-    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->laye_modules); i < count; i++) {
         laye_sema_resolve_module_import_declarations(context, import_graph, context->laye_modules[i]);
     }
 
@@ -731,36 +731,36 @@ void laye_analyse(lyir_context* context) {
             context,
             (lyir_location){.sourceid = from->sourceid},
             "Cyclic dependency detected. module '%.*s' depends on %.*s, and vice versa. Eventually this will be supported, but the import resolution is currently not graunular enough.",
-            STR_EXPAND(lyir_context_get_source(context, from->sourceid).name),
-            STR_EXPAND(lyir_context_get_source(context, to->sourceid).name)
+            LCA_STR_EXPAND(lyir_context_get_source(context, from->sourceid).name),
+            LCA_STR_EXPAND(lyir_context_get_source(context, to->sourceid).name)
         );
 
         return;
     }
 
     assert(import_order_result.status == LYIR_DEP_OK);
-    dynarr(laye_module*) ordered_modules = (dynarr(laye_module*))import_order_result.ordered_entities;
-    assert(arr_count(ordered_modules) == arr_count(context->laye_modules));
+    lca_da(laye_module*) ordered_modules = (lca_da(laye_module*))import_order_result.ordered_entities;
+    assert(lca_da_count(ordered_modules) == lca_da_count(context->laye_modules));
 
     // Step 2 is building the import/export symbol tables for each module.
     // (in dependency order)
-    for (int64_t i = 0, count = arr_count(ordered_modules); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(ordered_modules); i < count; i++) {
         laye_module* module = ordered_modules[i];
-        // fprintf(stderr, "module: %.*s\n", STR_EXPAND(layec_context_get_source(context, module->sourceid).name));
+        // fprintf(stderr, "module: %.*s\n", LCA_STR_EXPAND(layec_context_get_source(context, module->sourceid).name));
         laye_sema_build_module_symbol_tables(context, module);
 
         assert(module->imports != NULL);
         assert(module->exports != NULL);
     }
 
-    arr_free(ordered_modules);
+    lca_da_free(ordered_modules);
 
     // TODO(local): somewhere in here, before sema is done, we have to check for redeclared symbols.
     // probably after top level types.
 
     //return;
 
-    for (int64_t i = 0, count = arr_count(context->laye_modules); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(context->laye_modules); i < count; i++) {
         laye_generate_dependencies_for_module(sema.dependencies, context->laye_modules[i]);
     }
 
@@ -770,28 +770,28 @@ void laye_analyse(lyir_context* context) {
             context,
             ((laye_node*)order_result.from)->location,
             "Cyclic dependency detected. %.*s depends on %.*s, and vice versa.",
-            STR_EXPAND(((laye_node*)order_result.from)->declared_name),
-            STR_EXPAND(((laye_node*)order_result.to)->declared_name)
+            LCA_STR_EXPAND(((laye_node*)order_result.from)->declared_name),
+            LCA_STR_EXPAND(((laye_node*)order_result.to)->declared_name)
         );
 
         lyir_write_note(
             context,
             ((laye_node*)order_result.to)->location,
             "%.*s declared here.",
-            STR_EXPAND(((laye_node*)order_result.to)->declared_name)
+            LCA_STR_EXPAND(((laye_node*)order_result.to)->declared_name)
         );
 
         return;
     }
 
     assert(order_result.status == LYIR_DEP_OK);
-    dynarr(laye_node*) ordered_nodes = (dynarr(laye_node*))order_result.ordered_entities;
+    lca_da(laye_node*) ordered_nodes = (lca_da(laye_node*))order_result.ordered_entities;
 
-    // for (int64_t i = 0, count = arr_count(ordered_nodes); i < count; i++) {
-    //     fprintf(stderr, ">>  %s :: %.*s\n", laye_node_kind_to_cstring(ordered_nodes[i]->kind), STR_EXPAND(ordered_nodes[i]->declared_name));
+    // for (int64_t i = 0, count = lca_da_count(ordered_nodes); i < count; i++) {
+    //     fprintf(stderr, ">>  %s :: %.*s\n", laye_node_kind_to_cstring(ordered_nodes[i]->kind), LCA_STR_EXPAND(ordered_nodes[i]->declared_name));
     // }
 
-    for (int64_t i = 0, count = arr_count(ordered_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(ordered_nodes); i < count; i++) {
         laye_node* node = ordered_nodes[i];
         assert(node != NULL);
         // fprintf(stderr, ANSI_COLOR_BLUE "%016lX\n", (size_t)node);
@@ -799,14 +799,14 @@ void laye_analyse(lyir_context* context) {
         assert(node != NULL);
     }
 
-    for (int64_t i = 0, count = arr_count(ordered_nodes); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(ordered_nodes); i < count; i++) {
         laye_node* node = ordered_nodes[i];
         assert(node != NULL);
         laye_sema_analyse_node(&sema, &node, NOTY);
         assert(node != NULL);
     }
 
-    arr_free(ordered_nodes);
+    lca_da_free(ordered_nodes);
 }
 
 static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, laye_node* parent_struct) {
@@ -822,7 +822,7 @@ static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, 
     struct_type->type_struct.name = node->declared_name;
     struct_type->type_struct.parent_struct_type = parent_struct;
 
-    for (int64_t i = 0, count = arr_count(node->decl_struct.field_declarations); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(node->decl_struct.field_declarations); i < count; i++) {
         laye_node* field_node = node->decl_struct.field_declarations[i];
         assert(field_node != NULL);
         assert(field_node->kind == LAYE_NODE_DECL_STRUCT_FIELD);
@@ -848,10 +848,10 @@ static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, 
             .initial_value = constant_initial_value,
         };
 
-        arr_push(struct_type->type_struct.fields, field);
+        lca_da_push(struct_type->type_struct.fields, field);
     }
 
-    for (int64_t i = 0, count = arr_count(node->decl_struct.variant_declarations); i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(node->decl_struct.variant_declarations); i < count; i++) {
         laye_node* variant_node = node->decl_struct.variant_declarations[i];
         assert(variant_node != NULL);
         assert(variant_node->kind == LAYE_NODE_DECL_STRUCT);
@@ -865,7 +865,7 @@ static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, 
             .name = variant_node->declared_name,
         };
 
-        arr_push(struct_type->type_struct.variants, variant);
+        lca_da_push(struct_type->type_struct.variants, variant);
     }
 
     return struct_type;
@@ -894,7 +894,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
                 node->type = LTY(sema->context->laye_types.poison);
             }
 
-            for (int64_t i = 0, count = arr_count(node->decl_function.parameter_declarations); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->decl_function.parameter_declarations); i < count; i++) {
                 assert(node->decl_function.parameter_declarations[i] != NULL);
                 assert(node->decl_function.parameter_declarations[i]->declared_type.node != NULL);
                 if (!laye_sema_analyse_type(sema, &node->decl_function.parameter_declarations[i]->declared_type)) {
@@ -910,9 +910,9 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
                 node->type = LTY(sema->context->laye_types.poison);
             }
 
-            bool is_declared_main = string_view_equals(SV_CONSTANT("main"), node->declared_name);
+            bool is_declared_main = lca_string_view_equals(LCA_SV_CONSTANT("main"), node->declared_name);
             bool has_foreign_name = node->attributes.foreign_name.count != 0;
-            bool has_body = arr_count(node->decl_function.body) != 0;
+            bool has_body = lca_da_count(node->decl_function.body) != 0;
 
             if (is_declared_main && !has_foreign_name) {
                 node->attributes.calling_convention = LYIR_CCC;
@@ -964,7 +964,7 @@ static laye_node* wrap_yieldable_value_in_compound(laye_sema* sema, laye_node** 
     laye_node* compound_node = laye_node_create(value->module, LAYE_NODE_COMPOUND, value->location, LTY(sema->context->laye_types._void));
     assert(compound_node != NULL);
     compound_node->compiler_generated = true;
-    arr_push(compound_node->compound.children, yield_node);
+    lca_da_push(compound_node->compound.children, yield_node);
 
     return compound_node;
 }
@@ -1032,7 +1032,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             laye_node* prev_function = sema->current_function;
             sema->current_function = node;
 
-            for (int64_t i = 0, count = arr_count(node->decl_function.parameter_declarations); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->decl_function.parameter_declarations); i < count; i++) {
                 laye_sema_analyse_node(sema, &node->decl_function.parameter_declarations[i], NOTY);
             }
 
@@ -1045,7 +1045,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         laye_node* implicit_return = laye_node_create(node->module, LAYE_NODE_RETURN, node->decl_function.body->location, LTY(sema->context->laye_types.noreturn));
                         assert(implicit_return != NULL);
                         implicit_return->compiler_generated = true;
-                        arr_push(node->decl_function.body->compound.children, implicit_return);
+                        lca_da_push(node->decl_function.body->compound.children, implicit_return);
                         node->decl_function.body->type = LTY(sema->context->laye_types.noreturn);
                     } else if (laye_type_is_noreturn(node->decl_function.return_type)) {
                         lyir_write_error(sema->context, node->location, "Control flow reaches the end of a `noreturn` function.");
@@ -1089,7 +1089,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             //sema->is_in_test = true;
 
             if (node->decl_test.is_named) {
-                assert(arr_count(node->decl_test.nameref.pieces) > 0);
+                assert(lca_da_count(node->decl_test.nameref.pieces) > 0);
                 node->decl_test.referenced_decl_node = laye_sema_lookup_value_declaration(node->module, node->decl_test.nameref);
                 if (node->decl_test.referenced_decl_node == NULL) {
                     node->sema_state = LYIR_SEMA_ERRORED;
@@ -1118,8 +1118,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             bool is_expression = node->_if.is_expr;
             bool is_noreturn = true;
 
-            assert(arr_count(node->_if.conditions) == arr_count(node->_if.passes));
-            for (int64_t i = 0, count = arr_count(node->_if.conditions); i < count; i++) {
+            assert(lca_da_count(node->_if.conditions) == lca_da_count(node->_if.passes));
+            for (int64_t i = 0, count = lca_da_count(node->_if.conditions); i < count; i++) {
                 if (laye_sema_analyse_node(sema, &node->_if.conditions[i], LTY(sema->context->laye_types._bool))) {
                     laye_sema_convert_or_error(sema, &node->_if.conditions[i], LTY(sema->context->laye_types._bool));
                 } else {
@@ -1275,10 +1275,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 node->foreach.element_binding->declared_type = LTY(sema->context->laye_types.poison);
 
                 if (node->foreach.iterable->kind != LAYE_NODE_TYPE_POISON) {
-                    string type_string = string_create(sema->context->allocator);
+                    lca_string type_string = lca_string_create(sema->context->allocator);
                     laye_type_print_to_string(iterable_type, &type_string, sema->context->use_color);
                     lyir_write_error(sema->context, node->foreach.iterable->location, "Cannot iterate over type %.*s.");
-                    string_destroy(&type_string);
+                    lca_string_destroy(&type_string);
                 }
             }
 
@@ -1424,7 +1424,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 sema->current_yield_target = node;
             }
 
-            for (int64_t i = 0, count = arr_count(node->compound.children); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->compound.children); i < count; i++) {
                 laye_node** child_ref = &node->compound.children[i];
                 assert(*child_ref != NULL);
 
@@ -1448,7 +1448,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_CALL: {
             laye_sema_analyse_node(sema, &node->call.callee, NOTY);
 
-            for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->call.arguments); i < count; i++) {
                 laye_node** argument_node_ref = &node->call.arguments[i];
                 assert(*argument_node_ref != NULL);
                 laye_sema_analyse_node(sema, argument_node_ref, NOTY);
@@ -1472,38 +1472,38 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     assert(callee_type.node->type_function.return_type.node != NULL);
                     node->type = callee_type.node->type_function.return_type;
 
-                    int64_t param_count = arr_count(callee_type.node->type_function.parameter_types);
+                    int64_t param_count = lca_da_count(callee_type.node->type_function.parameter_types);
 
                     if (callee_type.node->type_function.varargs_style == LAYE_VARARGS_NONE) {
-                        if (arr_count(node->call.arguments) != param_count) {
+                        if (lca_da_count(node->call.arguments) != param_count) {
                             node->sema_state = LYIR_SEMA_ERRORED;
                             lyir_write_error(
                                 sema->context,
                                 node->location,
                                 "Expected %lld arguments to call, got %lld.",
                                 param_count,
-                                arr_count(node->call.arguments)
+                                lca_da_count(node->call.arguments)
                             );
                             break;
                         }
 
-                        for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
+                        for (int64_t i = 0, count = lca_da_count(node->call.arguments); i < count; i++) {
                             laye_sema_convert_or_error(sema, &node->call.arguments[i], callee_type.node->type_function.parameter_types[i]);
                         }
                     } else if (callee_type.node->type_function.varargs_style == LAYE_VARARGS_C) {
-                        if (arr_count(node->call.arguments) < param_count) {
+                        if (lca_da_count(node->call.arguments) < param_count) {
                             node->sema_state = LYIR_SEMA_ERRORED;
                             lyir_write_error(
                                 sema->context,
                                 node->location,
                                 "Expected at least %lld arguments to call, got %lld.",
                                 param_count,
-                                arr_count(node->call.arguments)
+                                lca_da_count(node->call.arguments)
                             );
                             break;
                         }
 
-                        for (int64_t i = 0, count = arr_count(node->call.arguments); i < count; i++) {
+                        for (int64_t i = 0, count = lca_da_count(node->call.arguments); i < count; i++) {
                             if (i < param_count) {
                                 laye_sema_convert_or_error(sema, &node->call.arguments[i], callee_type.node->type_function.parameter_types[i]);
                             } else {
@@ -1524,7 +1524,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             //bool is_lvalue = laye_node_is_lvalue(node->index.value);
             laye_expr_set_lvalue(node, true);
 
-            for (int64_t i = 0, count = arr_count(node->index.indices); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->index.indices); i < count; i++) {
                 laye_node** index_node_ref = &node->index.indices[i];
                 assert(*index_node_ref != NULL);
                 laye_sema_analyse_node(sema, index_node_ref, LTY(sema->context->laye_types._int));
@@ -1547,26 +1547,26 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             switch (value_type.node->kind) {
                 default: {
-                    string type_string = string_create(sema->context->allocator);
+                    lca_string type_string = lca_string_create(sema->context->allocator);
                     laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
-                    lyir_write_error(sema->context, node->index.value->location, "Cannot index type %.*s.", STR_EXPAND(type_string));
-                    string_destroy(&type_string);
+                    lyir_write_error(sema->context, node->index.value->location, "Cannot index type %.*s.", LCA_STR_EXPAND(type_string));
+                    lca_string_destroy(&type_string);
                     node->type = LTY(sema->context->laye_types.poison);
                 } break;
 
                 case LAYE_NODE_TYPE_ARRAY: {
-                    if (arr_count(node->index.indices) != arr_count(value_type.node->type_container.length_values)) {
-                        string type_string = string_create(sema->context->allocator);
+                    if (lca_da_count(node->index.indices) != lca_da_count(value_type.node->type_container.length_values)) {
+                        lca_string type_string = lca_string_create(sema->context->allocator);
                         laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
                         lyir_write_error(
                             sema->context,
                             node->location,
                             "Expected %lld indices to type %.*s, got %lld.",
-                            arr_count(value_type.node->type_container.length_values),
-                            STR_EXPAND(type_string),
-                            arr_count(node->index.indices)
+                            lca_da_count(value_type.node->type_container.length_values),
+                            LCA_STR_EXPAND(type_string),
+                            lca_da_count(node->index.indices)
                         );
-                        string_destroy(&type_string);
+                        lca_string_destroy(&type_string);
                     }
 
                     node->type = value_type.node->type_container.element_type;
@@ -1574,7 +1574,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                 /*
                 case LAYE_NODE_TYPE_SLICE: {
-                    if (arr_count(node->index.indices) != 1) {
+                    if (lca_da_count(node->index.indices) != 1) {
                         layec_write_error(sema->context, node->location, "Slice types require exactly one index.");
                     }
 
@@ -1585,7 +1585,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 case LAYE_NODE_TYPE_BUFFER: {
                     laye_sema_lvalue_to_rvalue(sema, &node->index.value, true);
 
-                    if (arr_count(node->index.indices) != 1) {
+                    if (lca_da_count(node->index.indices) != 1) {
                         lyir_write_error(sema->context, node->location, "Buffer types require exactly one index.");
                     }
 
@@ -1615,21 +1615,21 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             value_type = node->member.value->type;
 
             lyir_location member_location = node->member.field_name.location;
-            string_view member_name = node->member.field_name.string_value;
+            lca_string_view member_name = node->member.field_name.string_value;
 
             switch (value_type.node->kind) {
                 default: {
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
-                    string type_string = string_create(sema->context->allocator);
+                    lca_string type_string = lca_string_create(sema->context->allocator);
                     laye_type_print_to_string(value_type, &type_string, sema->context->use_color);
                     lyir_write_error(
                         sema->context,
                         node->location,
                         "Cannot index type %.*s.",
-                        STR_EXPAND(type_string)
+                        LCA_STR_EXPAND(type_string)
                     );
-                    string_destroy(&type_string);
+                    lca_string_destroy(&type_string);
                 } break;
 
                 case LAYE_NODE_TYPE_STRUCT: {
@@ -1638,9 +1638,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     int64_t member_offset = 0;
                     laye_type member_type = {0};
 
-                    for (int64_t i = 0, count = arr_count(struct_type_node->type_struct.fields); i < count; i++) {
+                    for (int64_t i = 0, count = lca_da_count(struct_type_node->type_struct.fields); i < count; i++) {
                         laye_struct_type_field f = struct_type_node->type_struct.fields[i];
-                        if (string_view_equals(member_name, f.name)) {
+                        if (lca_string_view_equals(member_name, f.name)) {
                             member_type = f.type;
                             break;
                         } else {
@@ -1651,7 +1651,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     if (member_offset >= laye_type_size_in_bytes(value_type)) {
                         node->sema_state = LYIR_SEMA_ERRORED;
                         node->type = LTY(sema->context->laye_types.poison);
-                        lyir_write_error(sema->context, node->location, "No such member '%.*s'.", STR_EXPAND(member_name));
+                        lyir_write_error(sema->context, node->location, "No such member '%.*s'.", LCA_STR_EXPAND(member_name));
                         break;
                     }
 
@@ -1746,10 +1746,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 }
             }
 
-            string from_type_string = string_create(sema->context->allocator);
+            lca_string from_type_string = lca_string_create(sema->context->allocator);
             laye_type_print_to_string(type_from, &from_type_string, sema->context->use_color);
 
-            string to_type_string = string_create(sema->context->allocator);
+            lca_string to_type_string = lca_string_create(sema->context->allocator);
             laye_type_print_to_string(type_to, &to_type_string, sema->context->use_color);
 
             node->sema_state = LYIR_SEMA_ERRORED;
@@ -1757,12 +1757,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 sema->context,
                 node->location,
                 "Expression of type %.*s is not convertible to %.*s",
-                STR_EXPAND(from_type_string),
-                STR_EXPAND(to_type_string)
+                LCA_STR_EXPAND(from_type_string),
+                LCA_STR_EXPAND(to_type_string)
             );
 
-            string_destroy(&to_type_string);
-            string_destroy(&from_type_string);
+            lca_string_destroy(&to_type_string);
+            lca_string_destroy(&from_type_string);
         } break;
 
         case LAYE_NODE_UNARY: {
@@ -1848,10 +1848,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     break;
 
                 cannot_dereference_type:;
-                    string type_string = string_create(default_allocator);
+                    lca_string type_string = lca_string_create(default_allocator);
                     laye_type_print_to_string(node->unary.operand->type, &type_string, sema->context->use_color);
-                    lyir_write_error(sema->context, node->location, "Cannot dereference type %.*s.", STR_EXPAND(type_string));
-                    string_destroy(&type_string);
+                    lyir_write_error(sema->context, node->location, "Cannot dereference type %.*s.", LCA_STR_EXPAND(type_string));
+                    lca_string_destroy(&type_string);
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
                 } break;
@@ -1951,8 +1951,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
 
-                    string lhs_type_string = string_create(default_allocator);
-                    string rhs_type_string = string_create(default_allocator);
+                    lca_string lhs_type_string = lca_string_create(default_allocator);
+                    lca_string rhs_type_string = lca_string_create(default_allocator);
 
                     laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
                     laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
@@ -1961,12 +1961,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         sema->context,
                         node->location,
                         "Cannot perform arithmetic on %.*s and %.*s.",
-                        STR_EXPAND(lhs_type_string),
-                        STR_EXPAND(rhs_type_string)
+                        LCA_STR_EXPAND(lhs_type_string),
+                        LCA_STR_EXPAND(rhs_type_string)
                     );
 
-                    string_destroy(&rhs_type_string);
-                    string_destroy(&lhs_type_string);
+                    lca_string_destroy(&rhs_type_string);
+                    lca_string_destroy(&lhs_type_string);
                 } break;
 
                 case LAYE_TOKEN_EQUALEQUAL:
@@ -2014,8 +2014,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
 
-                    string lhs_type_string = string_create(default_allocator);
-                    string rhs_type_string = string_create(default_allocator);
+                    lca_string lhs_type_string = lca_string_create(default_allocator);
+                    lca_string rhs_type_string = lca_string_create(default_allocator);
 
                     laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
                     laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
@@ -2024,12 +2024,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         sema->context,
                         node->location,
                         "Cannot compare %.*s and %.*s.",
-                        STR_EXPAND(lhs_type_string),
-                        STR_EXPAND(rhs_type_string)
+                        LCA_STR_EXPAND(lhs_type_string),
+                        LCA_STR_EXPAND(rhs_type_string)
                     );
 
-                    string_destroy(&rhs_type_string);
-                    string_destroy(&lhs_type_string);
+                    lca_string_destroy(&rhs_type_string);
+                    lca_string_destroy(&lhs_type_string);
                 } break;
             }
         } break;
@@ -2131,7 +2131,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 node->type = LTY(sema->context->laye_types.poison);
             }
 
-            for (int64_t i = 0, count = arr_count(node->type_function.parameter_types); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->type_function.parameter_types); i < count; i++) {
                 if (!laye_sema_analyse_type(sema, &node->type_function.parameter_types[i])) {
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
@@ -2144,7 +2144,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 node->sema_state = LYIR_SEMA_ERRORED;
             }
 
-            for (int64_t i = 0, count = arr_count(node->type_container.length_values); i < count; i++) {
+            for (int64_t i = 0, count = lca_da_count(node->type_container.length_values); i < count; i++) {
                 if (!laye_sema_analyse_node(sema, &node->type_container.length_values[i], NOTY)) {
                     node->sema_state = LYIR_SEMA_ERRORED;
                     continue;
@@ -2181,7 +2181,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             int padding_bytes = 0;
 
-            for (int64_t i = 0; i < arr_count(node->type_struct.fields); i++) {
+            for (int64_t i = 0; i < lca_da_count(node->type_struct.fields); i++) {
                 laye_sema_analyse_type(sema, &node->type_struct.fields[i].type);
                 assert(node->type_struct.fields[i].type.node != NULL);
 
@@ -2197,7 +2197,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 padding_bytes = (current_align - (current_size % current_align)) % current_align;
                 if (padding_bytes > 0) {
                     laye_struct_type_field padding_field = laye_sema_create_padding_field(sema, node->module, node->location, padding_bytes);
-                    arr_insert(node->type_struct.fields, i, padding_field);
+                    lca_da_insert(node->type_struct.fields, i, padding_field);
                     i++;
                 }
 
@@ -2208,7 +2208,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             padding_bytes = (current_align - (current_size % current_align)) % current_align;
             if (padding_bytes > 0) {
                 laye_struct_type_field padding_field = laye_sema_create_padding_field(sema, node->module, node->location, padding_bytes);
-                arr_push(node->type_struct.fields, padding_field);
+                lca_da_push(node->type_struct.fields, padding_field);
             }
 
             current_size += padding_bytes;
@@ -2255,7 +2255,7 @@ static laye_struct_type_field laye_sema_create_padding_field(laye_sema* sema, la
     constant_value = laye_create_constant_node(sema, constant_value, eval_result);
     assert(constant_value->kind == LAYE_NODE_EVALUATED_CONSTANT);
 
-    arr_push(padding_type.node->type_container.length_values, constant_value);
+    lca_da_push(padding_type.node->type_container.length_values, constant_value);
 
     laye_struct_type_field padding_field = {
         .type = padding_type,
@@ -2509,10 +2509,10 @@ static bool laye_sema_convert(laye_sema* sema, laye_node** node, laye_type to) {
 
 static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_type to) {
     if (!laye_sema_convert(sema, node, to)) {
-        string from_type_string = string_create(sema->context->allocator);
+        lca_string from_type_string = lca_string_create(sema->context->allocator);
         laye_type_print_to_string((*node)->type, &from_type_string, sema->context->use_color);
 
-        string to_type_string = string_create(sema->context->allocator);
+        lca_string to_type_string = lca_string_create(sema->context->allocator);
         laye_type_print_to_string(to, &to_type_string, sema->context->use_color);
 
         (*node)->sema_state = LYIR_SEMA_ERRORED;
@@ -2520,12 +2520,12 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_t
             sema->context,
             (*node)->location,
             "Expression of type %.*s is not convertible to %.*s",
-            STR_EXPAND(from_type_string),
-            STR_EXPAND(to_type_string)
+            LCA_STR_EXPAND(from_type_string),
+            LCA_STR_EXPAND(to_type_string)
         );
 
-        string_destroy(&to_type_string);
-        string_destroy(&from_type_string);
+        lca_string_destroy(&to_type_string);
+        lca_string_destroy(&from_type_string);
     }
 }
 
@@ -2567,10 +2567,10 @@ static void laye_sema_convert_to_c_varargs_or_error(laye_sema* sema, laye_node**
         return; // fine
     }
 
-    string type_string = string_create(default_allocator);
+    lca_string type_string = lca_string_create(default_allocator);
     laye_type_print_to_string((*node)->type, &type_string, sema->context->use_color);
-    lyir_write_error(sema->context, (*node)->location, "Cannot convert type %.*s to a type correct for C varargs.", STR_EXPAND(type_string));
-    string_destroy(&type_string);
+    lyir_write_error(sema->context, (*node)->location, "Cannot convert type %.*s to a type correct for C varargs.", LCA_STR_EXPAND(type_string));
+    lca_string_destroy(&type_string);
 
     (*node)->sema_state = LYIR_SEMA_ERRORED;
     (*node)->type = LTY(sema->context->laye_types.poison);
