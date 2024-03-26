@@ -43,7 +43,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
-#include "../../nob.h"
+#include "nob.h"
 
 typedef struct cback_codegen {
     lyir_context* context;
