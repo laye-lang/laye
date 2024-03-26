@@ -163,7 +163,7 @@ static void cback_print_block_name(cback_codegen* codegen, layec_value* block) {
         // TODO(local): probably need to sanitize this
         lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(block_name));
     } else {
-        lca_string_append_format(codegen->output, "lyir_block_idx_%ld", layec_block_index(block));
+        lca_string_append_format(codegen->output, "lyir_bb_%ld", layec_block_index(block));
     }
 }
 
@@ -390,7 +390,7 @@ static void cback_print_value(cback_codegen* codegen, layec_value* value, bool i
             string_view name = layec_value_name(value);
             if (name.count == 0) {
                 int64_t index = layec_value_index(value);
-                lca_string_append_format(codegen->output, "lyir_anon_value_%lld", index);
+                lca_string_append_format(codegen->output, "lyir_inst_%lld", index);
             } else {
                 lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
             }
@@ -404,7 +404,7 @@ static void cback_print_value(cback_codegen* codegen, layec_value* value, bool i
             string_view name = layec_value_name(value);
             if (name.count == 0) {
                 int64_t index = layec_value_index(value);
-                lca_string_append_format(codegen->output, "lyir_global_idx_%lld", index);
+                lca_string_append_format(codegen->output, "lyir_glbl_%lld", index);
             } else {
                 lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
             }
@@ -427,7 +427,7 @@ static void cback_print_value(cback_codegen* codegen, layec_value* value, bool i
             string_view name = layec_value_name(value);
             if (name.count == 0) {
                 int64_t index = layec_value_index(value);
-                lca_string_append_format(codegen->output, "lyir_anon_value_%lld", index);
+                lca_string_append_format(codegen->output, "lyir_inst_%lld", index);
             } else {
                 lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(name));
             }
