@@ -42,7 +42,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LAYEC_H
 
 #include "lcaplat.h"
-#include "ansi.h"
+
+#include "lcaansi.h"
 #include "lcads.h"
 #include "lcamem.h"
 #include "lcastr.h"

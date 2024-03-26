@@ -40,7 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#include "layec.h"
+#include "lyir.h"
 
 layec_location layec_location_combine(layec_location a, layec_location b) {
     assert(a.sourceid == b.sourceid);

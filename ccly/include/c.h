@@ -41,7 +41,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef LAYEC_C_H
 #define LAYEC_C_H
 
-#include "layec.h"
+#include "lyir.h"
 
 #define C_TOKEN_KINDS(X)     \
     X(EOF)                   \

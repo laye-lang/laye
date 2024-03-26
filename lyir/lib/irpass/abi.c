@@ -41,7 +41,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define INT_REG_COUNT   (6)
 #define FLOAT_REG_COUNT (8)
 
-#include "layec.h"
+#include "lyir.h"
 
 #include <assert.h>
 

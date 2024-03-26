@@ -47,7 +47,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_PLAT_IMPLEMENTATION
 #include "c.h"
 #include "laye.h"
-#include "layec.h"
 
 #define NOB_NO_LOG_EXIT_STATUS
 #define NOB_NO_CMD_RENDER

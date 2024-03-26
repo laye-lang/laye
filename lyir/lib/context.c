@@ -43,7 +43,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "layec.h"
+#include "lyir.h"
+
+// TODO(local): remove this, very soonly
 #include "laye.h"
 
 void layec_type_destroy(layec_type* type);
