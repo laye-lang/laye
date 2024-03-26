@@ -1462,7 +1462,7 @@ void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instructio
     lyir_builder_insert(builder, instruction);
 }
 
-lyir_value* layec_build_nop(lyir_builder* builder, lyir_location location) {
+lyir_value* lyir_build_nop(lyir_builder* builder, lyir_location location) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1488,7 +1488,7 @@ lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location locat
     return parameter;
 }
 
-lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, lca_da(lyir_value*) arguments, lca_string_view name) {
+lyir_value* lyir_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, lca_da(lyir_value*) arguments, lca_string_view name) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1516,7 +1516,7 @@ lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir
     return call;
 }
 
-lyir_value* layec_build_return(lyir_builder* builder, lyir_location location, lyir_value* value) {
+lyir_value* lyir_build_return(lyir_builder* builder, lyir_location location, lyir_value* value) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1532,7 +1532,7 @@ lyir_value* layec_build_return(lyir_builder* builder, lyir_location location, ly
     return ret;
 }
 
-lyir_value* layec_build_return_void(lyir_builder* builder, lyir_location location) {
+lyir_value* lyir_build_return_void(lyir_builder* builder, lyir_location location) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1546,7 +1546,7 @@ lyir_value* layec_build_return_void(lyir_builder* builder, lyir_location locatio
     return ret;
 }
 
-lyir_value* layec_build_unreachable(lyir_builder* builder, lyir_location location) {
+lyir_value* lyir_build_unreachable(lyir_builder* builder, lyir_location location) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1560,7 +1560,7 @@ lyir_value* layec_build_unreachable(lyir_builder* builder, lyir_location locatio
     return unreachable;
 }
 
-lyir_value* layec_build_alloca(lyir_builder* builder, lyir_location location, lyir_type* element_type, int64_t count) {
+lyir_value* lyir_build_alloca(lyir_builder* builder, lyir_location location, lyir_type* element_type, int64_t count) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1577,7 +1577,7 @@ lyir_value* layec_build_alloca(lyir_builder* builder, lyir_location location, ly
     return alloca;
 }
 
-lyir_value* layec_build_store(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* value) {
+lyir_value* lyir_build_store(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* value) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1596,7 +1596,7 @@ lyir_value* layec_build_store(lyir_builder* builder, lyir_location location, lyi
     return store;
 }
 
-lyir_value* layec_build_load(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_type* type) {
+lyir_value* lyir_build_load(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_type* type) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1614,7 +1614,7 @@ lyir_value* layec_build_load(lyir_builder* builder, lyir_location location, lyir
     return load;
 }
 
-lyir_value* layec_build_branch(lyir_builder* builder, lyir_location location, lyir_value* block) {
+lyir_value* lyir_build_branch(lyir_builder* builder, lyir_location location, lyir_value* block) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1631,7 +1631,7 @@ lyir_value* layec_build_branch(lyir_builder* builder, lyir_location location, ly
     return branch;
 }
 
-lyir_value* layec_build_branch_conditional(lyir_builder* builder, lyir_location location, lyir_value* condition, lyir_value* pass_block, lyir_value* fail_block) {
+lyir_value* lyir_build_branch_conditional(lyir_builder* builder, lyir_location location, lyir_value* condition, lyir_value* pass_block, lyir_value* fail_block) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1655,7 +1655,7 @@ lyir_value* layec_build_branch_conditional(lyir_builder* builder, lyir_location 
     return branch;
 }
 
-lyir_value* layec_build_phi(lyir_builder* builder, lyir_location location, lyir_type* type) {
+lyir_value* lyir_build_phi(lyir_builder* builder, lyir_location location, lyir_type* type) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1670,7 +1670,7 @@ lyir_value* layec_build_phi(lyir_builder* builder, lyir_location location, lyir_
     return phi;
 }
 
-lyir_value* layec_build_unary(lyir_builder* builder, lyir_location location, lyir_value_kind kind, lyir_value* operand, lyir_type* type) {
+lyir_value* lyir_build_unary(lyir_builder* builder, lyir_location location, lyir_value_kind kind, lyir_value* operand, lyir_type* type) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1687,23 +1687,23 @@ lyir_value* layec_build_unary(lyir_builder* builder, lyir_location location, lyi
     return unary;
 }
 
-lyir_value* layec_build_bitcast(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
-    return layec_build_unary(builder, location, LYIR_IR_BITCAST, value, type);
+lyir_value* lyir_build_bitcast(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
+    return lyir_build_unary(builder, location, LYIR_IR_BITCAST, value, type);
 }
 
-lyir_value* layec_build_sign_extend(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
-    return layec_build_unary(builder, location, LYIR_IR_SEXT, value, type);
+lyir_value* lyir_build_sign_extend(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
+    return lyir_build_unary(builder, location, LYIR_IR_SEXT, value, type);
 }
 
-lyir_value* layec_build_zero_extend(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
-    return layec_build_unary(builder, location, LYIR_IR_ZEXT, value, type);
+lyir_value* lyir_build_zero_extend(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
+    return lyir_build_unary(builder, location, LYIR_IR_ZEXT, value, type);
 }
 
-lyir_value* layec_build_truncate(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
-    return layec_build_unary(builder, location, LYIR_IR_TRUNC, value, type);
+lyir_value* lyir_build_truncate(lyir_builder* builder, lyir_location location, lyir_value* value, lyir_type* type) {
+    return lyir_build_unary(builder, location, LYIR_IR_TRUNC, value, type);
 }
 
-static lyir_value* layec_build_binary(lyir_builder* builder, lyir_location location, lyir_value_kind kind, lyir_value* lhs, lyir_value* rhs, lyir_type* type) {
+static lyir_value* lyir_build_binary(lyir_builder* builder, lyir_location location, lyir_value_kind kind, lyir_value* lhs, lyir_value* rhs, lyir_type* type) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1724,215 +1724,215 @@ static lyir_value* layec_build_binary(lyir_builder* builder, lyir_location locat
     return cmp;
 }
 
-lyir_value* layec_build_icmp_eq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_EQ, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_eq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_EQ, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_ne(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_NE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_ne(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_NE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_slt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_SLT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_slt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_SLT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_ult(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_ULT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_ult(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_ULT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_sle(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_SLE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_sle(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_SLE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_ule(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_ULE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_ule(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_ULE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_sgt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_SGT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_sgt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_SGT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_ugt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_UGT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_ugt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_UGT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_sge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_SGE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_sge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_SGE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_icmp_uge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ICMP_UGE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_icmp_uge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ICMP_UGE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_false(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_FALSE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_false(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_FALSE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_oeq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_OEQ, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_oeq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_OEQ, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ogt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_OGT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ogt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_OGT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_oge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_OGE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_oge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_OGE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_olt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_OLT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_olt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_OLT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ole(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_OLE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ole(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_OLE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_one(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_ONE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_one(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_ONE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ord(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_ORD, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ord(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_ORD, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ueq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_UEQ, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ueq(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_UEQ, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ugt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_UGT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ugt(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_UGT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_uge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_UGE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_uge(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_UGE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ult(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_ULT, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ult(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_ULT, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_ule(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_ULE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_ule(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_ULE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_une(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_UNE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_une(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_UNE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_uno(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_UNO, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_uno(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_UNO, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_fcmp_true(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FCMP_TRUE, lhs, rhs, lyir_int_type(builder->context, 1));
+lyir_value* lyir_build_fcmp_true(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FCMP_TRUE, lhs, rhs, lyir_int_type(builder->context, 1));
 }
 
-lyir_value* layec_build_add(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_ADD, lhs, rhs, lhs->type);
+lyir_value* lyir_build_add(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_ADD, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_fadd(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FADD, lhs, rhs, lhs->type);
+lyir_value* lyir_build_fadd(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FADD, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_sub(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SUB, lhs, rhs, lhs->type);
+lyir_value* lyir_build_sub(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SUB, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_fsub(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FSUB, lhs, rhs, lhs->type);
+lyir_value* lyir_build_fsub(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FSUB, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_mul(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_MUL, lhs, rhs, lhs->type);
+lyir_value* lyir_build_mul(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_MUL, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_fmul(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FMUL, lhs, rhs, lhs->type);
+lyir_value* lyir_build_fmul(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FMUL, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_sdiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SDIV, lhs, rhs, lhs->type);
+lyir_value* lyir_build_sdiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SDIV, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_udiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_UDIV, lhs, rhs, lhs->type);
+lyir_value* lyir_build_udiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_UDIV, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_fdiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FDIV, lhs, rhs, lhs->type);
+lyir_value* lyir_build_fdiv(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FDIV, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_smod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SMOD, lhs, rhs, lhs->type);
+lyir_value* lyir_build_smod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SMOD, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_umod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_UMOD, lhs, rhs, lhs->type);
+lyir_value* lyir_build_umod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_UMOD, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_fmod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_FMOD, lhs, rhs, lhs->type);
+lyir_value* lyir_build_fmod(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_FMOD, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_and(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_AND, lhs, rhs, lhs->type);
+lyir_value* lyir_build_and(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_AND, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_or(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_OR, lhs, rhs, lhs->type);
+lyir_value* lyir_build_or(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_OR, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_xor(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_XOR, lhs, rhs, lhs->type);
+lyir_value* lyir_build_xor(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_XOR, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_shl(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SHL, lhs, rhs, lhs->type);
+lyir_value* lyir_build_shl(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SHL, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_shr(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SHR, lhs, rhs, lhs->type);
+lyir_value* lyir_build_shr(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SHR, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_sar(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
-    return layec_build_binary(builder, location, LYIR_IR_SAR, lhs, rhs, lhs->type);
+lyir_value* lyir_build_sar(lyir_builder* builder, lyir_location location, lyir_value* lhs, lyir_value* rhs) {
+    return lyir_build_binary(builder, location, LYIR_IR_SAR, lhs, rhs, lhs->type);
 }
 
-lyir_value* layec_build_neg(lyir_builder* builder, lyir_location location, lyir_value* operand) {
-    return layec_build_unary(builder, location, LYIR_IR_NEG, operand, operand->type);
+lyir_value* lyir_build_neg(lyir_builder* builder, lyir_location location, lyir_value* operand) {
+    return lyir_build_unary(builder, location, LYIR_IR_NEG, operand, operand->type);
 }
 
-lyir_value* layec_build_compl(lyir_builder* builder, lyir_location location, lyir_value* operand) {
-    return layec_build_unary(builder, location, LYIR_IR_COMPL, operand, operand->type);
+lyir_value* lyir_build_compl(lyir_builder* builder, lyir_location location, lyir_value* operand) {
+    return lyir_build_unary(builder, location, LYIR_IR_COMPL, operand, operand->type);
 }
 
-lyir_value* layec_build_fptoui(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_FPTOUI, operand, to);
+lyir_value* lyir_build_fptoui(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_FPTOUI, operand, to);
 }
 
-lyir_value* layec_build_fptosi(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_FPTOSI, operand, to);
+lyir_value* lyir_build_fptosi(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_FPTOSI, operand, to);
 }
 
-lyir_value* layec_build_uitofp(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_UITOFP, operand, to);
+lyir_value* lyir_build_uitofp(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_UITOFP, operand, to);
 }
 
-lyir_value* layec_build_sitofp(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_SITOFP, operand, to);
+lyir_value* lyir_build_sitofp(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_SITOFP, operand, to);
 }
 
-lyir_value* layec_build_fpext(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_FPEXT, operand, to);
+lyir_value* lyir_build_fpext(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_FPEXT, operand, to);
 }
 
-lyir_value* layec_build_fptrunc(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
-    return layec_build_unary(builder, location, LYIR_IR_FPTRUNC, operand, to);
+lyir_value* lyir_build_fptrunc(lyir_builder* builder, lyir_location location, lyir_value* operand, lyir_type* to) {
+    return lyir_build_unary(builder, location, LYIR_IR_FPTRUNC, operand, to);
 }
 
-static lyir_value* layec_build_builtin(lyir_builder* builder, lyir_location location, lyir_builtin_kind kind) {
+static lyir_value* lyir_build_builtin(lyir_builder* builder, lyir_location location, lyir_builtin_kind kind) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1947,8 +1947,8 @@ static lyir_value* layec_build_builtin(lyir_builder* builder, lyir_location loca
     return builtin;
 }
 
-lyir_value* layec_build_builtin_memset(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* value, lyir_value* count) {
-    lyir_value* builtin = layec_build_builtin(builder, location, LYIR_BUILTIN_MEMSET);
+lyir_value* lyir_build_builtin_memset(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* value, lyir_value* count) {
+    lyir_value* builtin = lyir_build_builtin(builder, location, LYIR_BUILTIN_MEMSET);
     assert(builtin != NULL);
     lca_da_push(builtin->builtin.arguments, address);
     lca_da_push(builtin->builtin.arguments, value);
@@ -1956,8 +1956,8 @@ lyir_value* layec_build_builtin_memset(lyir_builder* builder, lyir_location loca
     return builtin;
 }
 
-lyir_value* layec_build_builtin_memcpy(lyir_builder* builder, lyir_location location, lyir_value* source_address, lyir_value* dest_address, lyir_value* count) {
-    lyir_value* builtin = layec_build_builtin(builder, location, LYIR_BUILTIN_MEMSET);
+lyir_value* lyir_build_builtin_memcpy(lyir_builder* builder, lyir_location location, lyir_value* source_address, lyir_value* dest_address, lyir_value* count) {
+    lyir_value* builtin = lyir_build_builtin(builder, location, LYIR_BUILTIN_MEMSET);
     assert(builtin != NULL);
     lca_da_push(builtin->builtin.arguments, source_address);
     lca_da_push(builtin->builtin.arguments, dest_address);
@@ -1965,7 +1965,7 @@ lyir_value* layec_build_builtin_memcpy(lyir_builder* builder, lyir_location loca
     return builtin;
 }
 
-lyir_value* layec_build_ptradd(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* offset_value) {
+lyir_value* lyir_build_ptradd(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* offset_value) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
