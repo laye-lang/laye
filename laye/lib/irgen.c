@@ -328,14 +328,14 @@ void laye_generate_ir(lyir_context* context) {
                     laye_node* parameter_node = top_level_node->decl_function.parameter_declarations[i];
                     lyir_type* parameter_type = lyir_function_type_parameter_type_get_at_index(function_type, i);
 
-                    lyir_value* alloca = layec_build_alloca(builder, parameter_node->location, parameter_type, 1);
+                    lyir_value* alloca = lyir_build_alloca(builder, parameter_node->location, parameter_type, 1);
                     assert(alloca != NULL);
                     assert(lyir_type_is_ptr(lyir_value_type_get(alloca)));
 
                     lyir_value* ir_parameter = laye_irgen_ir_value_get(&irgen, module, parameter_node);
                     assert(ir_parameter != NULL);
                     // assert(parameter_node->ir_value != NULL);
-                    lyir_value* store = layec_build_store(builder, parameter_node->location, alloca, ir_parameter);
+                    lyir_value* store = lyir_build_store(builder, parameter_node->location, alloca, ir_parameter);
                     assert(store != NULL);
 
                     laye_irgen_ir_value_set(&irgen, module, parameter_node, alloca);
@@ -487,7 +487,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             lyir_type* type_to_alloca = laye_convert_type(node->declared_type);
             int64_t element_count = 1;
 
-            lyir_value* alloca = layec_build_alloca(builder, node->location, type_to_alloca, element_count);
+            lyir_value* alloca = lyir_build_alloca(builder, node->location, type_to_alloca, element_count);
             assert(alloca != NULL);
             assert(lyir_type_is_ptr(lyir_value_type_get(alloca)));
 
@@ -495,12 +495,12 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 lyir_value* initial_value = laye_generate_node(irgen, builder, node->decl_binding.initializer);
                 assert(initial_value != NULL);
 
-                layec_build_store(builder, node->location, alloca, initial_value);
+                lyir_build_store(builder, node->location, alloca, initial_value);
             } else {
                 int64_t size_in_bytes = lyir_type_size_in_bytes(type_to_alloca);
                 lyir_value* zero_const = lyir_int_constant_create(context, node->location, lyir_int_type(context, 8), 0);
                 lyir_value* byte_count = lyir_int_constant_create(context, node->location, lyir_int_type(context, context->target->size_of_pointer), size_in_bytes);
-                layec_build_builtin_memset(builder, node->location, alloca, zero_const, byte_count);
+                lyir_build_builtin_memset(builder, node->location, alloca, zero_const, byte_count);
             }
 
             laye_irgen_ir_value_set(irgen, node->module, node, alloca);
@@ -526,7 +526,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             lyir_value* assert_fail_block = lyir_value_function_block_append(function, LCA_SV_EMPTY);
             lyir_value* assert_after_block = lyir_value_function_block_append(function, LCA_SV_EMPTY);
 
-            layec_build_branch_conditional(builder, node->_assert.condition->location, condition, assert_after_block, assert_fail_block);
+            lyir_build_branch_conditional(builder, node->_assert.condition->location, condition, assert_after_block, assert_fail_block);
 
             lyir_builder_position_at_end(builder, assert_fail_block);
 
@@ -552,8 +552,8 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             lyir_type* runtime_assert_function_type = lyir_value_type_get(runtime_assert_function);
             assert(lyir_function_type_parameter_count_get(runtime_assert_function_type) == lca_da_count(arguments));
 
-            layec_build_call(builder, node->location, runtime_assert_function, runtime_assert_function_type, arguments, LCA_SV_EMPTY);
-            lyir_value* unreachable_value = layec_build_unreachable(builder, node->location);
+            lyir_build_call(builder, node->location, runtime_assert_function, runtime_assert_function_type, arguments, LCA_SV_EMPTY);
+            lyir_value* unreachable_value = lyir_build_unreachable(builder, node->location);
 
             lyir_builder_position_at_end(builder, assert_after_block);
             return unreachable_value;
@@ -606,7 +606,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 assert(current_block != NULL);
 
                 lyir_builder_position_at_end(builder, phi_block);
-                phi_value = layec_build_phi(builder, node->location, laye_convert_type(node->type));
+                phi_value = lyir_build_phi(builder, node->location, laye_convert_type(node->type));
 
                 lyir_builder_position_at_end(builder, current_block);
             }
@@ -636,7 +636,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 }
 
                 assert(else_block != NULL);
-                layec_build_branch_conditional(builder, node->_if.conditions[i]->location, condition_value, block, else_block);
+                lyir_build_branch_conditional(builder, node->_if.conditions[i]->location, condition_value, block, else_block);
 
                 lyir_builder_position_at_end(builder, block);
                 lyir_value* pass_value = laye_generate_node(irgen, builder, node->_if.passes[i]);
@@ -647,7 +647,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 if (!laye_type_is_noreturn(node->_if.passes[i]->type)) {
                     assert(continue_block != NULL);
                     if (!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder))) {
-                        layec_build_branch(builder, node->_if.passes[i]->location, continue_block);
+                        lyir_build_branch(builder, node->_if.passes[i]->location, continue_block);
                     }
                 }
 
@@ -673,7 +673,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 if (!laye_type_is_noreturn(node->_if.fail->type)) {
                     assert(continue_block != NULL);
                     if (!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder))) {
-                        layec_build_branch(builder, node->_if.fail->location, continue_block);
+                        lyir_build_branch(builder, node->_if.fail->location, continue_block);
                     }
                 }
 
@@ -723,13 +723,13 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 layec_value* body_block = lyir_value_function_block_append(function, LCA_SV_EMPTY);
                 assert(body_block != NULL);
 
-                layec_build_branch(builder, node->location, body_block);
+                lyir_build_branch(builder, node->location, body_block);
                 lyir_builder_position_at_end(builder, body_block);
                 laye_generate_node(irgen, builder, node->_for.pass);
 
                 if (!laye_type_is_noreturn(node->_for.pass->type)) {
                     assert(!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder)));
-                    layec_build_branch(builder, node->location, body_block);
+                    lyir_build_branch(builder, node->location, body_block);
                 }
 
                 assert(lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder)));
@@ -803,7 +803,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 assert(for_early_condition_block != NULL);
                 assert(for_fail_block != NULL);
 
-                layec_build_branch(builder, node->_for.condition->location, for_early_condition_block);
+                lyir_build_branch(builder, node->_for.condition->location, for_early_condition_block);
                 lyir_builder_position_at_end(builder, for_early_condition_block);
 
                 lyir_value* early_condition_value = laye_generate_node(irgen, builder, node->_for.condition);
@@ -814,18 +814,18 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                     return lyir_void_constant_create(context);
                 }
 
-                layec_build_branch_conditional(builder, node->_for.condition->location, early_condition_value, for_pass_block, for_fail_block);
+                lyir_build_branch_conditional(builder, node->_for.condition->location, early_condition_value, for_pass_block, for_fail_block);
             }
 
             // 3. regular condition for looping
             if (has_always_true_condition) {
                 // assert(node->_for.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
                 lyir_location condition_location = node->_for.condition != NULL ? node->_for.condition->location : node->location;
-                layec_build_branch(builder, condition_location, for_pass_block);
+                lyir_build_branch(builder, condition_location, for_pass_block);
             } else {
                 assert(for_condition_block != NULL);
 
-                layec_build_branch(builder, node->_for.condition->location, for_condition_block);
+                lyir_build_branch(builder, node->_for.condition->location, for_condition_block);
                 lyir_builder_position_at_end(builder, for_condition_block);
 
                 lyir_value* condition_value = laye_generate_node(irgen, builder, node->_for.condition);
@@ -836,7 +836,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                     return lyir_void_constant_create(context);
                 }
 
-                layec_build_branch_conditional(builder, node->_for.condition->location, condition_value, for_pass_block, for_join_block);
+                lyir_build_branch_conditional(builder, node->_for.condition->location, condition_value, for_pass_block, for_join_block);
             }
 
             // 4. handle incrementing and returning to the condition (or pass if the condition is always true)
@@ -850,9 +850,9 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                     assert(lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder)));
                 } else {
                     if (has_always_true_condition) {
-                        layec_build_branch(builder, node->_for.increment->location, for_pass_block);
+                        lyir_build_branch(builder, node->_for.increment->location, for_pass_block);
                     } else {
-                        layec_build_branch(builder, node->_for.increment->location, for_condition_block);
+                        lyir_build_branch(builder, node->_for.increment->location, for_condition_block);
                     }
                 }
             }
@@ -866,12 +866,12 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             } else {
                 if (!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder))) {
                     if (for_increment_block != NULL) {
-                        layec_build_branch(builder, node->_for.pass->location, for_increment_block);
+                        lyir_build_branch(builder, node->_for.pass->location, for_increment_block);
                     } else {
                         if (has_always_true_condition) {
-                            layec_build_branch(builder, node->_for.pass->location, for_pass_block);
+                            lyir_build_branch(builder, node->_for.pass->location, for_pass_block);
                         } else {
-                            layec_build_branch(builder, node->_for.pass->location, for_condition_block);
+                            lyir_build_branch(builder, node->_for.pass->location, for_condition_block);
                         }
                     }
                 }
@@ -887,7 +887,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 if (!requires_join_block) {
                     assert(lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder)));
                 } else {
-                    layec_build_branch(builder, node->_for.fail->location, for_join_block);
+                    lyir_build_branch(builder, node->_for.fail->location, for_join_block);
                 }
             }
 
@@ -961,7 +961,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 assert(while_early_condition_block != NULL);
                 assert(while_fail_block != NULL);
 
-                layec_build_branch(builder, node->_while.condition->location, while_early_condition_block);
+                lyir_build_branch(builder, node->_while.condition->location, while_early_condition_block);
                 lyir_builder_position_at_end(builder, while_early_condition_block);
 
                 lyir_value* early_condition_value = laye_generate_node(irgen, builder, node->_while.condition);
@@ -972,18 +972,18 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                     return lyir_void_constant_create(context);
                 }
 
-                layec_build_branch_conditional(builder, node->_while.condition->location, early_condition_value, while_pass_block, while_fail_block);
+                lyir_build_branch_conditional(builder, node->_while.condition->location, early_condition_value, while_pass_block, while_fail_block);
             }
 
             // 3. regular condition for looping
             if (has_always_true_condition) {
                 // assert(node->_while.condition != NULL && "condition == NULL should be an infinite loop, not a C style while/for loop");
                 lyir_location condition_location = node->_while.condition != NULL ? node->_while.condition->location : node->location;
-                layec_build_branch(builder, condition_location, while_pass_block);
+                lyir_build_branch(builder, condition_location, while_pass_block);
             } else {
                 assert(while_condition_block != NULL);
 
-                layec_build_branch(builder, node->_while.condition->location, while_condition_block);
+                lyir_build_branch(builder, node->_while.condition->location, while_condition_block);
                 lyir_builder_position_at_end(builder, while_condition_block);
 
                 lyir_value* condition_value = laye_generate_node(irgen, builder, node->_while.condition);
@@ -994,7 +994,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                     return lyir_void_constant_create(context);
                 }
 
-                layec_build_branch_conditional(builder, node->_while.condition->location, condition_value, while_pass_block, while_join_block);
+                lyir_build_branch_conditional(builder, node->_while.condition->location, condition_value, while_pass_block, while_join_block);
             }
 
             // 4. generate the "pass" loop body
@@ -1006,9 +1006,9 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             } else {
                 if (!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder))) {
                     if (has_always_true_condition) {
-                        layec_build_branch(builder, node->_while.pass->location, while_pass_block);
+                        lyir_build_branch(builder, node->_while.pass->location, while_pass_block);
                     } else {
-                        layec_build_branch(builder, node->_while.pass->location, while_condition_block);
+                        lyir_build_branch(builder, node->_while.pass->location, while_condition_block);
                     }
                 }
             }
@@ -1023,7 +1023,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 if (!requires_join_block) {
                     assert(lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder)));
                 } else {
-                    layec_build_branch(builder, node->_while.fail->location, while_join_block);
+                    lyir_build_branch(builder, node->_while.fail->location, while_join_block);
                 }
             }
 
@@ -1041,12 +1041,12 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
         case LAYE_NODE_RETURN: {
             if (node->_return.value == NULL) {
-                return layec_build_return_void(builder, node->location);
+                return lyir_build_return_void(builder, node->location);
             }
 
             lyir_value* return_value = laye_generate_node(irgen, builder, node->_return.value);
             assert(return_value != NULL);
-            return layec_build_return(builder, node->location, return_value);
+            return lyir_build_return(builder, node->location, return_value);
         }
 
         case LAYE_NODE_YIELD: {
@@ -1062,22 +1062,22 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
                 case LAYE_NODE_FOR: {
                     assert(node->_break.target_node->_for.break_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_break.target_node->_for.break_target_block);
+                    return lyir_build_branch(builder, node->location, node->_break.target_node->_for.break_target_block);
                 }
 
                 case LAYE_NODE_FOREACH: {
                     assert(node->_break.target_node->foreach.break_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_break.target_node->foreach.break_target_block);
+                    return lyir_build_branch(builder, node->location, node->_break.target_node->foreach.break_target_block);
                 }
 
                 case LAYE_NODE_WHILE: {
                     assert(node->_break.target_node->_while.break_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_break.target_node->_while.break_target_block);
+                    return lyir_build_branch(builder, node->location, node->_break.target_node->_while.break_target_block);
                 }
 
                 case LAYE_NODE_DOWHILE: {
                     assert(node->_break.target_node->dowhile.break_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_break.target_node->dowhile.break_target_block);
+                    return lyir_build_branch(builder, node->location, node->_break.target_node->dowhile.break_target_block);
                 }
             }
 
@@ -1092,22 +1092,22 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
                 case LAYE_NODE_FOR: {
                     assert(node->_continue.target_node->_for.continue_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_continue.target_node->_for.continue_target_block);
+                    return lyir_build_branch(builder, node->location, node->_continue.target_node->_for.continue_target_block);
                 }
 
                 case LAYE_NODE_FOREACH: {
                     assert(node->_continue.target_node->foreach.continue_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_continue.target_node->foreach.continue_target_block);
+                    return lyir_build_branch(builder, node->location, node->_continue.target_node->foreach.continue_target_block);
                 }
 
                 case LAYE_NODE_WHILE: {
                     assert(node->_continue.target_node->_while.continue_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_continue.target_node->_while.continue_target_block);
+                    return lyir_build_branch(builder, node->location, node->_continue.target_node->_while.continue_target_block);
                 }
 
                 case LAYE_NODE_DOWHILE: {
                     assert(node->_continue.target_node->dowhile.continue_target_block != NULL);
-                    return layec_build_branch(builder, node->location, node->_continue.target_node->dowhile.continue_target_block);
+                    return lyir_build_branch(builder, node->location, node->_continue.target_node->dowhile.continue_target_block);
                 }
             }
 
@@ -1116,7 +1116,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
         }
 
         case LAYE_NODE_XYZZY: {
-            return layec_build_nop(builder, node->location);
+            return lyir_build_nop(builder, node->location);
         }
 
         case LAYE_NODE_ASSIGNMENT: {
@@ -1125,7 +1125,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             assert(lyir_type_is_ptr(lyir_value_type_get(lhs_value)));
             lyir_value* rhs_value = laye_generate_node(irgen, builder, node->assignment.rhs);
             assert(rhs_value != NULL);
-            return layec_build_store(builder, node->location, lhs_value, rhs_value);
+            return lyir_build_store(builder, node->location, lhs_value, rhs_value);
         }
 
         case LAYE_NODE_COMPOUND: {
@@ -1157,7 +1157,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
             if (laye_type_is_noreturn(node->type)) {
                 if (!lyir_value_block_is_terminated(lyir_builder_insert_block_get(builder))) {
-                    layec_build_unreachable(builder, (lyir_location){0});
+                    lyir_build_unreachable(builder, (lyir_location){0});
                 }
             }
 
@@ -1193,15 +1193,15 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                         int64_t to_sz = laye_type_size_in_bits(to);
 
                         if (from_sz == to_sz) {
-                            return layec_build_bitcast(builder, node->location, operand, cast_type);
+                            return lyir_build_bitcast(builder, node->location, operand, cast_type);
                         } else if (from_sz < to_sz) {
                             if (laye_type_is_signed_int(from)) {
-                                return layec_build_sign_extend(builder, node->location, operand, cast_type);
+                                return lyir_build_sign_extend(builder, node->location, operand, cast_type);
                             } else {
-                                return layec_build_zero_extend(builder, node->location, operand, cast_type);
+                                return lyir_build_zero_extend(builder, node->location, operand, cast_type);
                             }
                         } else if (from_sz > to_sz) {
-                            return layec_build_truncate(builder, node->location, operand, cast_type);
+                            return lyir_build_truncate(builder, node->location, operand, cast_type);
                         }
                     }
 
@@ -1210,18 +1210,18 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                         int64_t to_sz = laye_type_size_in_bits(to);
 
                         if (from_sz < to_sz) {
-                            return layec_build_fpext(builder, node->location, operand, cast_type);
+                            return lyir_build_fpext(builder, node->location, operand, cast_type);
                         } else if (from_sz > to_sz) {
-                            return layec_build_fptrunc(builder, node->location, operand, cast_type);
+                            return lyir_build_fptrunc(builder, node->location, operand, cast_type);
                         }
                     }
 
                     if (laye_type_is_int(from) && laye_type_is_float(to)) {
                         if (laye_type_is_unsigned_int(from)) {
-                            return layec_build_uitofp(builder, node->location, operand, laye_convert_type(to));
+                            return lyir_build_uitofp(builder, node->location, operand, laye_convert_type(to));
                         } else {
                             assert(laye_type_is_signed_int(from));
-                            return layec_build_sitofp(builder, node->location, operand, laye_convert_type(to));
+                            return lyir_build_sitofp(builder, node->location, operand, laye_convert_type(to));
                         }
                     }
 
@@ -1241,7 +1241,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 }
 
                 case LAYE_CAST_LVALUE_TO_RVALUE: {
-                    return layec_build_load(builder, node->location, operand, cast_type);
+                    return lyir_build_load(builder, node->location, operand, cast_type);
                 }
             }
         }
@@ -1262,11 +1262,11 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 }
 
                 case '-': {
-                    return layec_build_neg(builder, node->location, operand_value);
+                    return lyir_build_neg(builder, node->location, operand_value);
                 }
 
                 case '~': {
-                    return layec_build_compl(builder, node->location, operand_value);
+                    return lyir_build_compl(builder, node->location, operand_value);
                 }
 
                 case '&':
@@ -1277,7 +1277,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 case LAYE_TOKEN_NOT: {
                     lyir_type* operand_type = lyir_value_type_get(operand_value);
                     assert(lyir_type_is_integer(operand_type));
-                    return layec_build_icmp_eq(builder, node->location, lyir_int_constant_create(context, node->location, operand_type, 0), operand_value);
+                    return lyir_build_icmp_eq(builder, node->location, lyir_int_constant_create(context, node->location, operand_type, 0), operand_value);
                 }
             }
         }
@@ -1306,18 +1306,18 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 assert(merge_block != NULL);
 
                 if (is_or) {
-                    layec_build_branch_conditional(builder, node->location, lhs_value, merge_block, rhs_block);
+                    lyir_build_branch_conditional(builder, node->location, lhs_value, merge_block, rhs_block);
                 } else {
-                    layec_build_branch_conditional(builder, node->location, lhs_value, rhs_block, merge_block);
+                    lyir_build_branch_conditional(builder, node->location, lhs_value, rhs_block, merge_block);
                 }
 
                 lyir_builder_position_at_end(builder, rhs_block);
                 rhs_value = laye_generate_node(irgen, builder, node->binary.rhs);
                 assert(rhs_value != NULL);
-                layec_build_branch(builder, node->location, merge_block);
+                lyir_build_branch(builder, node->location, merge_block);
 
                 lyir_builder_position_at_end(builder, merge_block);
-                lyir_value* phi = layec_build_phi(builder, node->location, bool_type);
+                lyir_value* phi = lyir_build_phi(builder, node->location, bool_type);
                 lyir_value_phi_incoming_value_add(phi, lhs_value, lhs_block);
                 lyir_value_phi_incoming_value_add(phi, rhs_value, rhs_block);
 
@@ -1342,30 +1342,30 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
                 case LAYE_TOKEN_XOR: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_icmp_ne(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_icmp_ne(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_PLUS: {
                     if (laye_type_is_buffer(node->binary.lhs->type)) {
                         lyir_type* element_type = laye_convert_type(node->binary.lhs->type.node->type_container.element_type);
                         int64_t element_size_in_bytes = lyir_type_size_in_bytes(element_type);
-                        rhs_value = layec_build_mul(builder, node->binary.rhs->location, rhs_value, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), element_size_in_bytes));
-                        return layec_build_ptradd(builder, node->location, lhs_value, rhs_value);
+                        rhs_value = lyir_build_mul(builder, node->binary.rhs->location, rhs_value, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), element_size_in_bytes));
+                        return lyir_build_ptradd(builder, node->location, lhs_value, rhs_value);
                     }
 
                     if (laye_type_is_buffer(node->binary.rhs->type)) {
                         lyir_type* element_type = laye_convert_type(node->binary.rhs->type.node->type_container.element_type);
                         int64_t element_size_in_bytes = lyir_type_size_in_bytes(element_type);
-                        lhs_value = layec_build_mul(builder, node->binary.lhs->location, lhs_value, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), element_size_in_bytes));
-                        return layec_build_ptradd(builder, node->location, rhs_value, lhs_value);
+                        lhs_value = lyir_build_mul(builder, node->binary.lhs->location, lhs_value, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), element_size_in_bytes));
+                        return lyir_build_ptradd(builder, node->location, rhs_value, lhs_value);
                     }
 
                     if (are_floats) {
-                        return layec_build_fadd(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fadd(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_add(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_add(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_MINUS: {
@@ -1373,159 +1373,159 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                         assert(lyir_type_is_integer(lyir_value_type_get(rhs_value)));
                         lyir_type* element_type = laye_convert_type(node->binary.lhs->type.node->type_container.element_type);
                         int64_t element_size_in_bytes = lyir_type_size_in_bytes(element_type);
-                        rhs_value = layec_build_mul(builder, node->binary.rhs->location, rhs_value, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), element_size_in_bytes));
-                        lyir_value* negated = layec_build_sub(builder, node->binary.rhs->location, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), 0), rhs_value);
-                        return layec_build_ptradd(builder, node->location, lhs_value, negated);
+                        rhs_value = lyir_build_mul(builder, node->binary.rhs->location, rhs_value, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), element_size_in_bytes));
+                        lyir_value* negated = lyir_build_sub(builder, node->binary.rhs->location, lyir_int_constant_create(context, node->binary.rhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(rhs_value))), 0), rhs_value);
+                        return lyir_build_ptradd(builder, node->location, lhs_value, negated);
                     }
 
                     if (laye_type_is_buffer(node->binary.rhs->type)) {
                         assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                         lyir_type* element_type = laye_convert_type(node->binary.rhs->type.node->type_container.element_type);
                         int64_t element_size_in_bytes = lyir_type_size_in_bytes(element_type);
-                        lhs_value = layec_build_mul(builder, node->binary.lhs->location, lhs_value, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), element_size_in_bytes));
-                        lyir_value* negated = layec_build_sub(builder, node->binary.lhs->location, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), 0), lhs_value);
-                        return layec_build_ptradd(builder, node->location, rhs_value, negated);
+                        lhs_value = lyir_build_mul(builder, node->binary.lhs->location, lhs_value, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), element_size_in_bytes));
+                        lyir_value* negated = lyir_build_sub(builder, node->binary.lhs->location, lyir_int_constant_create(context, node->binary.lhs->location, lyir_int_type(context, lyir_type_size_in_bits(lyir_value_type_get(lhs_value))), 0), lhs_value);
+                        return lyir_build_ptradd(builder, node->location, rhs_value, negated);
                     }
 
                     if (are_floats) {
-                        return layec_build_fsub(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fsub(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_sub(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_sub(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_STAR: {
                     if (are_floats) {
-                        return layec_build_fmul(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fmul(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_mul(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_mul(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_SLASH: {
                     if (are_floats) {
-                        return layec_build_fdiv(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fdiv(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_sdiv(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_sdiv(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_udiv(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_udiv(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_PERCENT: {
                     if (are_floats) {
-                        return layec_build_fmod(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fmod(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_smod(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_smod(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_umod(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_umod(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_AMPERSAND: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_and(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_and(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_PIPE: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_or(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_or(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_TILDE: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_xor(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_xor(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_LESSLESS: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_shl(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_shl(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_GREATERGREATER: {
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_sar(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_sar(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_shr(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_shr(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_EQUALEQUAL: {
                     if (are_floats) {
-                        return layec_build_fcmp_oeq(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_oeq(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_icmp_eq(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_icmp_eq(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_BANGEQUAL: {
                     if (are_floats) {
-                        return layec_build_fcmp_one(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_one(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
-                    return layec_build_icmp_ne(builder, node->location, lhs_value, rhs_value);
+                    return lyir_build_icmp_ne(builder, node->location, lhs_value, rhs_value);
                 }
 
                 case LAYE_TOKEN_LESS: {
                     if (are_floats) {
-                        return layec_build_fcmp_olt(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_olt(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_icmp_slt(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_slt(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_icmp_ult(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_ult(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_LESSEQUAL: {
                     if (are_floats) {
-                        return layec_build_fcmp_ole(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_ole(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_icmp_sle(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_sle(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_icmp_ule(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_ule(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_GREATER: {
                     if (are_floats) {
-                        return layec_build_fcmp_ogt(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_ogt(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_icmp_sgt(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_sgt(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_icmp_ugt(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_ugt(builder, node->location, lhs_value, rhs_value);
                     }
                 }
 
                 case LAYE_TOKEN_GREATEREQUAL: {
                     if (are_floats) {
-                        return layec_build_fcmp_oge(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_fcmp_oge(builder, node->location, lhs_value, rhs_value);
                     }
 
                     assert(lyir_type_is_integer(lyir_value_type_get(lhs_value)));
                     if (are_signed) {
-                        return layec_build_icmp_sge(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_sge(builder, node->location, lhs_value, rhs_value);
                     } else {
-                        return layec_build_icmp_uge(builder, node->location, lhs_value, rhs_value);
+                        return lyir_build_icmp_uge(builder, node->location, lhs_value, rhs_value);
                     }
                 }
             }
@@ -1555,7 +1555,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
                 assert(argument_values[i] != NULL);
             }
 
-            return layec_build_call(builder, node->location, callee, callee_type, argument_values, LCA_SV_EMPTY);
+            return lyir_build_call(builder, node->location, callee, callee_type, argument_values, LCA_SV_EMPTY);
         }
 
         case LAYE_NODE_INDEX: {
@@ -1598,15 +1598,15 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
                     current_stride *= next_length;
                     lyir_value* stride_constant = lyir_int_constant_create(context, length_value->location, lyir_int_type(context, context->target->size_of_pointer), current_stride);
-                    lyir_value* curr_index_value = layec_build_mul(builder, node->index.indices[i]->location, indices[i], stride_constant);
+                    lyir_value* curr_index_value = lyir_build_mul(builder, node->index.indices[i]->location, indices[i], stride_constant);
 
-                    calc_index_value = layec_build_add(builder, node->index.indices[i]->location, calc_index_value, curr_index_value);
+                    calc_index_value = lyir_build_add(builder, node->index.indices[i]->location, calc_index_value, curr_index_value);
                 }
 
                 lca_da_free(indices);
 
-                calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
-                return layec_build_ptradd(builder, node->location, value, calc_index_value);
+                calc_index_value = lyir_build_mul(builder, node->location, calc_index_value, element_size_value);
+                return lyir_build_ptradd(builder, node->location, value, calc_index_value);
             } else if (laye_type_is_buffer(lhs_type)) {
                 lyir_type* element_type = laye_convert_type(lhs_type.node->type_container.element_type);
                 assert(element_type != NULL);
@@ -1619,8 +1619,8 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
                 lca_da_free(indices);
 
-                calc_index_value = layec_build_mul(builder, node->location, calc_index_value, element_size_value);
-                return layec_build_ptradd(builder, node->location, value, calc_index_value);
+                calc_index_value = lyir_build_mul(builder, node->location, calc_index_value, element_size_value);
+                return lyir_build_ptradd(builder, node->location, value, calc_index_value);
             } else {
                 fprintf(stderr, "for layec_type %s\n", lyir_type_kind_to_cstring(lyir_type_kind_get(lhs_ir_type)));
                 assert(false && "unsupported indexable type");
@@ -1639,7 +1639,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             lyir_value* offset = lyir_int_constant_create(context, node->location, lyir_int_type(context, 64), member_offset);
             assert(offset != NULL);
 
-            return layec_build_ptradd(builder, node->location, address, offset);
+            return lyir_build_ptradd(builder, node->location, address, offset);
         }
 
         case LAYE_NODE_LITBOOL: {
