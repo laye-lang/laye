@@ -40,7 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#include "layec.h"
+#include "lyir.h"
 
 layec_dependency_graph* layec_dependency_graph_create_in_context(layec_context* context) {
     assert(context != NULL);

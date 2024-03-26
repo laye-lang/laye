@@ -1,5 +1,5 @@
-#ifndef ANSI_H
-#define ANSI_H
+#ifndef LCA_ANSI_H
+#define LCA_ANSI_H
 
 #define ANSI_COLOR_RESET             "\x1b[0m"
 #define ANSI_COLOR_BLACK             "\x1b[30m"
@@ -38,4 +38,4 @@
 #define ANSI_STYLE_UNDERLINE         "\x1b[4m"
 #define ANSI_STYLE_REVERSED          "\x1b[7m"
 
-#endif // !ANSI_H
+#endif // !LCA_ANSI_H

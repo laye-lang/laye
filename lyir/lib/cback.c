@@ -40,9 +40,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#include "layec.h"
+#include "lyir.h"
 
-#include "nob.h"
+#include "../../nob.h"
 
 typedef struct cback_codegen {
     layec_context* context;

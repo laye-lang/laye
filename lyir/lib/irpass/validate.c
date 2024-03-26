@@ -40,7 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#include "layec.h"
+#include "lyir.h"
 
 static void layec_validate_function(layec_value* function);
 static void layec_validate_block(layec_value* block);

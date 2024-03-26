@@ -40,7 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#include "layec.h"
+#include "lyir.h"
 
 // declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)
 #define LLVM_MEMCPY_INTRINSIC "llvm.memcpy.p0.p0.i64"
