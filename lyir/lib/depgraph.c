@@ -40,7 +40,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 lyir_dependency_graph* lyir_dependency_graph_create_in_context(lyir_context* context) {

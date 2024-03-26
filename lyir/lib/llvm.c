@@ -40,7 +40,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 // declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)

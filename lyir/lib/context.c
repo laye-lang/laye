@@ -46,7 +46,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // TODO(local): remove this, very soonly
 #include "laye.h"
 
-#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 void layec_type_destroy(lyir_type* type);
@@ -265,17 +264,8 @@ static int read_file_to_string(lca_allocator allocator, lca_string file_path, lc
     assert(out_contents != NULL);
     const char* file_path_cstr = lca_string_as_cstring(file_path);
     assert(file_path_cstr != NULL);
-    FILE* stream = fopen(file_path_cstr, "r");
-    if (stream == NULL) {
-        return errno;
-    }
-    fseek(stream, 0, SEEK_END);
-    int64_t count = ftell(stream);
-    fseek(stream, 0, SEEK_SET);
-    char* data = lca_allocate(allocator, count + 1);
-    fread(data, (size_t)count, 1, stream);
-    data[count] = 0;
-    fclose(stream);
+    char* data = lca_plat_file_read(file_path_cstr);
+    int64_t count = (int64_t)strlen(data);
     *out_contents = lca_string_from_data(allocator, data, count, count + 1);
     return 0;
 }

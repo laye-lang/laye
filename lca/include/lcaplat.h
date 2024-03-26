@@ -43,33 +43,49 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdbool.h>
 
+#ifndef LCA_CLI_MALLOC
+#    define LCA_CLI_MALLOC(N) (malloc(N))
+#endif
+
+#ifndef LCA_CLI_REALLOC
+#    define LCA_CLI_REALLOC(P, N) (realloc(P, N))
+#endif
+
+#ifndef LCA_CLI_FREE
+#    define LCA_CLI_FREE(N) (free(N))
+#endif
+
 bool lca_plat_stdout_isatty(void);
 bool lca_plat_stderr_isatty(void);
 
 bool lca_plat_file_exists(const char* file_path);
+char* lca_plat_file_read(const char* file_path);
 
 const char* lca_plat_self_exe(void);
 
 #ifdef LCA_PLAT_IMPLEMENTATION
 
 #include <stdio.h>
-
-#ifdef _WIN32
-#    define NOMINMAX
-#    include <io.h>
-#    include <Windows.h>
-#    define isatty _isatty
-#endif
-
-#ifdef __linux__
-#    include <execinfo.h>
-#    include <unistd.h>
-#    include <sys/stat.h>
-#endif
-
 #include <errno.h>
 
-#include "lcamem.h"
+#ifdef _WIN32
+#    define WIN32_LEAN_AND_MEAN
+#    define _WINUSER_
+#    define _WINGDI_
+#    define _IMM_
+#    define _WINCON_
+#    include <io.h>
+#    include <windows.h>
+#    include <direct.h>
+#    include <shellapi.h>
+#else
+#    include <execinfo.h>
+#    include <sys/types.h>
+#    include <sys/wait.h>
+#    include <sys/stat.h>
+#    include <unistd.h>
+#    include <fcntl.h>
+#endif
 
 bool lca_plat_stdout_isatty(void) {
     return isatty(fileno(stdout));
@@ -80,38 +96,45 @@ bool lca_plat_stderr_isatty(void) {
 }
 
 bool lca_plat_file_exists(const char* file_path) {
-#ifdef  __linux__
-    struct stat stat_info = {0};
-
-    int err = stat(file_path, &stat_info);
-    if (err != 0) {
-        if (errno == ENOENT) {
-            return false;
-        }
-
-        perror("Failed to `stat` file");
-        return false;
-    }
-
-    return true;
+#if _WIN32
+    // TODO: distinguish between "does not exists" and other errors
+    DWORD dwAttrib = GetFileAttributesA(file_path);
+    return dwAttrib != INVALID_FILE_ATTRIBUTES;
 #else
-    FILE* f = fopen(file_path, "r");
-    if (f == NULL) {
-        return false;
+    struct stat statbuf;
+    if (stat(file_path, &statbuf) < 0) {
+        if (errno == ENOENT) return 0;
+        return -1;
     }
-    fclose(f);
-    return true;
+    return 1;
 #endif
+}
+
+char* lca_plat_file_read(const char* file_path) {
+    assert(file_path != NULL);
+    FILE* stream = fopen(file_path, "r");
+    if (stream == NULL) {
+        return NULL;
+    }
+    fseek(stream, 0, SEEK_END);
+    int64_t count = ftell(stream);
+    fseek(stream, 0, SEEK_SET);
+    char* data = LCA_CLI_MALLOC(count + 1);
+    fread(data, (size_t)count, 1, stream);
+    data[count] = 0;
+    fclose(stream);
+    return data;
 }
 
 const char* lca_plat_self_exe(void) {
 #if defined(__linux__)
-    char buffer[1024] = {0};
+    char* buffer = malloc(1024);
     ssize_t n = readlink("/proc/self/exe", buffer, 1024);
     if (n < 0) {
+        free(buffer);
         return NULL;
     }
-    return lca_temp_sprintf("%s", buffer);
+    return buffer;
 #elif define(_WIN32)
     assert(false && "lca_plat_self_exe is not implemented on this platform");
     return NULL;

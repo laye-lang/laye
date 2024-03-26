@@ -40,10 +40,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 
-#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
-
-#include "nob.h"
 
 typedef struct cback_codegen {
     lyir_context* context;
@@ -116,10 +113,9 @@ static void cback_print_module(cback_codegen* codegen, lyir_module* module) {
 static void cback_print_header(cback_codegen* codegen, lyir_module* module) {
     lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", LCA_STR_EXPAND(lyir_module_name(module)));
 
-    Nob_String_Builder builder = {0};
-    nob_read_entire_file("./stage1/src/lyir_cir_preamble.h", &builder);
-    lca_string_append_format(codegen->output, "%.*s\n", (int)builder.count, builder.items);
-    nob_sb_free(builder);
+    char* source_text = lca_plat_file_read("./stage1/src/lyir_cir_preamble.h");
+    lca_string_append_format(codegen->output, "%s\n", source_text);
+    free(source_text);
 }
 
 static void cback_declare_structs(cback_codegen* codegen, lyir_context* context) {
