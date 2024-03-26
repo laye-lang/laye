@@ -64,8 +64,8 @@ typedef struct lyir_dependency_graph lyir_dependency_graph;
 typedef int64_t lyir_sourceid;
 
 typedef struct lyir_source {
-    string name;
-    string text;
+    lca_string name;
+    lca_string text;
 } lyir_source;
 
 typedef struct lyir_target_info {
@@ -119,18 +119,18 @@ typedef struct lyir_context {
     bool has_reported_errors;
     bool use_byte_positions_in_diagnostics;
 
-    dynarr(lyir_source) sources;
-    dynarr(string_view) include_directories;
-    dynarr(string_view) library_directories;
-    dynarr(string_view) link_libraries;
+    lca_da(lyir_source) sources;
+    lca_da(lca_string_view) include_directories;
+    lca_da(lca_string_view) library_directories;
+    lca_da(lca_string_view) link_libraries;
 
     int64_t max_interned_string_size;
     lca_arena* string_arena;
-    dynarr(string) _interned_strings;
-    dynarr(string) allocated_strings;
+    lca_da(lca_string) _interned_strings;
+    lca_da(lca_string) allocated_strings;
 
-    dynarr(struct laye_module*) laye_modules;
-    dynarr(lyir_module*) ir_modules;
+    lca_da(struct laye_module*) laye_modules;
+    lca_da(lyir_module*) ir_modules;
 
 // TODO(local): remove Laye stuff from LYIR
     // types for use in Laye semantic analysis.
@@ -157,17 +157,17 @@ typedef struct lyir_context {
     lyir_dependency_graph* laye_dependencies;
 // TODO(local): remove Laye stuff from LYIR
 
-    dynarr(lyir_dependency_graph*) _all_depgraphs;
+    lca_da(lyir_dependency_graph*) _all_depgraphs;
 
     lca_arena* type_arena;
-    dynarr(lyir_type*) _all_types;
-    dynarr(struct cached_struct_type { laye_node* node; lyir_type* type; }) _all_struct_types;
+    lca_da(lyir_type*) _all_types;
+    lca_da(struct cached_struct_type { laye_node* node; lyir_type* type; }) _all_struct_types;
 
     struct {
         lyir_type* poison;
         lyir_type* ptr;
         lyir_type* _void;
-        dynarr(lyir_type*) int_types;
+        lca_da(lyir_type*) int_types;
         lyir_type* f32;
         lyir_type* f64;
     } types;
@@ -176,7 +176,7 @@ typedef struct lyir_context {
         lyir_value* _void;
     } values;
 
-    dynarr(lyir_value*) _all_values;
+    lca_da(lyir_value*) _all_values;
 } lyir_context;
 
 typedef struct lyir_location {
@@ -198,7 +198,7 @@ typedef enum lyir_status {
 typedef struct lyir_diag {
     lyir_status status;
     lyir_location location;
-    string message;
+    lca_string message;
 } lyir_diag;
 
 typedef enum lyir_value_category {
@@ -263,7 +263,7 @@ typedef struct lyir_evaluated_constant {
         bool bool_value;
         int64_t int_value;
         double float_value;
-        string_view string_value;
+        lca_string_view string_value;
     };
 } lyir_evaluated_constant;
 
@@ -271,13 +271,13 @@ typedef void lyir_dependency_entity;
 
 typedef struct lyir_dependency_entry {
     void* node;
-    dynarr(lyir_dependency_entity*) dependencies;
+    lca_da(lyir_dependency_entity*) dependencies;
 } lyir_dependency_entry;
 
 struct lyir_dependency_graph {
     lyir_context* context;
     lca_arena* arena;
-    dynarr(lyir_dependency_entry*) entries;
+    lca_da(lyir_dependency_entry*) entries;
 };
 
 typedef struct lyir_dependency_order_result {
@@ -287,7 +287,7 @@ typedef struct lyir_dependency_order_result {
     } status;
 
     union {
-        dynarr(lyir_dependency_entity*) ordered_entities;
+        lca_da(lyir_dependency_entity*) ordered_entities;
 
         struct {
             lyir_dependency_entity* from;
@@ -425,11 +425,11 @@ void lyir_init_targets(lca_allocator allocator);
 lyir_context* lyir_context_create(lca_allocator allocator);
 void lyir_context_destroy(lyir_context* context);
 
-lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, string_view file_path);
-lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, string name, string source_text);
+lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, lca_string_view file_path);
+lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, lca_string name, lca_string source_text);
 lyir_source lyir_context_get_source(lyir_context* context, lyir_sourceid sourceid);
 
-bool lyir_context_get_location_info(lyir_context* context, lyir_location location, string_view* out_name, int64_t* out_line, int64_t* out_column);
+bool lyir_context_get_location_info(lyir_context* context, lyir_location location, lca_string_view* out_name, int64_t* out_line, int64_t* out_column);
 void lyir_context_print_location_info(lyir_context* context, lyir_location location, lyir_status status, FILE* stream, bool use_color);
 
 lyir_diag lyir_info(lyir_context* context, lyir_location location, const char* format, ...);
@@ -445,7 +445,7 @@ void lyir_write_warn(lyir_context* context, lyir_location location, const char* 
 void lyir_write_error(lyir_context* context, lyir_location location, const char* format, ...);
 void lyir_write_ice(lyir_context* context, lyir_location location, const char* format, ...);
 
-string_view lyir_context_intern_string_view(lyir_context* context, string_view s);
+lca_string_view lyir_context_intern_string_view(lyir_context* context, lca_string_view s);
 
 #define LYIR_ICE(C, L, F) do { lyir_write_ice(C, L, F); abort(); } while (0)
 #define LYIR_ICEV(C, L, F, ...) do { lyir_write_ice(C, L, F, __VA_ARGS__); abort(); } while (0)
@@ -471,8 +471,8 @@ void lyir_irpass_validate(lyir_module* module);
 void lyir_irpass_fix_abi(lyir_module* module);
 
 // TODO(local): backends as separate library APIs? lyir-llvm.h for example?
-string lyir_codegen_c(lyir_module* module);
-string lyir_codegen_llvm(lyir_module* module);
+lca_string lyir_codegen_c(lyir_module* module);
+lca_string lyir_codegen_llvm(lyir_module* module);
 
 // Context API
 
@@ -481,19 +481,19 @@ lyir_type* lyir_context_get_struct_type_at_index(lyir_context* context, int64_t 
 
 // Module API
 
-lyir_module* lyir_module_create(lyir_context* context, string_view module_name);
+lyir_module* lyir_module_create(lyir_context* context, lca_string_view module_name);
 void lyir_module_destroy(lyir_module* module);
-lyir_value* lyir_module_create_function(lyir_module* module, lyir_location location, string_view function_name, lyir_type* function_type, dynarr(lyir_value*) parameters, lyir_linkage linkage);
+lyir_value* lyir_module_create_function(lyir_module* module, lyir_location location, lca_string_view function_name, lyir_type* function_type, lca_da(lyir_value*) parameters, lyir_linkage linkage);
 
 lyir_context* lyir_module_context(lyir_module* module);
-string_view lyir_module_name(lyir_module* module);
+lca_string_view lyir_module_name(lyir_module* module);
 int64_t lyir_module_global_count(lyir_module* module);
 lyir_value* lyir_module_get_global_at_index(lyir_module* module, int64_t global_index);
 int64_t lyir_module_function_count(lyir_module* module);
 lyir_value* lyir_module_get_function_at_index(lyir_module* module, int64_t function_index);
-lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_location location, string_view string_value);
+lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_location location, lca_string_view string_value);
 
-string lyir_module_print(lyir_module* module, bool use_color);
+lca_string lyir_module_print(lyir_module* module, bool use_color);
 
 // Type API
 
@@ -509,11 +509,11 @@ lyir_type* lyir_array_type(lyir_context* context, int64_t length, lyir_type* ele
 lyir_type* lyir_function_type(
     lyir_context* context,
     lyir_type* return_type,
-    dynarr(lyir_type*) parameter_types,
+    lca_da(lyir_type*) parameter_types,
     lyir_calling_convention calling_convention,
     bool is_variadic
 );
-lyir_type* lyir_struct_type(lyir_context* context, string_view name, dynarr(lyir_struct_member) members);
+lyir_type* lyir_struct_type(lyir_context* context, lca_string_view name, lca_da(lyir_struct_member) members);
 
 bool lyir_type_is_ptr(lyir_type* type);
 bool lyir_type_is_void(lyir_type* type);
@@ -532,12 +532,12 @@ lyir_type* lyir_type_element_type_get(lyir_type* type);
 int64_t lyir_type_array_length_get(lyir_type* type);
 
 bool lyir_type_struct_is_named(lyir_type* type);
-string_view lyir_type_struct_name_get(lyir_type* type);
+lca_string_view lyir_type_struct_name_get(lyir_type* type);
 int64_t lyir_type_struct_member_count_get(lyir_type* type);
 lyir_struct_member lyir_type_struct_member_get_at_index(lyir_type* type, int64_t index);
 lyir_type* lyir_type_struct_member_type_get_at_index(lyir_type* type, int64_t index);
 
-void lyir_type_print_to_string(lyir_type* type, string* s, bool use_color);
+void lyir_type_print_to_string(lyir_type* type, lca_string* s, bool use_color);
 
 // - Function Type API
 
@@ -562,7 +562,7 @@ lyir_location lyir_value_location_get(lyir_value* value);
 lyir_linkage lyir_value_linkage_get(lyir_value* value);
 lyir_type* lyir_value_type_get(lyir_value* value);
 void lyir_value_type_set(lyir_value* value, lyir_type* type);
-string_view lyir_value_name_get(lyir_value* value);
+lca_string_view lyir_value_name_get(lyir_value* value);
 int64_t lyir_value_index_get(lyir_value* value);
 
 bool lyir_value_is_terminator(lyir_value* instruction);
@@ -579,11 +579,11 @@ bool lyir_array_constant_is_string(lyir_value* array_constant);
 int64_t lyir_array_constant_length_get(lyir_value* array_constant);
 const char* lyir_array_constant_data_get(lyir_value* array_constant);
 
-void lyir_value_print_to_string(lyir_value* value, string* s, bool print_type, bool use_color);
+void lyir_value_print_to_string(lyir_value* value, lca_string* s, bool print_type, bool use_color);
 
 // - Function Value API
 
-string_view lyir_value_function_name_get(lyir_value* function);
+lca_string_view lyir_value_function_name_get(lyir_value* function);
 lyir_type* lyir_value_function_return_type_get(lyir_value* function);
 int64_t lyir_value_function_block_count_get(lyir_value* function);
 lyir_value* lyir_value_function_block_get_at_index(lyir_value* function, int64_t block_index);
@@ -592,12 +592,12 @@ lyir_value* lyir_value_function_parameter_get_at_index(lyir_value* function, int
 bool lyir_value_function_is_variadic(lyir_value* function);
 void lyir_value_function_parameter_type_set_at_index(lyir_value* function, int64_t parameter_index, lyir_type* param_type);
 
-lyir_value* lyir_value_function_block_append(lyir_value* function, string_view name);
+lyir_value* lyir_value_function_block_append(lyir_value* function, lca_string_view name);
 
 // - Block API
 
 bool lyir_value_block_has_name(lyir_value* block);
-string_view lyir_value_block_name_get(lyir_value* block);
+lca_string_view lyir_value_block_name_get(lyir_value* block);
 int64_t lyir_value_block_index_get(lyir_value* block);
 int64_t lyir_value_block_instruction_count_get(lyir_value* block);
 lyir_value* lyir_value_block_instruction_get_at_index(lyir_value* block, int64_t instruction_index);
@@ -624,7 +624,7 @@ lyir_value* lyir_value_branch_fail_get(lyir_value* instruction);
 lyir_value* lyir_value_callee_get(lyir_value* call);
 int64_t lyir_value_call_argument_count_get(lyir_value* call);
 lyir_value* lyir_value_call_argument_get_at_index(lyir_value* call, int64_t argument_index);
-void lyir_value_call_arguments_set(lyir_value* call, dynarr(lyir_value*) arguments);
+void lyir_value_call_arguments_set(lyir_value* call, lca_da(lyir_value*) arguments);
 int64_t lyir_value_builtin_argument_count_get(lyir_value* builtin);
 lyir_value* lyir_value_builtin_argument_set_at_index(lyir_value* builtin, int64_t argument_index);
 
@@ -649,16 +649,16 @@ void lyir_builder_position_after(lyir_builder* builder, lyir_value* instruction)
 void lyir_builder_position_at_end(lyir_builder* builder, lyir_value* block);
 lyir_value* lyir_builder_insert_block_get(lyir_builder* builder);
 void lyir_builder_insert(lyir_builder* builder, lyir_value* instruction);
-void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, string_view name);
+void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, lca_string_view name);
 
-lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location location, lyir_type* type, string_view name, int64_t index);
+lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location location, lyir_type* type, lca_string_view name, int64_t index);
 
 lyir_value* layec_build_nop(lyir_builder* builder, lyir_location location);
 lyir_value* layec_build_return(lyir_builder* builder, lyir_location location, lyir_value* value);
 lyir_value* layec_build_return_void(lyir_builder* builder, lyir_location location);
 lyir_value* layec_build_unreachable(lyir_builder* builder, lyir_location location);
 lyir_value* layec_build_alloca(lyir_builder* builder, lyir_location location, lyir_type* element_type, int64_t count);
-lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, dynarr(lyir_value*) arguments, string_view name);
+lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, lca_da(lyir_value*) arguments, lca_string_view name);
 lyir_value* layec_build_store(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_value* value);
 lyir_value* layec_build_load(lyir_builder* builder, lyir_location location, lyir_value* address, lyir_type* type);
 lyir_value* layec_build_branch(lyir_builder* builder, lyir_location location, lyir_value* block);

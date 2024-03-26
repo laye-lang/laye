@@ -38,6 +38,7 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#define LCA_STR_NO_SHORT_NAMES
 #include "lyir.h"
 
 #include <assert.h>
@@ -46,7 +47,7 @@ void layec_value_destroy(lyir_value* value);
 
 struct lyir_module {
     lyir_context* context;
-    string_view name;
+    lca_string_view name;
 
     lca_arena* arena;
     dynarr(lyir_value*) functions;
@@ -79,7 +80,7 @@ struct lyir_type {
             bool named;
 
             union {
-                string_view name;
+                lca_string_view name;
                 int64_t index;
             };
         } _struct;
@@ -99,7 +100,7 @@ struct lyir_value {
 
     lyir_type* type;
 
-    string_view name;
+    lca_string_view name;
     int64_t index;
     lyir_linkage linkage;
 
@@ -127,14 +128,14 @@ struct lyir_value {
         } array;
 
         struct {
-            string_view name;
+            lca_string_view name;
             int64_t index;
             lyir_value* parent_function;
             dynarr(lyir_value*) instructions;
         } block;
 
         struct {
-            string_view name;
+            lca_string_view name;
             dynarr(lyir_value*) parameters;
             dynarr(lyir_value*) blocks;
         } function;
@@ -231,7 +232,7 @@ lyir_type* lyir_context_get_struct_type_at_index(lyir_context* context, int64_t 
     return context->_all_struct_types[index].type;
 }
 
-lyir_module* lyir_module_create(lyir_context* context, string_view module_name) {
+lyir_module* lyir_module_create(lyir_context* context, lca_string_view module_name) {
     assert(context != NULL);
     lyir_module* module = lca_allocate(context->allocator, sizeof *module);
     assert(module != NULL);
@@ -347,7 +348,7 @@ const char* lyir_type_kind_to_cstring(lyir_type_kind kind) {
     }
 }
 
-static lyir_value* layec_value_create(lyir_module* module, lyir_location location, lyir_value_kind kind, lyir_type* type, string_view name) {
+static lyir_value* layec_value_create(lyir_module* module, lyir_location location, lyir_value_kind kind, lyir_type* type, lca_string_view name) {
     assert(module != NULL);
     assert(module->context != NULL);
     assert(module->arena != NULL);
@@ -370,7 +371,7 @@ lyir_context* lyir_module_context(lyir_module* module) {
     return module->context;
 }
 
-string_view lyir_module_name(lyir_module* module) {
+lca_string_view lyir_module_name(lyir_module* module) {
     assert(module != NULL);
     return module->name;
 }
@@ -400,7 +401,7 @@ lyir_value* lyir_module_get_function_at_index(lyir_module* module, int64_t funct
 }
 
 // TODO(local): look up existing strings somewhere, somehow
-lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_location location, string_view string_value) {
+lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_location location, lca_string_view string_value) {
     assert(module != NULL);
     assert(module->context != NULL);
 
@@ -411,7 +412,7 @@ lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_locat
 
     lyir_value* array_constant = lyir_array_constant_create(module->context, location, array_type, data, string_value.count + 1, true);
 
-    lyir_value* global_string_ptr = layec_value_create(module, location, LYIR_IR_GLOBAL_VARIABLE, lyir_ptr_type(module->context), SV_EMPTY);
+    lyir_value* global_string_ptr = layec_value_create(module, location, LYIR_IR_GLOBAL_VARIABLE, lyir_ptr_type(module->context), LCA_SV_EMPTY);
     assert(global_string_ptr != NULL);
     global_string_ptr->index = arr_count(module->globals);
     global_string_ptr->linkage = LYIR_LINK_INTERNAL;
@@ -535,7 +536,7 @@ lyir_linkage lyir_value_linkage_get(lyir_value* value) {
     return value->linkage;
 }
 
-string_view lyir_value_name_get(lyir_value* value) {
+lca_string_view lyir_value_name_get(lyir_value* value) {
     assert(value != NULL);
     return value->name;
 }
@@ -551,7 +552,7 @@ bool lyir_value_block_has_name(lyir_value* block) {
     return block->block.name.count != 0;
 }
 
-string_view lyir_value_block_name_get(lyir_value* block) {
+lca_string_view lyir_value_block_name_get(lyir_value* block) {
     assert(block != NULL);
     assert(lyir_value_is_block(block));
     return block->block.name;
@@ -563,7 +564,7 @@ int64_t lyir_value_block_index_get(lyir_value* block) {
     return block->block.index;
 }
 
-string_view lyir_value_function_name_get(lyir_value* function) {
+lca_string_view lyir_value_function_name_get(lyir_value* function) {
     assert(function != NULL);
     assert(lyir_value_is_function(function));
     assert(function->function.name.count > 0);
@@ -938,7 +939,7 @@ lyir_type* lyir_function_type(
     return function_type;
 }
 
-lyir_type* lyir_struct_type(lyir_context* context, string_view name, dynarr(lyir_struct_member) members) {
+lyir_type* lyir_struct_type(lyir_context* context, lca_string_view name, dynarr(lyir_struct_member) members) {
     assert(context != NULL);
     assert(name.count != 0);
     for (int64_t i = 0, count = arr_count(members); i < count; i++) {
@@ -1042,7 +1043,7 @@ bool lyir_type_struct_is_named(lyir_type* type) {
     return type->_struct.named;
 }
 
-string_view lyir_type_struct_name_get(lyir_type* type) {
+lca_string_view lyir_type_struct_name_get(lyir_type* type) {
     assert(type != NULL);
     assert(type->kind == LYIR_TYPE_STRUCT);
     return type->_struct.name;
@@ -1095,7 +1096,7 @@ void lyir_function_type_parameter_type_set_at_index(lyir_type* function_type, in
     function_type->function.parameter_types[parameter_index] = param_type;
 }
 
-static lyir_value* layec_value_create_in_context(lyir_context* context, lyir_location location, lyir_value_kind kind, lyir_type* type, string_view name) {
+static lyir_value* layec_value_create_in_context(lyir_context* context, lyir_location location, lyir_value_kind kind, lyir_type* type, lca_string_view name) {
     assert(context != NULL);
     assert(type != NULL);
 
@@ -1189,13 +1190,13 @@ void lyir_value_type_set(lyir_value* value, lyir_type* type) {
     value->type = type;
 }
 
-lyir_value* lyir_module_create_function(lyir_module* module, lyir_location location, string_view function_name, lyir_type* function_type, dynarr(lyir_value*) parameters, lyir_linkage linkage) {
+lyir_value* lyir_module_create_function(lyir_module* module, lyir_location location, lca_string_view function_name, lyir_type* function_type, dynarr(lyir_value*) parameters, lyir_linkage linkage) {
     assert(module != NULL);
     assert(module->context != NULL);
     assert(function_type != NULL);
     assert(function_type->kind == LYIR_TYPE_FUNCTION);
 
-    lyir_value* function = layec_value_create(module, location, LYIR_IR_FUNCTION, function_type, SV_EMPTY);
+    lyir_value* function = layec_value_create(module, location, LYIR_IR_FUNCTION, function_type, LCA_SV_EMPTY);
     assert(function != NULL);
     function->function.name = lyir_context_intern_string_view(module->context, function_name);
     function->linkage = linkage;
@@ -1205,12 +1206,12 @@ lyir_value* lyir_module_create_function(lyir_module* module, lyir_location locat
     return function;
 }
 
-lyir_value* lyir_value_function_block_append(lyir_value* function, string_view name) {
+lyir_value* lyir_value_function_block_append(lyir_value* function, lca_string_view name) {
     assert(function != NULL);
     assert(function->module != NULL);
     assert(function->context != NULL);
     assert(function->context == function->module->context);
-    lyir_value* block = layec_value_create(function->module, (lyir_location){0}, LYIR_IR_BLOCK, lyir_void_type(function->context), SV_EMPTY);
+    lyir_value* block = layec_value_create(function->module, (lyir_location){0}, LYIR_IR_BLOCK, lyir_void_type(function->context), LCA_SV_EMPTY);
     assert(block != NULL);
     block->block.name = lyir_context_intern_string_view(function->context, name);
     block->block.parent_function = function;
@@ -1223,7 +1224,7 @@ lyir_value* lyir_void_constant_create(lyir_context* context) {
     assert(context != NULL);
 
     if (context->values._void == NULL) {
-        lyir_value* void_value = layec_value_create_in_context(context, (lyir_location){0}, LYIR_IR_VOID_CONSTANT, lyir_void_type(context), SV_EMPTY);
+        lyir_value* void_value = layec_value_create_in_context(context, (lyir_location){0}, LYIR_IR_VOID_CONSTANT, lyir_void_type(context), LCA_SV_EMPTY);
         assert(void_value != NULL);
         context->values._void = void_value;
     }
@@ -1237,7 +1238,7 @@ lyir_value* lyir_int_constant_create(lyir_context* context, lyir_location locati
     assert(type != NULL);
     assert(lyir_type_is_integer(type));
 
-    lyir_value* int_value = layec_value_create_in_context(context, location, LYIR_IR_INTEGER_CONSTANT, type, SV_EMPTY);
+    lyir_value* int_value = layec_value_create_in_context(context, location, LYIR_IR_INTEGER_CONSTANT, type, LCA_SV_EMPTY);
     assert(int_value != NULL);
     int_value->int_value = value;
     return int_value;
@@ -1248,7 +1249,7 @@ lyir_value* lyir_float_constant_create(lyir_context* context, lyir_location loca
     assert(type != NULL);
     assert(lyir_type_is_float(type));
 
-    lyir_value* float_value = layec_value_create_in_context(context, location, LYIR_IR_FLOAT_CONSTANT, type, SV_EMPTY);
+    lyir_value* float_value = layec_value_create_in_context(context, location, LYIR_IR_FLOAT_CONSTANT, type, LCA_SV_EMPTY);
     assert(float_value != NULL);
     float_value->float_value = value;
     return float_value;
@@ -1260,7 +1261,7 @@ lyir_value* lyir_array_constant_create(lyir_context* context, lyir_location loca
     assert(data != NULL);
     assert(length >= 0);
 
-    lyir_value* array_value = layec_value_create_in_context(context, location, LYIR_IR_ARRAY_CONSTANT, type, SV_EMPTY);
+    lyir_value* array_value = layec_value_create_in_context(context, location, LYIR_IR_ARRAY_CONSTANT, type, LCA_SV_EMPTY);
     assert(array_value != NULL);
     array_value->array.is_string_literal = is_string_literal;
     array_value->array.data = data;
@@ -1450,7 +1451,7 @@ void lyir_builder_insert(lyir_builder* builder, lyir_value* instruction) {
     assert(instruction->index >= 0);
 }
 
-void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, string_view name) {
+void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, lca_string_view name) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(instruction != NULL);
@@ -1468,14 +1469,14 @@ lyir_value* layec_build_nop(lyir_builder* builder, lyir_location location) {
     assert(builder->function->module != NULL);
     assert(builder->block != NULL);
 
-    lyir_value* nop = layec_value_create(builder->function->module, location, LYIR_IR_NOP, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* nop = layec_value_create(builder->function->module, location, LYIR_IR_NOP, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(nop != NULL);
 
     lyir_builder_insert(builder, nop);
     return nop;
 }
 
-lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location location, lyir_type* type, string_view name, int64_t index) {
+lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location location, lyir_type* type, lca_string_view name, int64_t index) {
     assert(module != NULL);
     assert(type != NULL);
 
@@ -1487,7 +1488,7 @@ lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location locat
     return parameter;
 }
 
-lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, dynarr(lyir_value*) arguments, string_view name) {
+lyir_value* layec_build_call(lyir_builder* builder, lyir_location location, lyir_value* callee, lyir_type* callee_type, dynarr(lyir_value*) arguments, lca_string_view name) {
     assert(builder != NULL);
     assert(builder->context != NULL);
     assert(builder->function != NULL);
@@ -1523,7 +1524,7 @@ lyir_value* layec_build_return(lyir_builder* builder, lyir_location location, ly
     assert(builder->block != NULL);
     assert(value != NULL);
 
-    lyir_value* ret = layec_value_create(builder->function->module, location, LYIR_IR_RETURN, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* ret = layec_value_create(builder->function->module, location, LYIR_IR_RETURN, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(ret != NULL);
     ret->return_value = value;
 
@@ -1538,7 +1539,7 @@ lyir_value* layec_build_return_void(lyir_builder* builder, lyir_location locatio
     assert(builder->function->module != NULL);
     assert(builder->block != NULL);
 
-    lyir_value* ret = layec_value_create(builder->function->module, location, LYIR_IR_RETURN, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* ret = layec_value_create(builder->function->module, location, LYIR_IR_RETURN, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(ret != NULL);
 
     lyir_builder_insert(builder, ret);
@@ -1552,7 +1553,7 @@ lyir_value* layec_build_unreachable(lyir_builder* builder, lyir_location locatio
     assert(builder->function->module != NULL);
     assert(builder->block != NULL);
 
-    lyir_value* unreachable = layec_value_create(builder->function->module, location, LYIR_IR_UNREACHABLE, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* unreachable = layec_value_create(builder->function->module, location, LYIR_IR_UNREACHABLE, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(unreachable != NULL);
 
     lyir_builder_insert(builder, unreachable);
@@ -1567,7 +1568,7 @@ lyir_value* layec_build_alloca(lyir_builder* builder, lyir_location location, ly
     assert(builder->block != NULL);
     assert(element_type != NULL);
 
-    lyir_value* alloca = layec_value_create(builder->function->module, location, LYIR_IR_ALLOCA, lyir_ptr_type(builder->context), SV_EMPTY);
+    lyir_value* alloca = layec_value_create(builder->function->module, location, LYIR_IR_ALLOCA, lyir_ptr_type(builder->context), LCA_SV_EMPTY);
     assert(alloca != NULL);
     alloca->alloca.element_type = element_type;
     alloca->alloca.element_count = count;
@@ -1586,7 +1587,7 @@ lyir_value* layec_build_store(lyir_builder* builder, lyir_location location, lyi
     assert(lyir_type_is_ptr(lyir_value_type_get(address)));
     assert(value != NULL);
 
-    lyir_value* store = layec_value_create(builder->function->module, location, LYIR_IR_STORE, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* store = layec_value_create(builder->function->module, location, LYIR_IR_STORE, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(store != NULL);
     store->address = address;
     store->operand = value;
@@ -1605,7 +1606,7 @@ lyir_value* layec_build_load(lyir_builder* builder, lyir_location location, lyir
     assert(lyir_type_is_ptr(lyir_value_type_get(address)));
     assert(type != NULL);
 
-    lyir_value* load = layec_value_create(builder->function->module, location, LYIR_IR_LOAD, type, SV_EMPTY);
+    lyir_value* load = layec_value_create(builder->function->module, location, LYIR_IR_LOAD, type, LCA_SV_EMPTY);
     assert(load != NULL);
     load->address = address;
 
@@ -1622,7 +1623,7 @@ lyir_value* layec_build_branch(lyir_builder* builder, lyir_location location, ly
     assert(block != NULL);
     assert(lyir_value_is_block(block));
 
-    lyir_value* branch = layec_value_create(builder->function->module, location, LYIR_IR_BRANCH, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* branch = layec_value_create(builder->function->module, location, LYIR_IR_BRANCH, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(branch != NULL);
     branch->branch.pass = block;
 
@@ -1644,7 +1645,7 @@ lyir_value* layec_build_branch_conditional(lyir_builder* builder, lyir_location 
     assert(fail_block != NULL);
     assert(lyir_value_is_block(fail_block));
 
-    lyir_value* branch = layec_value_create(builder->function->module, location, LYIR_IR_COND_BRANCH, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* branch = layec_value_create(builder->function->module, location, LYIR_IR_COND_BRANCH, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(branch != NULL);
     branch->operand = condition;
     branch->branch.pass = pass_block;
@@ -1662,7 +1663,7 @@ lyir_value* layec_build_phi(lyir_builder* builder, lyir_location location, lyir_
     assert(builder->block != NULL);
     assert(type != NULL);
 
-    lyir_value* phi = layec_value_create(builder->function->module, location, LYIR_IR_PHI, type, SV_EMPTY);
+    lyir_value* phi = layec_value_create(builder->function->module, location, LYIR_IR_PHI, type, LCA_SV_EMPTY);
     assert(phi != NULL);
 
     lyir_builder_insert(builder, phi);
@@ -1678,7 +1679,7 @@ lyir_value* layec_build_unary(lyir_builder* builder, lyir_location location, lyi
     assert(operand != NULL);
     assert(type != NULL);
 
-    lyir_value* unary = layec_value_create(builder->function->module, location, kind, type, SV_EMPTY);
+    lyir_value* unary = layec_value_create(builder->function->module, location, kind, type, LCA_SV_EMPTY);
     assert(unary != NULL);
     unary->operand = operand;
 
@@ -1714,7 +1715,7 @@ static lyir_value* layec_build_binary(lyir_builder* builder, lyir_location locat
     lyir_type* rhs_type = lyir_value_type_get(rhs);
     assert(lhs_type == rhs_type); // primitive types should be reference equal if done correctly
 
-    lyir_value* cmp = layec_value_create(builder->function->module, location, kind, type, SV_EMPTY);
+    lyir_value* cmp = layec_value_create(builder->function->module, location, kind, type, LCA_SV_EMPTY);
     assert(cmp != NULL);
     cmp->binary.lhs = lhs;
     cmp->binary.rhs = rhs;
@@ -1938,7 +1939,7 @@ static lyir_value* layec_build_builtin(lyir_builder* builder, lyir_location loca
     assert(builder->function->module != NULL);
     assert(builder->block != NULL);
 
-    lyir_value* builtin = layec_value_create(builder->function->module, location, LYIR_IR_BUILTIN, lyir_void_type(builder->context), SV_EMPTY);
+    lyir_value* builtin = layec_value_create(builder->function->module, location, LYIR_IR_BUILTIN, lyir_void_type(builder->context), LCA_SV_EMPTY);
     assert(builtin != NULL);
     builtin->builtin.kind = kind;
 
@@ -1975,7 +1976,7 @@ lyir_value* layec_build_ptradd(lyir_builder* builder, lyir_location location, ly
     assert(offset_value != NULL);
     assert(lyir_type_is_integer(lyir_value_type_get(offset_value)));
 
-    lyir_value* ptradd = layec_value_create(builder->function->module, location, LYIR_IR_PTRADD, lyir_ptr_type(builder->context), SV_EMPTY);
+    lyir_value* ptradd = layec_value_create(builder->function->module, location, LYIR_IR_PTRADD, lyir_ptr_type(builder->context), LCA_SV_EMPTY);
     assert(ptradd != NULL);
     ptradd->address = address;
     ptradd->operand = offset_value;
@@ -1995,18 +1996,18 @@ lyir_value* layec_build_ptradd(lyir_builder* builder, lyir_location location, ly
 typedef struct layec_print_context {
     lyir_context* context;
     bool use_color;
-    string* output;
+    lca_string* output;
 } layec_print_context;
 
 static void layec_global_print(layec_print_context* print_context, lyir_value* global);
 static void layec_function_print(layec_print_context* print_context, lyir_value* function);
-static void layec_type_print_struct_type_to_string_literally(lyir_type* type, string* s, bool use_color);
+static void layec_type_print_struct_type_to_string_literally(lyir_type* type, lca_string* s, bool use_color);
 
-string lyir_module_print(lyir_module* module, bool use_color) {
+lca_string lyir_module_print(lyir_module* module, bool use_color) {
     assert(module != NULL);
     assert(module->context != NULL);
 
-    string output_string = string_create(module->context->allocator);
+    lca_string output_string = lca_string_create(module->context->allocator);
 
     layec_print_context print_context = {
         .context = module->context,
@@ -2020,14 +2021,14 @@ string lyir_module_print(lyir_module* module, bool use_color) {
         print_context.output,
         "%s; LayeC IR Module: %.*s%s\n",
         COL(COL_COMMENT),
-        STR_EXPAND(module->name),
+        LCA_STR_EXPAND(module->name),
         COL(RESET)
     );
 
     for (int64_t i = 0; i < lyir_context_get_struct_type_count(module->context); i++) {
         lyir_type* struct_type = lyir_context_get_struct_type_at_index(module->context, i);
         if (lyir_type_struct_is_named(struct_type)) {
-            lca_string_append_format(print_context.output, "%sdefine %s%.*s %s= ", COL(COL_KEYWORD), COL(COL_NAME), STR_EXPAND(lyir_type_struct_name_get(struct_type)), COL(RESET));
+            lca_string_append_format(print_context.output, "%sdefine %s%.*s %s= ", COL(COL_KEYWORD), COL(COL_NAME), LCA_STR_EXPAND(lyir_type_struct_name_get(struct_type)), COL(RESET));
             layec_type_print_struct_type_to_string_literally(struct_type, print_context.output, use_color);
             lca_string_append_format(print_context.output, "%s\n", COL(RESET));
         }
@@ -2084,7 +2085,7 @@ static void layec_instruction_print_name_if_required(layec_print_context* print_
             print_context->output,
             "%s%%%.*s %s= %s",
             COL(COL_NAME),
-            STR_EXPAND(instruction->name),
+            LCA_STR_EXPAND(instruction->name),
             COL(COL_DELIM),
             COL(RESET)
         );
@@ -2615,7 +2616,7 @@ static void layec_global_print(layec_print_context* print_context, lyir_value* g
     if (global->name.count == 0) {
         lca_string_append_format(print_context->output, "%sglobal.%lld", COL(COL_NAME), global->index);
     } else {
-        lca_string_append_format(print_context->output, "%s%.*s", COL(COL_NAME), STR_EXPAND(global->name));
+        lca_string_append_format(print_context->output, "%s%.*s", COL(COL_NAME), LCA_STR_EXPAND(global->name));
     }
 
     lca_string_append_format(print_context->output, " %s= ", COL(COL_DELIM));
@@ -2649,7 +2650,7 @@ static void layec_function_print(layec_print_context* print_context, lyir_value*
         "%s %s%.*s%s(",
         ir_calling_convention_to_cstring(function->type->function.calling_convention),
         COL(COL_NAME),
-        STR_EXPAND(function->function.name),
+        LCA_STR_EXPAND(function->function.name),
         COL(COL_DELIM)
     );
 
@@ -2687,7 +2688,7 @@ static void layec_function_print(layec_print_context* print_context, lyir_value*
             if (block->block.name.count == 0) {
                 lca_string_append_format(print_context->output, "%s_bb%lld%s:\n", COL(COL_NAME), i, COL(COL_DELIM));
             } else {
-                lca_string_append_format(print_context->output, "%s%.*s%s:\n", COL(COL_NAME), STR_EXPAND(block->block.name), COL(COL_DELIM));
+                lca_string_append_format(print_context->output, "%s%.*s%s:\n", COL(COL_NAME), LCA_STR_EXPAND(block->block.name), COL(COL_DELIM));
             }
 
             for (int64_t j = 0, count2 = arr_count(block->block.instructions); j < count2; j++) {
@@ -2703,7 +2704,7 @@ static void layec_function_print(layec_print_context* print_context, lyir_value*
     }
 }
 
-static void layec_type_print_struct_type_to_string_literally(lyir_type* type, string* s, bool use_color) {
+static void layec_type_print_struct_type_to_string_literally(lyir_type* type, lca_string* s, bool use_color) {
     lca_string_append_format(s, "%sstruct %s{", COL(COL_KEYWORD), COL(RESET));
 
     for (int64_t i = 0, count = arr_count(type->_struct.members); i < count; i++) {
@@ -2720,7 +2721,7 @@ static void layec_type_print_struct_type_to_string_literally(lyir_type* type, st
     lca_string_append_format(s, "%s }", COL(RESET));
 }
 
-void lyir_type_print_to_string(lyir_type* type, string* s, bool use_color) {
+void lyir_type_print_to_string(lyir_type* type, lca_string* s, bool use_color) {
     assert(type != NULL);
     assert(s != NULL);
 
@@ -2753,7 +2754,7 @@ void lyir_type_print_to_string(lyir_type* type, string* s, bool use_color) {
 
         case LYIR_TYPE_STRUCT: {
             if (type->_struct.named) {
-                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), STR_EXPAND(type->_struct.name));
+                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), LCA_STR_EXPAND(type->_struct.name));
             } else {
                 layec_type_print_struct_type_to_string_literally(type, s, use_color);
             }
@@ -2763,7 +2764,7 @@ void lyir_type_print_to_string(lyir_type* type, string* s, bool use_color) {
     lca_string_append_format(s, "%s", COL(RESET));
 }
 
-void lyir_value_print_to_string(lyir_value* value, string* s, bool print_type, bool use_color) {
+void lyir_value_print_to_string(lyir_value* value, lca_string* s, bool print_type, bool use_color) {
     assert(value != NULL);
     assert(s != NULL);
 
@@ -2777,19 +2778,19 @@ void lyir_value_print_to_string(lyir_value* value, string* s, bool print_type, b
             if (value->name.count == 0) {
                 lca_string_append_format(s, "%s%%%lld", COL(COL_NAME), value->index);
             } else {
-                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), STR_EXPAND(value->name));
+                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), LCA_STR_EXPAND(value->name));
             }
         } break;
 
         case LYIR_IR_FUNCTION: {
-            lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), STR_EXPAND(value->function.name));
+            lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), LCA_STR_EXPAND(value->function.name));
         } break;
 
         case LYIR_IR_BLOCK: {
             if (value->block.name.count == 0) {
                 lca_string_append_format(s, "%s%%_bb%lld", COL(COL_NAME), value->block.index);
             } else {
-                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), STR_EXPAND(value->block.name));
+                lca_string_append_format(s, "%s%%%.*s", COL(COL_NAME), LCA_STR_EXPAND(value->block.name));
             }
         } break;
 
@@ -2805,7 +2806,7 @@ void lyir_value_print_to_string(lyir_value* value, string* s, bool print_type, b
             if (value->name.count == 0) {
                 lca_string_append_format(s, "%s@global.%lld", COL(COL_NAME), value->index);
             } else {
-                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), STR_EXPAND(value->name));
+                lca_string_append_format(s, "%s@%.*s", COL(COL_NAME), LCA_STR_EXPAND(value->name));
             }
         } break;
 
