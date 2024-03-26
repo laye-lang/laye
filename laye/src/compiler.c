@@ -232,14 +232,14 @@ static int emit_lyir(compiler_state* state) {
         lyir_module* ir_module = state->context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string ir_module_string = layec_module_print(ir_module, use_color);
+        string ir_module_string = lyir_module_print(ir_module, use_color);
         string_view intermediate_file_name = {0};
-        assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
+        assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
 
         if (is_only_file && state->output_file.count != 0) {
             intermediate_file_name = state->output_file;
         } else {
-            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".lyir");
+            intermediate_file_name = create_intermediate_file_name(state, lyir_module_name(ir_module), ".lyir");
         }
 
         if (is_output_file_stdout) {
@@ -276,8 +276,8 @@ static int emit_c(compiler_state* state) {
         } else {
             lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
-            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ir.c");
+            assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
+            intermediate_file_name = create_intermediate_file_name(state, lyir_module_name(ir_module), ".ir.c");
         }
 
         if (is_output_file_stdout) {
@@ -310,8 +310,8 @@ static int emit_llvm(compiler_state* state) {
         } else {
             lyir_module* ir_module = state->context->ir_modules[i];
             assert(ir_module != NULL);
-            assert(string_view_equals(layec_module_name(ir_module), state->input_files[0].path));
-            intermediate_file_name = create_intermediate_file_name(state, layec_module_name(ir_module), ".ll");
+            assert(string_view_equals(lyir_module_name(ir_module), state->input_files[0].path));
+            intermediate_file_name = create_intermediate_file_name(state, lyir_module_name(ir_module), ".ll");
         }
 
         if (is_output_file_stdout) {
@@ -561,8 +561,8 @@ found_stdlib:;
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
-        layec_irpass_validate(ir_module);
-        layec_irpass_fix_abi(ir_module);
+        lyir_irpass_validate(ir_module);
+        lyir_irpass_fix_abi(ir_module);
     }
 
     if (context->has_reported_errors) {
@@ -639,7 +639,7 @@ static int backend_c(compiler_state* state) {
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string c_module_string = layec_codegen_c(ir_module);
+        string c_module_string = lyir_codegen_c(ir_module);
         arr_push(state->c_modules, c_module_string);
     }
 
@@ -653,7 +653,7 @@ static int backend_c(compiler_state* state) {
 
     for (int64_t i = 0; i < arr_count(state->c_modules); i++) {
         string c_module_string = state->c_modules[i];
-        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
+        string_view source_input_file_path = string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
         string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ir.c");
         arr_push(state->total_intermediate_files, output_file_path_intermediate);
@@ -712,7 +712,7 @@ static int backend_llvm(compiler_state* state) {
         lyir_module* ir_module = context->ir_modules[i];
         assert(ir_module != NULL);
 
-        string llvm_module_string = layec_codegen_llvm(ir_module);
+        string llvm_module_string = lyir_codegen_llvm(ir_module);
         arr_push(state->llvm_modules, llvm_module_string);
     }
 
@@ -726,7 +726,7 @@ static int backend_llvm(compiler_state* state) {
 
     for (int64_t i = 0; i < arr_count(state->llvm_modules); i++) {
         string llvm_module_string = state->llvm_modules[i];
-        string_view source_input_file_path = string_view_path_file_name(layec_module_name(context->ir_modules[i]));
+        string_view source_input_file_path = string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
         string output_file_path_intermediate = string_view_change_extension(default_allocator, source_input_file_path, ".ll");
         arr_push(state->total_intermediate_files, output_file_path_intermediate);

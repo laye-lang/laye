@@ -45,11 +45,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 static void layec_validate_function(lyir_value* function);
 static void layec_validate_block(lyir_value* block);
 
-void layec_irpass_validate(lyir_module* module) {
+void lyir_irpass_validate(lyir_module* module) {
     assert(module != NULL);
 
-    for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
-        lyir_value* function = layec_module_get_function_at_index(module, i);
+    for (int64_t i = 0, count = lyir_module_function_count(module); i < count; i++) {
+        lyir_value* function = lyir_module_get_function_at_index(module, i);
         assert(function != NULL);
         
         layec_validate_function(function);
@@ -57,14 +57,14 @@ void layec_irpass_validate(lyir_module* module) {
 }
 
 static void layec_validate_function(lyir_value* function) {
-    for (int64_t i = 0, count = layec_function_block_count(function); i < count; i++) {
-        lyir_value* block = layec_function_get_block_at_index(function, i);
+    for (int64_t i = 0, count = lyir_value_function_block_count_get(function); i < count; i++) {
+        lyir_value* block = lyir_value_function_block_get_at_index(function, i);
         layec_validate_block(block);
     }
 }
 
 static void layec_validate_block(lyir_value* block) {
-    if (!layec_block_is_terminated(block)) {
-        lyir_write_error(layec_value_context(block), layec_value_location(block), "Unterminated block in LayeC IR");
+    if (!lyir_value_block_is_terminated(block)) {
+        lyir_write_error(lyir_value_context_get(block), lyir_value_location_get(block), "Unterminated block in LayeC IR");
     }
 }
