@@ -467,194 +467,191 @@ int lyir_get_significant_bits(int64_t value);
 
 // ========== IR ==========
 
-void layec_irpass_validate(lyir_module* module);
-void layec_irpass_fix_abi(lyir_module* module);
+void lyir_irpass_validate(lyir_module* module);
+void lyir_irpass_fix_abi(lyir_module* module);
 
-string layec_codegen_c(lyir_module* module);
-string layec_codegen_llvm(lyir_module* module);
+// TODO(local): backends as separate library APIs? lyir-llvm.h for example?
+string lyir_codegen_c(lyir_module* module);
+string lyir_codegen_llvm(lyir_module* module);
 
 // Context API
 
-int64_t layec_context_get_struct_type_count(lyir_context* context);
-lyir_type* layec_context_get_struct_type_at_index(lyir_context* context, int64_t index);
+int64_t lyir_context_get_struct_type_count(lyir_context* context);
+lyir_type* lyir_context_get_struct_type_at_index(lyir_context* context, int64_t index);
 
 // Module API
 
-lyir_module* layec_module_create(lyir_context* context, string_view module_name);
-void layec_module_destroy(lyir_module* module);
-lyir_value* layec_module_create_function(lyir_module* module, lyir_location location, string_view function_name, lyir_type* function_type, dynarr(lyir_value*) parameters, lyir_linkage linkage);
+lyir_module* lyir_module_create(lyir_context* context, string_view module_name);
+void lyir_module_destroy(lyir_module* module);
+lyir_value* lyir_module_create_function(lyir_module* module, lyir_location location, string_view function_name, lyir_type* function_type, dynarr(lyir_value*) parameters, lyir_linkage linkage);
 
-lyir_context* layec_module_context(lyir_module* module);
-string_view layec_module_name(lyir_module* module);
-int64_t layec_module_global_count(lyir_module* module);
-lyir_value* layec_module_get_global_at_index(lyir_module* module, int64_t global_index);
-int64_t layec_module_function_count(lyir_module* module);
-lyir_value* layec_module_get_function_at_index(lyir_module* module, int64_t function_index);
-lyir_value* layec_module_create_global_string_ptr(lyir_module* module, lyir_location location, string_view string_value);
+lyir_context* lyir_module_context(lyir_module* module);
+string_view lyir_module_name(lyir_module* module);
+int64_t lyir_module_global_count(lyir_module* module);
+lyir_value* lyir_module_get_global_at_index(lyir_module* module, int64_t global_index);
+int64_t lyir_module_function_count(lyir_module* module);
+lyir_value* lyir_module_get_function_at_index(lyir_module* module, int64_t function_index);
+lyir_value* lyir_module_create_global_string_ptr(lyir_module* module, lyir_location location, string_view string_value);
 
-string layec_module_print(lyir_module* module, bool use_color);
+string lyir_module_print(lyir_module* module, bool use_color);
 
 // Type API
 
-const char* layec_type_kind_to_cstring(lyir_type_kind kind);
+const char* lyir_type_kind_to_cstring(lyir_type_kind kind);
 
-lyir_type_kind layec_type_get_kind(lyir_type* type);
+lyir_type_kind lyir_type_kind_get(lyir_type* type);
 
-lyir_type* layec_void_type(lyir_context* context);
-lyir_type* layec_ptr_type(lyir_context* context);
-lyir_type* layec_int_type(lyir_context* context, int bit_width);
-lyir_type* layec_float_type(lyir_context* context, int bit_width);
-lyir_type* layec_array_type(lyir_context* context, int64_t length, lyir_type* element_type);
-lyir_type* layec_function_type(
+lyir_type* lyir_void_type(lyir_context* context);
+lyir_type* lyir_ptr_type(lyir_context* context);
+lyir_type* lyir_int_type(lyir_context* context, int bit_width);
+lyir_type* lyir_float_type(lyir_context* context, int bit_width);
+lyir_type* lyir_array_type(lyir_context* context, int64_t length, lyir_type* element_type);
+lyir_type* lyir_function_type(
     lyir_context* context,
     lyir_type* return_type,
     dynarr(lyir_type*) parameter_types,
     lyir_calling_convention calling_convention,
     bool is_variadic
 );
-lyir_type* layec_struct_type(lyir_context* context, string_view name, dynarr(lyir_struct_member) members);
+lyir_type* lyir_struct_type(lyir_context* context, string_view name, dynarr(lyir_struct_member) members);
 
-bool layec_type_is_ptr(lyir_type* type);
-bool layec_type_is_void(lyir_type* type);
-bool layec_type_is_array(lyir_type* type);
-bool layec_type_is_function(lyir_type* type);
-bool layec_type_is_integer(lyir_type* type);
-bool layec_type_is_float(lyir_type* type);
-bool layec_type_is_struct(lyir_type* type);
+bool lyir_type_is_ptr(lyir_type* type);
+bool lyir_type_is_void(lyir_type* type);
+bool lyir_type_is_array(lyir_type* type);
+bool lyir_type_is_function(lyir_type* type);
+bool lyir_type_is_integer(lyir_type* type);
+bool lyir_type_is_float(lyir_type* type);
+bool lyir_type_is_struct(lyir_type* type);
 
-int layec_type_size_in_bits(lyir_type* type);
-int layec_type_size_in_bytes(lyir_type* type);
-int layec_type_align_in_bits(lyir_type* type);
-int layec_type_align_in_bytes(lyir_type* type);
+int lyir_type_size_in_bits(lyir_type* type);
+int lyir_type_size_in_bytes(lyir_type* type);
+int lyir_type_align_in_bits(lyir_type* type);
+int lyir_type_align_in_bytes(lyir_type* type);
 
-lyir_type* layec_type_element_type(lyir_type* type);
-int64_t layec_type_array_length(lyir_type* type);
+lyir_type* lyir_type_element_type_get(lyir_type* type);
+int64_t lyir_type_array_length_get(lyir_type* type);
 
-bool layec_type_struct_is_named(lyir_type* type);
-string_view layec_type_struct_name(lyir_type* type);
-int64_t layec_type_struct_member_count(lyir_type* type);
-lyir_struct_member layec_type_struct_get_member_at_index(lyir_type* type, int64_t index);
-lyir_type* layec_type_struct_get_member_type_at_index(lyir_type* type, int64_t index);
+bool lyir_type_struct_is_named(lyir_type* type);
+string_view lyir_type_struct_name_get(lyir_type* type);
+int64_t lyir_type_struct_member_count_get(lyir_type* type);
+lyir_struct_member lyir_type_struct_member_get_at_index(lyir_type* type, int64_t index);
+lyir_type* lyir_type_struct_member_type_get_at_index(lyir_type* type, int64_t index);
 
-void layec_type_print_to_string(lyir_type* type, string* s, bool use_color);
+void lyir_type_print_to_string(lyir_type* type, string* s, bool use_color);
 
 // - Function Type API
 
-int64_t layec_function_type_parameter_count(lyir_type* function_type);
-lyir_type* layec_function_type_get_parameter_type_at_index(lyir_type* function_type, int64_t parameter_index);
-bool layec_function_type_is_variadic(lyir_type* function_type);
-void layec_function_type_set_parameter_type_at_index(lyir_type* function_type, int64_t parameter_index, lyir_type* param_type);
+int64_t lyir_function_type_parameter_count_get(lyir_type* function_type);
+lyir_type* lyir_function_type_parameter_type_get_at_index(lyir_type* function_type, int64_t parameter_index);
+bool lyir_function_type_is_variadic(lyir_type* function_type);
+void lyir_function_type_parameter_type_set_at_index(lyir_type* function_type, int64_t parameter_index, lyir_type* param_type);
 
 // Value API
 
-const char* layec_value_kind_to_cstring(lyir_value_kind kind);
+const char* lyir_value_kind_to_cstring(lyir_value_kind kind);
 
-int64_t layec_value_get_user_count(lyir_value* value);
-lyir_value* layec_value_get_user_at_index(lyir_value* value, int64_t user_index);
+int64_t lyir_value_user_count_get(lyir_value* value);
+lyir_value* lyir_value_user_get_at_index(lyir_value* value, int64_t user_index);
 
-int64_t layec_value_integer_constant(lyir_value* value);
-double layec_value_float_constant(lyir_value* value);
+int64_t lyir_value_integer_constant_get(lyir_value* value);
+double lyir_value_float_constant_get(lyir_value* value);
 
-lyir_value_kind layec_value_get_kind(lyir_value* value);
-lyir_context* layec_value_context(lyir_value* value);
-lyir_location layec_value_location(lyir_value* value);
-lyir_linkage layec_value_linkage(lyir_value* value);
-lyir_type* layec_value_get_type(lyir_value* value);
-void layec_value_set_type(lyir_value* value, lyir_type* type);
-string_view layec_value_name(lyir_value* value);
-int64_t layec_value_index(lyir_value* value);
-bool layec_value_is_terminating_instruction(lyir_value* instruction);
+lyir_value_kind lyir_value_kind_get(lyir_value* value);
+lyir_context* lyir_value_context_get(lyir_value* value);
+lyir_location lyir_value_location_get(lyir_value* value);
+lyir_linkage lyir_value_linkage_get(lyir_value* value);
+lyir_type* lyir_value_type_get(lyir_value* value);
+void lyir_value_type_set(lyir_value* value, lyir_type* type);
+string_view lyir_value_name_get(lyir_value* value);
+int64_t lyir_value_index_get(lyir_value* value);
 
-bool layec_value_is_block(lyir_value* value);
-bool layec_value_is_function(lyir_value* value);
-bool layec_value_is_instruction(lyir_value* value);
+bool lyir_value_is_terminator(lyir_value* instruction);
+bool lyir_value_is_block(lyir_value* value);
+bool lyir_value_is_function(lyir_value* value);
+bool lyir_value_is_instruction(lyir_value* value);
 
-lyir_value* layec_void_constant(lyir_context* context);
-lyir_value* layec_int_constant(lyir_context* context, lyir_location location, lyir_type* type, int64_t value);
-lyir_value* layec_float_constant(lyir_context* context, lyir_location location, lyir_type* type, double value);
-lyir_value* layec_array_constant(lyir_context* context, lyir_location location, lyir_type* type, void* data, int64_t length, bool is_string_literal);
+lyir_value* lyir_void_constant_create(lyir_context* context);
+lyir_value* lyir_int_constant_create(lyir_context* context, lyir_location location, lyir_type* type, int64_t value);
+lyir_value* lyir_float_constant_create(lyir_context* context, lyir_location location, lyir_type* type, double value);
+lyir_value* lyir_array_constant_create(lyir_context* context, lyir_location location, lyir_type* type, void* data, int64_t length, bool is_string_literal);
 
-bool layec_array_constant_is_string(lyir_value* array_constant);
-int64_t layec_array_constant_length(lyir_value* array_constant);
-const char* layec_array_constant_data(lyir_value* array_constant);
+bool lyir_array_constant_is_string(lyir_value* array_constant);
+int64_t lyir_array_constant_length_get(lyir_value* array_constant);
+const char* lyir_array_constant_data_get(lyir_value* array_constant);
 
-void layec_value_print_to_string(lyir_value* value, string* s, bool print_type, bool use_color);
+void lyir_value_print_to_string(lyir_value* value, string* s, bool print_type, bool use_color);
 
 // - Function Value API
 
-string_view layec_function_name(lyir_value* function);
-lyir_type* layec_function_return_type(lyir_value* function);
-int64_t layec_function_block_count(lyir_value* function);
-lyir_value* layec_function_get_block_at_index(lyir_value* function, int64_t block_index);
-int64_t layec_function_parameter_count(lyir_value* function);
-lyir_value* layec_function_get_parameter_at_index(lyir_value* function, int64_t parameter_index);
-bool layec_function_is_variadic(lyir_value* function);
-void layec_function_set_parameter_type_at_index(lyir_value* function, int64_t parameter_index, lyir_type* param_type);
+string_view lyir_value_function_name_get(lyir_value* function);
+lyir_type* lyir_value_function_return_type_get(lyir_value* function);
+int64_t lyir_value_function_block_count_get(lyir_value* function);
+lyir_value* lyir_value_function_block_get_at_index(lyir_value* function, int64_t block_index);
+int64_t lyir_value_function_parameter_count_get(lyir_value* function);
+lyir_value* lyir_value_function_parameter_get_at_index(lyir_value* function, int64_t parameter_index);
+bool lyir_value_function_is_variadic(lyir_value* function);
+void lyir_value_function_parameter_type_set_at_index(lyir_value* function, int64_t parameter_index, lyir_type* param_type);
 
-lyir_value* layec_function_append_block(lyir_value* function, string_view name);
+lyir_value* lyir_value_function_block_append(lyir_value* function, string_view name);
 
 // - Block API
 
-bool layec_block_has_name(lyir_value* block);
-string_view layec_block_name(lyir_value* block);
-int64_t layec_block_index(lyir_value* block);
-int64_t layec_block_instruction_count(lyir_value* block);
-lyir_value* layec_block_get_instruction_at_index(lyir_value* block, int64_t instruction_index);
-bool layec_block_is_terminated(lyir_value* block);
+bool lyir_value_block_has_name(lyir_value* block);
+string_view lyir_value_block_name_get(lyir_value* block);
+int64_t lyir_value_block_index_get(lyir_value* block);
+int64_t lyir_value_block_instruction_count_get(lyir_value* block);
+lyir_value* lyir_value_block_instruction_get_at_index(lyir_value* block, int64_t instruction_index);
+bool lyir_value_block_is_terminated(lyir_value* block);
 
 // - Instruction API
 
-lyir_builtin_kind layec_instruction_builtin_kind(lyir_value* instruction);
+lyir_builtin_kind lyir_value_builtin_kind_get(lyir_value* instruction);
 
-bool layec_instruction_global_is_string(lyir_value* global);
+bool lyir_value_global_is_string(lyir_value* global);
 
-bool layec_instruction_return_has_value(lyir_value* _return);
-lyir_value* layec_instruction_return_value(lyir_value* _return);
+bool lyir_value_return_has_value(lyir_value* _return);
+lyir_value* lyir_value_return_value_get(lyir_value* _return);
 
-lyir_type* layec_instruction_get_alloca_type(lyir_value* alloca);
+lyir_type* lyir_value_alloca_type_get(lyir_value* alloca);
 
-lyir_value* layec_instruction_get_address(lyir_value* instruction);
-lyir_value* layec_instruction_get_operand(lyir_value* instruction);
-lyir_value* layec_instruction_binary_get_lhs(lyir_value* instruction);
-lyir_value* layec_instruction_binary_get_rhs(lyir_value* instruction);
-lyir_value* layec_instruction_get_value(lyir_value* instruction);
-lyir_value* layec_instruction_branch_get_pass(lyir_value* instruction);
-lyir_value* layec_instruction_branch_get_fail(lyir_value* instruction);
+lyir_value* lyir_value_address_get(lyir_value* instruction);
+lyir_value* lyir_value_operand_get(lyir_value* instruction);
+lyir_value* lyir_value_lhs_get(lyir_value* instruction);
+lyir_value* lyir_value_rhs_get(lyir_value* instruction);
+lyir_value* lyir_value_branch_pass_get(lyir_value* instruction);
+lyir_value* lyir_value_branch_fail_get(lyir_value* instruction);
 
-lyir_value* layec_instruction_callee(lyir_value* call);
-int64_t layec_instruction_call_argument_count(lyir_value* call);
-lyir_value* layec_instruction_call_get_argument_at_index(lyir_value* call, int64_t argument_index);
-void layec_instruction_call_set_arguments(lyir_value* call, dynarr(lyir_value*) arguments);
-int64_t layec_instruction_builtin_argument_count(lyir_value* builtin);
-lyir_value* layec_instruction_builtin_get_argument_at_index(lyir_value* builtin, int64_t argument_index);
+lyir_value* lyir_value_callee_get(lyir_value* call);
+int64_t lyir_value_call_argument_count_get(lyir_value* call);
+lyir_value* lyir_value_call_argument_get_at_index(lyir_value* call, int64_t argument_index);
+void lyir_value_call_arguments_set(lyir_value* call, dynarr(lyir_value*) arguments);
+int64_t lyir_value_builtin_argument_count_get(lyir_value* builtin);
+lyir_value* lyir_value_builtin_argument_set_at_index(lyir_value* builtin, int64_t argument_index);
 
-void layec_instruction_phi_add_incoming_value(lyir_value* phi, lyir_value* value, lyir_value* block);
-int64_t layec_instruction_phi_incoming_value_count(lyir_value* phi);
-lyir_value* layec_instruction_phi_incoming_value_at_index(lyir_value* phi, int64_t index);
-lyir_value* layec_instruction_phi_incoming_block_at_index(lyir_value* phi, int64_t index);
-
-lyir_value* layec_instruction_ptradd_get_address(lyir_value* ptradd);
-lyir_value* layec_instruction_ptradd_get_offset(lyir_value* ptradd);
+void lyir_value_phi_incoming_value_add(lyir_value* phi, lyir_value* value, lyir_value* block);
+int64_t lyir_value_phi_incoming_value_count_get(lyir_value* phi);
+lyir_value* lyir_phi_incoming_value_get_at_index(lyir_value* phi, int64_t index);
+lyir_value* lyir_phi_incoming_block_get_at_index(lyir_value* phi, int64_t index);
 
 // Builder API
 
-lyir_builder* layec_builder_create(lyir_context* context);
-void layec_builder_destroy(lyir_builder* builder);
-lyir_module* layec_builder_get_module(lyir_builder* builder);
-lyir_context* layec_builder_get_context(lyir_builder* builder);
-lyir_value* layec_builder_get_function(lyir_builder* builder);
+lyir_builder* lyir_builder_create(lyir_context* context);
+void lyir_builder_destroy(lyir_builder* builder);
+lyir_module* lyir_builder_module_get(lyir_builder* builder);
+lyir_context* lyir_builder_context_get(lyir_builder* builder);
+lyir_value* lyir_builder_function_get(lyir_builder* builder);
 
 // Unsets this builder's insert position, so no further insertions will be allowed
 // until another call to `layec_builder_position_*` is called.
-void layec_builder_reset(lyir_builder* builder);
-void layec_builder_position_before(lyir_builder* builder, lyir_value* instruction);
-void layec_builder_position_after(lyir_builder* builder, lyir_value* instruction);
-void layec_builder_position_at_end(lyir_builder* builder, lyir_value* block);
-lyir_value* layec_builder_get_insert_block(lyir_builder* builder);
-void layec_builder_insert(lyir_builder* builder, lyir_value* instruction);
-void layec_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, string_view name);
+void lyir_builder_reset(lyir_builder* builder);
+void lyir_builder_position_before(lyir_builder* builder, lyir_value* instruction);
+void lyir_builder_position_after(lyir_builder* builder, lyir_value* instruction);
+void lyir_builder_position_at_end(lyir_builder* builder, lyir_value* block);
+lyir_value* lyir_builder_insert_block_get(lyir_builder* builder);
+void lyir_builder_insert(lyir_builder* builder, lyir_value* instruction);
+void lyir_builder_insert_with_name(lyir_builder* builder, lyir_value* instruction, string_view name);
 
-lyir_value* layec_create_parameter(lyir_module* module, lyir_location location, lyir_type* type, string_view name, int64_t index);
+lyir_value* lyir_value_parameter_create(lyir_module* module, lyir_location location, lyir_type* type, string_view name, int64_t index);
 
 lyir_value* layec_build_nop(lyir_builder* builder, lyir_location location);
 lyir_value* layec_build_return(lyir_builder* builder, lyir_location location, lyir_value* value);
