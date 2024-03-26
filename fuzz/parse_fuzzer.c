@@ -10,14 +10,14 @@
 
 int LLVMFuzzerInitialize(int *argc, char ***argv) {
     lca_temp_allocator_init(default_allocator, 1024 * 1024);
-    layec_init_targets(default_allocator);
+    lyir_init_targets(default_allocator);
     return 0;
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     int exit_code = 0;
 
-    layec_context* context = layec_context_create(default_allocator);
+    lyir_context* context = lyir_context_create(default_allocator);
     context->use_color = false;
 
     string_view name = SV_CONSTANT("<fuzz-input>");
@@ -26,7 +26,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
         .count = (int64_t)Size,
     };
 
-    layec_sourceid sourceid = layec_context_get_or_add_source_from_string(
+    lyir_sourceid sourceid = lyir_context_get_or_add_source_from_string(
         context,
         string_view_to_string(default_allocator, name),
         string_view_to_string(default_allocator, data)
@@ -48,7 +48,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     }
 
 end_fuzz:;
-    layec_context_destroy(context);
+    lyir_context_destroy(context);
     lca_temp_allocator_clear();
 
     return exit_code;

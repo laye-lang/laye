@@ -123,11 +123,11 @@ void laye_module_destroy(laye_module* module) {
     lca_deallocate(allocator, module);
 }
 
-layec_source laye_module_get_source(laye_module* module) {
+lyir_source laye_module_get_source(laye_module* module) {
     assert(module != NULL);
     assert(module->context != NULL);
     assert(module->sourceid >= 0);
-    return layec_context_get_source(module->context, module->sourceid);
+    return lyir_context_get_source(module->context, module->sourceid);
 }
 
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent) {
@@ -179,7 +179,7 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, strin
                 (declaration->kind != LAYE_NODE_DECL_FUNCTION || existing_declaration->kind != LAYE_NODE_DECL_FUNCTION)
             ) {
                 assert(module->context != NULL);
-                layec_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", STR_EXPAND(alias));
+                lyir_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", STR_EXPAND(alias));
                 return;
             }
         }
@@ -216,7 +216,7 @@ laye_node* laye_scope_lookup_type(laye_scope* scope, string_view type_name) {
     return laye_scope_lookup_from(scope, scope->type_declarations, type_name);
 }
 
-laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_location location, laye_type type) {
+laye_node* laye_node_create(laye_module* module, laye_node_kind kind, lyir_location location, laye_type type) {
     assert(module != NULL);
     assert(module->arena != NULL);
     assert(module->context != NULL);
@@ -233,7 +233,7 @@ laye_node* laye_node_create(laye_module* module, laye_node_kind kind, layec_loca
     return node;
 }
 
-laye_node* laye_node_create_in_context(layec_context* context, laye_node_kind kind, laye_type type) {
+laye_node* laye_node_create_in_context(lyir_context* context, laye_node_kind kind, laye_type type) {
     assert(context != NULL);
     if (kind != LAYE_NODE_TYPE_TYPE) assert(type.node != NULL);
     laye_node* node = lca_allocate(context->allocator, sizeof *node);
@@ -348,32 +348,32 @@ void laye_node_destroy(laye_node* node) {
 
 void laye_node_set_sema_in_progress(laye_node* node) {
     assert(node != NULL);
-    node->sema_state = LAYEC_SEMA_IN_PROGRESS;
+    node->sema_state = LYIR_SEMA_IN_PROGRESS;
 }
 
 void laye_node_set_sema_errored(laye_node* node) {
     assert(node != NULL);
-    node->sema_state = LAYEC_SEMA_ERRORED;
+    node->sema_state = LYIR_SEMA_ERRORED;
 }
 
 void laye_node_set_sema_ok(laye_node* node) {
     assert(node != NULL);
-    node->sema_state = LAYEC_SEMA_OK;
+    node->sema_state = LYIR_SEMA_OK;
 }
 
 bool laye_node_is_sema_in_progress(laye_node* node) {
     assert(node != NULL);
-    return node->sema_state == LAYEC_SEMA_IN_PROGRESS;
+    return node->sema_state == LYIR_SEMA_IN_PROGRESS;
 }
 
 bool laye_node_is_sema_ok(laye_node* node) {
     assert(node != NULL);
-    return node->sema_state == LAYEC_SEMA_OK;
+    return node->sema_state == LYIR_SEMA_OK;
 }
 
 bool laye_node_is_sema_ok_or_errored(laye_node* node) {
     assert(node != NULL);
-    return node->sema_state == LAYEC_SEMA_OK || node->sema_state == LAYEC_SEMA_ERRORED;
+    return node->sema_state == LYIR_SEMA_OK || node->sema_state == LYIR_SEMA_ERRORED;
 }
 
 bool laye_node_has_noreturn_semantics(laye_node* node) {
@@ -385,7 +385,7 @@ bool laye_node_has_noreturn_semantics(laye_node* node) {
 bool laye_decl_is_exported(laye_node* decl) {
     assert(decl != NULL);
     assert(laye_node_is_decl(decl));
-    return decl->attributes.linkage == LAYEC_LINK_EXPORTED || decl->attributes.linkage == LAYEC_LINK_REEXPORTED;
+    return decl->attributes.linkage == LYIR_LINK_EXPORTED || decl->attributes.linkage == LYIR_LINK_REEXPORTED;
 }
 
 bool laye_decl_is_template(laye_node* decl) {
@@ -400,7 +400,7 @@ laye_type laye_expr_type(laye_node* expr) {
     return expr->type;
 }
 
-bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant, bool is_required) {
+bool laye_expr_evaluate(laye_node* expr, lyir_evaluated_constant* out_constant, bool is_required) {
     assert(expr != NULL);
     assert(out_constant != NULL);
     assert(!is_required || laye_node_is_sema_ok(expr) && "cannot evaluate ill-formed or unchecked expression");
@@ -419,31 +419,31 @@ bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant,
                 size_in_bytes = laye_type_size_in_bytes(query->type);
             }
 
-            out_constant->kind = LAYEC_EVAL_INT;
+            out_constant->kind = LYIR_EVAL_INT;
             out_constant->int_value = (int64_t)size_in_bytes;
             return true;
         }
 
         case LAYE_NODE_LITBOOL: {
-            out_constant->kind = LAYEC_EVAL_BOOL;
+            out_constant->kind = LYIR_EVAL_BOOL;
             out_constant->bool_value = expr->litbool.value;
             return true;
         }
 
         case LAYE_NODE_LITINT: {
-            out_constant->kind = LAYEC_EVAL_INT;
+            out_constant->kind = LYIR_EVAL_INT;
             out_constant->int_value = expr->litint.value;
             return true;
         }
 
         case LAYE_NODE_LITFLOAT: {
-            out_constant->kind = LAYEC_EVAL_FLOAT;
+            out_constant->kind = LYIR_EVAL_FLOAT;
             out_constant->float_value = expr->litfloat.value;
             return true;
         }
 
         case LAYE_NODE_LITSTRING: {
-            out_constant->kind = LAYEC_EVAL_STRING;
+            out_constant->kind = LYIR_EVAL_STRING;
             out_constant->string_value = expr->litstring.value;
             return true;
         }
@@ -462,18 +462,18 @@ bool laye_expr_evaluate(laye_node* expr, layec_evaluated_constant* out_constant,
 
 bool laye_expr_is_lvalue(laye_node* expr) {
     assert(expr != NULL);
-    return expr->value_category == LAYEC_LVALUE;
+    return expr->value_category == LYIR_LVALUE;
 }
 
 bool laye_expr_is_modifiable_lvalue(laye_node* expr) {
     assert(expr != NULL);
     assert(expr->type.node != NULL);
-    return expr->value_category == LAYEC_LVALUE && expr->type.is_modifiable;
+    return expr->value_category == LYIR_LVALUE && expr->type.is_modifiable;
 }
 
 void laye_expr_set_lvalue(laye_node* expr, bool is_lvalue) {
     assert(expr != NULL);
-    expr->value_category = is_lvalue ? LAYEC_LVALUE : LAYEC_RVALUE;
+    expr->value_category = is_lvalue ? LYIR_LVALUE : LYIR_RVALUE;
 }
 
 int align_padding(int bits, int align) {
@@ -494,7 +494,7 @@ int laye_type_size_in_bits(laye_type type) {
     assert(type.node != NULL);
     assert(type.node->context != NULL);
     assert(laye_node_is_type(type.node));
-    layec_context* context = type.node->context;
+    lyir_context* context = type.node->context;
 
     switch (type.node->kind) {
         default: {
@@ -531,7 +531,7 @@ int laye_type_size_in_bits(laye_type type) {
 
             for (int64_t i = 0, count = arr_count(type.node->type_container.length_values); i < count; i++) {
                 laye_node* length_value = type.node->type_container.length_values[i];
-                if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT && length_value->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
+                if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT && length_value->evaluated_constant.result.kind == LYIR_EVAL_INT) {
                     constant_value *= length_value->evaluated_constant.result.int_value;
                 }
             }
@@ -564,7 +564,7 @@ int laye_type_align_in_bytes(laye_type type) {
     assert(type.node != NULL);
     assert(laye_node_is_type(type.node));
     assert(type.node->context != NULL);
-    layec_context* context = type.node->context;
+    lyir_context* context = type.node->context;
 
     switch (type.node->kind) {
         default: return 1;
@@ -821,12 +821,12 @@ bool laye_node_is_type(laye_node* node) {
 
 bool laye_node_is_lvalue(laye_node* node) {
     assert(node != NULL);
-    return node->value_category == LAYEC_LVALUE;
+    return node->value_category == LYIR_LVALUE;
 }
 
 bool laye_node_is_rvalue(laye_node* node) {
     assert(node != NULL);
-    return node->value_category == LAYEC_RVALUE;
+    return node->value_category == LYIR_RVALUE;
 }
 
 bool laye_node_is_modifiable_lvalue(laye_node* node) {
@@ -1005,12 +1005,12 @@ bool laye_type_equals(laye_type a_type, laye_type b_type, laye_mut_compare mut_c
                     return false;
 
                 // we don't want to consider erroneous evaluations, only integers are allowed
-                if (a_expr->evaluated_constant.result.kind != LAYEC_EVAL_INT)
+                if (a_expr->evaluated_constant.result.kind != LYIR_EVAL_INT)
                     return false;
-                if (b_expr->evaluated_constant.result.kind != LAYEC_EVAL_INT)
+                if (b_expr->evaluated_constant.result.kind != LYIR_EVAL_INT)
                     return false;
 
-                if (!layec_evaluated_constant_equals(a_expr->evaluated_constant.result, b_expr->evaluated_constant.result))
+                if (!lyir_evaluated_constant_equals(a_expr->evaluated_constant.result, b_expr->evaluated_constant.result))
                     return false;
             }
 

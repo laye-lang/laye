@@ -48,20 +48,20 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // TODO(local): remove this, very soonly
 #include "laye.h"
 
-void layec_type_destroy(layec_type* type);
-void layec_value_destroy(layec_value* value);
+void layec_type_destroy(lyir_type* type);
+void layec_value_destroy(lyir_value* value);
 
-layec_target_info* layec_default_target;
-layec_target_info* layec_x86_64_linux;
-layec_target_info* layec_x86_64_windows;
+lyir_target_info* lyir_default_target;
+lyir_target_info* lyir_x86_64_linux;
+lyir_target_info* lyir_x86_64_windows;
 
-void layec_init_targets(lca_allocator allocator) {
-    layec_x86_64_linux = lca_allocate(allocator, sizeof(layec_target_info));
-    layec_x86_64_windows = lca_allocate(allocator, sizeof(layec_target_info));
+void lyir_init_targets(lca_allocator allocator) {
+    lyir_x86_64_linux = lca_allocate(allocator, sizeof(lyir_target_info));
+    lyir_x86_64_windows = lca_allocate(allocator, sizeof(lyir_target_info));
 
-    assert(layec_x86_64_linux != NULL);
-    *layec_x86_64_linux = (layec_target_info) {
-        .c = {
+    assert(lyir_x86_64_linux != NULL);
+    *lyir_x86_64_linux = (lyir_target_info) {
+        .ffi = {
             .size_of_bool = 8,
             .size_of_char = 8,
             .size_of_short = 16,
@@ -83,37 +83,27 @@ void layec_init_targets(lca_allocator allocator) {
             .char_is_signed = true,
         },
 
-        .laye = {
-            .size_of_bool = 8,
-            .size_of_int = 64,
-            .size_of_float = 64,
-
-            .align_of_bool = 8,
-            .align_of_int = 64,
-            .align_of_float = 64,
-        },
-
         .size_of_pointer = 64,
         .align_of_pointer = 64,
     };
 
-    assert(layec_x86_64_windows != NULL);
-    memcpy(layec_x86_64_windows, layec_x86_64_linux, sizeof(layec_target_info));
-    layec_x86_64_windows->c.size_of_long = 32;
-    layec_x86_64_windows->c.align_of_long = 32;
+    assert(lyir_x86_64_windows != NULL);
+    memcpy(lyir_x86_64_windows, lyir_x86_64_linux, sizeof(lyir_target_info));
+    lyir_x86_64_windows->ffi.size_of_long = 32;
+    lyir_x86_64_windows->ffi.align_of_long = 32;
 
-    layec_default_target = layec_x86_64_linux;
+    lyir_default_target = lyir_x86_64_linux;
 
-    assert(layec_default_target != NULL);
+    assert(lyir_default_target != NULL);
 }
 
-layec_context* layec_context_create(lca_allocator allocator) {
-    layec_context* context = lca_allocate(allocator, sizeof *context);
+lyir_context* lyir_context_create(lca_allocator allocator) {
+    lyir_context* context = lca_allocate(allocator, sizeof *context);
     assert(context != NULL);
 
     context->allocator = allocator;
 
-    context->target = layec_default_target;
+    context->target = lyir_default_target;
     assert(context->target != NULL);
 
     context->max_interned_string_size = 1024 * 1024;
@@ -124,65 +114,67 @@ layec_context* layec_context_create(lca_allocator allocator) {
     context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, (laye_type){0});
     assert(context->laye_types.type != NULL);
     context->laye_types.type->type = LTY(context->laye_types.type);
-    context->laye_types.type->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.type->sema_state = LYIR_SEMA_OK;
 
     context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, LTY(context->laye_types.type));
     assert(context->laye_types.poison != NULL);
-    context->laye_types.poison->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.poison->sema_state = LYIR_SEMA_OK;
 
     context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, LTY(context->laye_types.type));
     assert(context->laye_types.unknown != NULL);
-    context->laye_types.unknown->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.unknown->sema_state = LYIR_SEMA_OK;
 
     context->laye_types.var = laye_node_create_in_context(context, LAYE_NODE_TYPE_VAR, LTY(context->laye_types.type));
     assert(context->laye_types.var != NULL);
-    context->laye_types.var->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.var->sema_state = LYIR_SEMA_OK;
 
     context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, LTY(context->laye_types.type));
     assert(context->laye_types._void != NULL);
-    context->laye_types._void->sema_state = LAYEC_SEMA_OK;
+    context->laye_types._void->sema_state = LYIR_SEMA_OK;
 
     context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, LTY(context->laye_types.type));
     assert(context->laye_types.noreturn != NULL);
-    context->laye_types.noreturn->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.noreturn->sema_state = LYIR_SEMA_OK;
 
     context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, LTY(context->laye_types.type));
     assert(context->laye_types._bool != NULL);
-    context->laye_types._bool->type_primitive.bit_width = context->target->laye.size_of_bool;
-    context->laye_types._bool->sema_state = LAYEC_SEMA_OK;
+    context->laye_types._bool->type_primitive.bit_width = 8;
+    context->laye_types._bool->sema_state = LYIR_SEMA_OK;
 
     context->laye_types.i8 = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types.i8 != NULL);
-    context->laye_types.i8->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.i8->sema_state = LYIR_SEMA_OK;
     context->laye_types.i8->type_primitive.bit_width = 8;
     context->laye_types.i8->type_primitive.is_signed = true;
 
     context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types._int != NULL);
-    context->laye_types._int->sema_state = LAYEC_SEMA_OK;
+    context->laye_types._int->sema_state = LYIR_SEMA_OK;
     context->laye_types._int->type_primitive.is_platform_specified = true;
-    context->laye_types._int->type_primitive.bit_width = context->target->laye.size_of_int;
+    context->laye_types._int->type_primitive.bit_width = context->target->size_of_pointer;
     context->laye_types._int->type_primitive.is_signed = true;
 
     context->laye_types._uint = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
     assert(context->laye_types._uint != NULL);
-    context->laye_types._uint->sema_state = LAYEC_SEMA_OK;
+    context->laye_types._uint->sema_state = LYIR_SEMA_OK;
     context->laye_types._uint->type_primitive.is_platform_specified = true;
-    context->laye_types._uint->type_primitive.bit_width = context->target->laye.size_of_int;
+    context->laye_types._uint->type_primitive.bit_width = context->target->size_of_pointer;
     context->laye_types._uint->type_primitive.is_signed = false;
 
+    // TODO(local): remove the generic `float` type from Laye
     context->laye_types._float = laye_node_create_in_context(context, LAYE_NODE_TYPE_FLOAT, LTY(context->laye_types.type));
     assert(context->laye_types._float != NULL);
     context->laye_types._float->type_primitive.is_platform_specified = true;
-    context->laye_types._float->type_primitive.bit_width = context->target->laye.size_of_float;
-    context->laye_types._float->sema_state = LAYEC_SEMA_OK;
+    context->laye_types._float->type_primitive.bit_width = 64;
+    context->laye_types._float->sema_state = LYIR_SEMA_OK;
+    // TODO(local): remove the generic `float` type from Laye
 
     context->laye_types.i8_buffer = laye_node_create_in_context(context, LAYE_NODE_TYPE_BUFFER, LTY(context->laye_types.type));
     assert(context->laye_types.i8_buffer != NULL);
     context->laye_types.i8_buffer->type_container.element_type = LTY(context->laye_types.i8);
-    context->laye_types.i8_buffer->sema_state = LAYEC_SEMA_OK;
+    context->laye_types.i8_buffer->sema_state = LYIR_SEMA_OK;
 
-    context->laye_dependencies = layec_dependency_graph_create_in_context(context);
+    context->laye_dependencies = lyir_dependency_graph_create_in_context(context);
     assert(context->laye_dependencies != NULL);
 
     context->type_arena = lca_arena_create(allocator, 1024 * 1024);
@@ -191,13 +183,13 @@ layec_context* layec_context_create(lca_allocator allocator) {
     return context;
 }
 
-void layec_context_destroy(layec_context* context) {
+void lyir_context_destroy(lyir_context* context) {
     if (context == NULL) return;
 
     lca_allocator allocator = context->allocator;
 
     for (int64_t i = 0, count = arr_count(context->sources); i < count; i++) {
-        layec_source* source = &context->sources[i];
+        lyir_source* source = &context->sources[i];
         string_destroy(&source->name);
         string_destroy(&source->text);
     }
@@ -243,7 +235,7 @@ void layec_context_destroy(layec_context* context) {
     lca_deallocate(allocator, context->laye_types.i8_buffer);
 
     for (int64_t i = 0, count = arr_count(context->_all_depgraphs); i < count; i++) {
-        layec_dependency_graph_destroy(context->_all_depgraphs[i]);
+        lyir_dependency_graph_destroy(context->_all_depgraphs[i]);
     }
 
     arr_free(context->_all_depgraphs);
@@ -264,7 +256,7 @@ void layec_context_destroy(layec_context* context) {
 
     arr_free(context->_all_values);
 
-    *context = (layec_context){0};
+    *context = (lyir_context){0};
     lca_deallocate(allocator, context);
 }
 
@@ -287,10 +279,10 @@ static int read_file_to_string(lca_allocator allocator, string file_path, string
     return 0;
 }
 
-layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context, string_view file_path) {
+lyir_sourceid lyir_context_get_or_add_source_from_file(lyir_context* context, string_view file_path) {
     assert(context != NULL);
 
-    layec_sourceid sourceid = 0;
+    lyir_sourceid sourceid = 0;
     for (; sourceid < arr_count(context->sources); sourceid++) {
         if (string_view_equals(string_as_view(context->sources[sourceid].name), file_path))
             return sourceid;
@@ -308,14 +300,14 @@ layec_sourceid layec_context_get_or_add_source_from_file(layec_context* context,
         return -1;
     }
 
-    return layec_context_get_or_add_source_from_string(context, file_path_owned, text);
+    return lyir_context_get_or_add_source_from_string(context, file_path_owned, text);
 }
 
-layec_sourceid layec_context_get_or_add_source_from_string(layec_context* context, string name, string source_text) {
+lyir_sourceid lyir_context_get_or_add_source_from_string(lyir_context* context, string name, string source_text) {
     assert(context != NULL);
 
-    layec_sourceid sourceid = arr_count(context->sources);
-    layec_source source = {
+    lyir_sourceid sourceid = arr_count(context->sources);
+    lyir_source source = {
         .name = name,
         .text = source_text,
     };
@@ -324,18 +316,18 @@ layec_sourceid layec_context_get_or_add_source_from_string(layec_context* contex
     return sourceid;
 }
 
-layec_source layec_context_get_source(layec_context* context, layec_sourceid sourceid) {
+lyir_source lyir_context_get_source(lyir_context* context, lyir_sourceid sourceid) {
     assert(context != NULL);
     assert(sourceid >= 0 && sourceid < arr_count(context->sources));
     return context->sources[sourceid];
 }
 
-bool layec_context_get_location_info(layec_context* context, layec_location location, string_view* out_name, int64_t* out_line, int64_t* out_column) {
+bool lyir_context_get_location_info(lyir_context* context, lyir_location location, string_view* out_name, int64_t* out_line, int64_t* out_column) {
     assert(context != NULL);
 
     if (location.offset < 0) return false;
 
-    layec_source source = layec_context_get_source(context, location.sourceid);
+    lyir_source source = lyir_context_get_source(context, location.sourceid);
     if (out_name != NULL) *out_name = string_as_view(source.name);
 
     if (location.offset >= source.text.count) return false;
@@ -360,10 +352,10 @@ bool layec_context_get_location_info(layec_context* context, layec_location loca
     return true;
 }
 
-void layec_context_print_location_info(layec_context* context, layec_location location, layec_status status, FILE* stream, bool use_color) {
+void lyir_context_print_location_info(lyir_context* context, lyir_location location, lyir_status status, FILE* stream, bool use_color) {
     assert(context != NULL);
 
-    layec_source source = layec_context_get_source(context, location.sourceid);
+    lyir_source source = lyir_context_get_source(context, location.sourceid);
     string_view name = string_as_view(source.name);
 
     const char* col = "";
@@ -371,12 +363,12 @@ void layec_context_print_location_info(layec_context* context, layec_location lo
 
     switch (status) {
         default: break;
-        case LAYEC_INFO: col = COL(CYAN); status_string = "Info:"; break;
-        case LAYEC_NOTE: col = COL(BRIGHT_GREEN); status_string = "Note:"; break;
-        case LAYEC_WARN: col = COL(YELLOW); status_string = "Warning:"; break;
-        case LAYEC_ERROR: col = COL(RED); status_string = "Error:"; break;
-        case LAYEC_FATAL: col = COL(BRIGHT_RED); status_string = "Fatal:"; break;
-        case LAYEC_ICE: col = COL(MAGENTA); status_string = "Internal Compiler Exception:"; break;
+        case LYIR_INFO: col = COL(CYAN); status_string = "Info:"; break;
+        case LYIR_NOTE: col = COL(BRIGHT_GREEN); status_string = "Note:"; break;
+        case LYIR_WARN: col = COL(YELLOW); status_string = "Warning:"; break;
+        case LYIR_ERROR: col = COL(RED); status_string = "Error:"; break;
+        case LYIR_FATAL: col = COL(BRIGHT_RED); status_string = "Fatal:"; break;
+        case LYIR_ICE: col = COL(MAGENTA); status_string = "Internal Compiler Exception:"; break;
     }
 
     fprintf(stream, "%.*s", STR_EXPAND(name));
@@ -385,7 +377,7 @@ void layec_context_print_location_info(layec_context* context, layec_location lo
         fprintf(stream, "[%ld]", location.offset);
     } else {
         int64_t line = 0, column = 0;
-        if (layec_context_get_location_info(context, location, &name, &line, &column)) {
+        if (lyir_context_get_location_info(context, location, &name, &line, &column)) {
             fprintf(stream, "(%ld, %ld)", line, column);
         } else {
             fprintf(stream, "(0, 0)");
@@ -401,94 +393,94 @@ void layec_context_print_location_info(layec_context* context, layec_location lo
     string message = string_vformat(format, v); \
     va_end(v)
 
-layec_diag layec_info(layec_context* context, layec_location location, const char* format, ...) {
+lyir_diag lyir_info(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    return (layec_diag) {
+    return (lyir_diag) {
         .location = location,
-        .status = LAYEC_INFO,
+        .status = LYIR_INFO,
         .message = message
     };
 }
 
-layec_diag layec_note(layec_context* context, layec_location location, const char* format, ...) {
+lyir_diag lyir_note(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    return (layec_diag) {
+    return (lyir_diag) {
         .location = location,
-        .status = LAYEC_NOTE,
+        .status = LYIR_NOTE,
         .message = message
     };
 }
 
-layec_diag layec_warn(layec_context* context, layec_location location, const char* format, ...) {
+lyir_diag lyir_warn(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    return (layec_diag) {
+    return (lyir_diag) {
         .location = location,
-        .status = LAYEC_WARN,
+        .status = LYIR_WARN,
         .message = message
     };
 }
 
-layec_diag layec_error(layec_context* context, layec_location location, const char* format, ...) {
+lyir_diag lyir_error(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    return (layec_diag) {
+    return (lyir_diag) {
         .location = location,
-        .status = LAYEC_ERROR,
+        .status = LYIR_ERROR,
         .message = message
     };
 }
 
-layec_diag layec_ice(layec_context* context, layec_location location, const char* format, ...) {
+lyir_diag lyir_ice(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    return (layec_diag) {
+    return (lyir_diag) {
         .location = location,
-        .status = LAYEC_ICE,
+        .status = LYIR_ICE,
         .message = message
     };
 }
 
-void layec_write_diag(layec_context* context, layec_diag diag) {
-    layec_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
+void lyir_write_diag(lyir_context* context, lyir_diag diag) {
+    lyir_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(diag.message));
-    if (diag.status == LAYEC_ERROR || diag.status == LAYEC_FATAL || diag.status == LAYEC_ICE) {
+    if (diag.status == LYIR_ERROR || diag.status == LYIR_FATAL || diag.status == LYIR_ICE) {
         context->has_reported_errors = true;
     }
 }
 
-void layec_write_info(layec_context* context, layec_location location, const char* format, ...) {
+void lyir_write_info(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    layec_context_print_location_info(context, location, LAYEC_INFO, stderr, context->use_color);
+    lyir_context_print_location_info(context, location, LYIR_INFO, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
 }
 
-void layec_write_note(layec_context* context, layec_location location, const char* format, ...) {
+void lyir_write_note(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    layec_context_print_location_info(context, location, LAYEC_NOTE, stderr, context->use_color);
+    lyir_context_print_location_info(context, location, LYIR_NOTE, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
 }
 
-void layec_write_warn(layec_context* context, layec_location location, const char* format, ...) {
+void lyir_write_warn(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    layec_context_print_location_info(context, location, LAYEC_WARN, stderr, context->use_color);
+    lyir_context_print_location_info(context, location, LYIR_WARN, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
 }
 
-void layec_write_error(layec_context* context, layec_location location, const char* format, ...) {
+void lyir_write_error(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    layec_context_print_location_info(context, location, LAYEC_ERROR, stderr, context->use_color);
+    lyir_context_print_location_info(context, location, LYIR_ERROR, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 
-void layec_write_ice(layec_context* context, layec_location location, const char* format, ...) {
+void lyir_write_ice(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    layec_context_print_location_info(context, location, LAYEC_ICE, stderr, context->use_color);
+    lyir_context_print_location_info(context, location, LYIR_ICE, stderr, context->use_color);
     fprintf(stderr, " %.*s\n", STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 
 #undef GET_MESSAGE
 
-string_view layec_context_intern_string_view(layec_context* context, string_view s) {
+string_view lyir_context_intern_string_view(lyir_context* context, string_view s) {
     if (s.count + 1 > context->max_interned_string_size) {
         string allocated_string = string_view_to_string(context->allocator, s);
         arr_push(context->allocated_strings, allocated_string);

@@ -53,7 +53,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define COL_CONST   BLUE
 
 typedef struct laye_print_context {
-    layec_context* context;
+    lyir_context* context;
     laye_module* module;
     bool use_color;
     string* indents;
@@ -118,7 +118,7 @@ string laye_module_debug_print(laye_module* module) {
     };
 
     bool use_color = print_context.use_color;
-    string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(layec_context_get_source(module->context, module->sourceid).name), COL(RESET));
+    string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), STR_EXPAND(lyir_context_get_source(module->context, module->sourceid).name), COL(RESET));
     string_append_format(print_context.output, "%s; %016llX%s\n", COL(COL_COMMENT), (size_t)module, COL(RESET));
     if (module->imports != NULL) {
         //string_append_format(print_context.output, "%s; Imports:\n", COL(COL_COMMENT));
@@ -162,7 +162,7 @@ static void laye_node_debug_print_children(laye_print_context* print_context, dy
     }
 }
 
-void laye_constant_print_to_string(layec_evaluated_constant constant, string* s, bool use_color);
+void laye_constant_print_to_string(lyir_evaluated_constant constant, string* s, bool use_color);
 void laye_nameref_print_to_string(laye_nameref nameref, string* s, bool use_color);
 
 static void laye_node_debug_print(laye_print_context* print_context, laye_node* node) {
@@ -191,23 +191,23 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
     if (laye_node_is_decl(node)) {
         string_append_format(print_context->output, "%s", COL(COL_NODE));
         switch (node->attributes.linkage) {
-            case LAYEC_LINK_LOCAL: lca_string_append_format(print_context->output, " LOCAL"); break;
-            case LAYEC_LINK_INTERNAL: lca_string_append_format(print_context->output, " INTERNAL"); break;
-            case LAYEC_LINK_IMPORTED: lca_string_append_format(print_context->output, " IMPORTED"); break;
-            case LAYEC_LINK_EXPORTED: lca_string_append_format(print_context->output, " EXPORTED"); break;
-            case LAYEC_LINK_REEXPORTED: lca_string_append_format(print_context->output, " REEXPORTED"); break;
+            case LYIR_LINK_LOCAL: lca_string_append_format(print_context->output, " LOCAL"); break;
+            case LYIR_LINK_INTERNAL: lca_string_append_format(print_context->output, " INTERNAL"); break;
+            case LYIR_LINK_IMPORTED: lca_string_append_format(print_context->output, " IMPORTED"); break;
+            case LYIR_LINK_EXPORTED: lca_string_append_format(print_context->output, " EXPORTED"); break;
+            case LYIR_LINK_REEXPORTED: lca_string_append_format(print_context->output, " REEXPORTED"); break;
         }
 
         switch (node->attributes.calling_convention) {
-            case LAYEC_DEFAULTCC: break;
-            case LAYEC_CCC: lca_string_append_format(print_context->output, " CCC"); break;
-            case LAYEC_LAYECC: lca_string_append_format(print_context->output, " LAYECC"); break;
+            case LYIR_DEFAULTCC: break;
+            case LYIR_CCC: lca_string_append_format(print_context->output, " CCC"); break;
+            case LYIR_LAYECC: lca_string_append_format(print_context->output, " LAYECC"); break;
         }
 
         switch (node->attributes.mangling) {
-            case LAYEC_MANGLE_DEFAULT: break;
-            case LAYEC_MANGLE_NONE: lca_string_append_format(print_context->output, " NO_MANGLE"); break;
-            case LAYEC_MANGLE_LAYE: lca_string_append_format(print_context->output, " LAYE_MANGLE"); break;
+            case LYIR_MANGLE_DEFAULT: break;
+            case LYIR_MANGLE_NONE: lca_string_append_format(print_context->output, " NO_MANGLE"); break;
+            case LYIR_MANGLE_LAYE: lca_string_append_format(print_context->output, " LAYE_MANGLE"); break;
         }
 
         if (node->attributes.is_discardable) {
@@ -237,7 +237,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         default: break;
 
         case LAYE_NODE_DECL_IMPORT: {
-            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(
                 print_context->output,
                 " %s%.*s",
@@ -312,7 +312,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_DECL_TEST: {
-            layec_source source = layec_context_get_source(print_context->context, node->decl_test.description.location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->decl_test.description.location.sourceid);
             if (node->decl_test.is_named) {
                 lca_string_append_format(print_context->output, " ");
                 laye_nameref_print_to_string(node->decl_test.nameref, print_context->output, use_color);
@@ -488,7 +488,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_ASSERT: {
             if (node->_assert.message.kind != LAYE_TOKEN_INVALID) {
-                layec_source source = layec_context_get_source(print_context->context, node->_assert.message.location.sourceid);
+                lyir_source source = lyir_context_get_source(print_context->context, node->_assert.message.location.sourceid);
                 string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->_assert.message.location.length, source.text.data + node->_assert.message.location.offset);
             }
 
@@ -506,7 +506,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             assert(node->evaluated_constant.expr != NULL);
             arr_push(children, node->evaluated_constant.expr);
 
-            if (node->evaluated_constant.result.kind == LAYEC_EVAL_INT) {
+            if (node->evaluated_constant.result.kind == LYIR_EVAL_INT) {
                 string_append_format(print_context->output, " %s%lld", COL(COL_CONST), node->evaluated_constant.result.int_value);
             }
         } break;
@@ -555,7 +555,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         case LAYE_NODE_UNARY: {
             arr_push(children, node->unary.operand);
 
-            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->unary.operator.location.length, source.text.data + node->unary.operator.location.offset);
         } break;
 
@@ -563,7 +563,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             arr_push(children, node->binary.lhs);
             arr_push(children, node->binary.rhs);
 
-            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->binary.operator.location.length, source.text.data + node->binary.operator.location.offset);
         } break;
 
@@ -571,7 +571,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             arr_push(children, node->assignment.lhs);
             arr_push(children, node->assignment.rhs);
 
-            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->location.length, source.text.data + node->location.offset);
         } break;
 
@@ -589,7 +589,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_LITSTRING: {
-            layec_source source = layec_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
             string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->location.length, source.text.data + node->location.offset);
         } break;
     }
@@ -646,21 +646,21 @@ void laye_nameref_print_to_string(laye_nameref nameref, string* s, bool use_colo
     }
 }
 
-void laye_constant_print_to_string(layec_evaluated_constant constant, string* s, bool use_color) {
+void laye_constant_print_to_string(lyir_evaluated_constant constant, string* s, bool use_color) {
     assert(s != NULL);
 
     switch (constant.kind) {
         default: assert(false && "unreachable"); break;
 
-        case LAYEC_EVAL_NULL: {
+        case LYIR_EVAL_NULL: {
             string_append_format(s, "%snil", COL(COL_CONST));
         } break;
 
-        case LAYEC_EVAL_VOID: {
+        case LYIR_EVAL_VOID: {
             string_append_format(s, "%svoid", COL(COL_CONST));
         } break;
 
-        case LAYEC_EVAL_BOOL: {
+        case LYIR_EVAL_BOOL: {
             if (constant.bool_value) {
                 string_append_format(s, "%strue", COL(COL_CONST));
             } else {
@@ -668,15 +668,15 @@ void laye_constant_print_to_string(layec_evaluated_constant constant, string* s,
             }
         } break;
 
-        case LAYEC_EVAL_INT: {
+        case LYIR_EVAL_INT: {
             string_append_format(s, "%s%lld", COL(COL_CONST), constant.int_value);
         } break;
 
-        case LAYEC_EVAL_FLOAT: {
+        case LYIR_EVAL_FLOAT: {
             string_append_format(s, "%s%f", COL(COL_CONST), constant.float_value);
         } break;
 
-        case LAYEC_EVAL_STRING: {
+        case LYIR_EVAL_STRING: {
             string_append_format(s, "%s\"%.*s\"", COL(COL_CONST), STR_EXPAND(constant.string_value));
         } break;
     }
@@ -833,18 +833,18 @@ void laye_type_print_to_string(laye_type type, string* s, bool use_color) {
                 assert(length_value != NULL);
 
                 if (length_value->kind == LAYE_NODE_EVALUATED_CONSTANT) {
-                    layec_evaluated_constant constant = length_value->evaluated_constant.result;
+                    lyir_evaluated_constant constant = length_value->evaluated_constant.result;
                     switch (constant.kind) {
                         default: {
                             // fprintf(stderr, "unimplemented evaluated constant kind %s\n", laye_node_kind_to_cstring(type.node->kind));
                             assert(false && "unreachable");
                         } break;
 
-                        case LAYEC_EVAL_INT: {
+                        case LYIR_EVAL_INT: {
                             string_append_format(s, "%s%lld", COL(COL_CONST), constant.int_value);
                         } break;
 
-                        case LAYEC_EVAL_FLOAT: {
+                        case LYIR_EVAL_FLOAT: {
                             string_append_format(s, "%s%f", COL(COL_CONST), constant.float_value);
                         } break;
                     }

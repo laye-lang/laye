@@ -56,15 +56,15 @@ typedef enum layec_cabi_class {
     LAYEC_CABI_MEMORY,
 } layec_cabi_class;
 
-static void layec_abi_transform_function_declaration(layec_module* module, layec_value* function);
-static void layec_abi_transform_callsites(layec_module* module, layec_value* function, layec_builder* builder);
+static void layec_abi_transform_function_declaration(lyir_module* module, lyir_value* function);
+static void layec_abi_transform_callsites(lyir_module* module, lyir_value* function, lyir_builder* builder);
 
-void layec_irpass_fix_abi(layec_module* module) {
+void layec_irpass_fix_abi(lyir_module* module) {
     assert(module != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
 
-    layec_builder* builder = layec_builder_create(context);
+    lyir_builder* builder = layec_builder_create(context);
 
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         layec_abi_transform_function_declaration(module, layec_module_get_function_at_index(module, i));
@@ -113,7 +113,7 @@ static void post_merge(int64_t bit_width, layec_cabi_class* lo, layec_cabi_class
 }
 
 static void classify(
-    layec_type* param_type,
+    lyir_type* param_type,
     int64_t offset_base,
     layec_cabi_class* lo,
     layec_cabi_class* hi
@@ -182,8 +182,8 @@ static void classify(
 
         int64_t field_count = layec_type_struct_member_count(param_type);
         for (int64_t field_index = 0, current_offset = offset_base; field_index < field_count; field_index++) {
-            layec_struct_member field = layec_type_struct_get_member_at_index(param_type, field_index);
-            layec_type* field_type = field.type;
+            lyir_struct_member field = layec_type_struct_get_member_at_index(param_type, field_index);
+            lyir_type* field_type = field.type;
 
             int64_t field_offset = current_offset;
             current_offset += layec_type_size_in_bits(field_type);
@@ -209,20 +209,20 @@ static void classify(
     }
 }
 
-static void layec_abi_transform_function_declaration(layec_module* module, layec_value* function) {
+static void layec_abi_transform_function_declaration(lyir_module* module, lyir_value* function) {
     assert(module != NULL);
     assert(function != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
 
     int64_t int_registers_used = 0;
     int64_t float_registers_used = 0;
 
     for (int64_t param_index = 0, param_count = layec_function_parameter_count(function); param_index < param_count; param_index++) {
-        layec_value* param = layec_function_get_parameter_at_index(function, param_index);
+        lyir_value* param = layec_function_get_parameter_at_index(function, param_index);
         assert(param != NULL);
 
-        layec_type* param_type = layec_value_get_type(param);
+        lyir_type* param_type = layec_value_get_type(param);
         assert(param_type != NULL);
 
         int64_t param_type_bit_width = layec_type_size_in_bits(param_type);
@@ -236,33 +236,33 @@ static void layec_abi_transform_function_declaration(layec_module* module, layec
         if (layec_type_is_struct(param_type)) {
             if (param_lo == LAYEC_CABI_INTEGER && param_hi == LAYEC_CABI_NO_CLASS) {
                 assert(param_type_bit_width <= 64);
-                layec_type* new_type = layec_int_type(context, param_type_bit_width);
+                lyir_type* new_type = layec_int_type(context, param_type_bit_width);
                 layec_function_set_parameter_type_at_index(function, param_index, new_type);
             } else if (param_lo == LAYEC_CABI_SSE && param_hi == LAYEC_CABI_NO_CLASS) {
                 assert(param_type_bit_width == 16 || param_type_bit_width == 32 || param_type_bit_width == 64);
-                layec_type* new_type = layec_float_type(context, param_type_bit_width);
+                lyir_type* new_type = layec_float_type(context, param_type_bit_width);
                 layec_function_set_parameter_type_at_index(function, param_index, new_type);
             }
         }
     }
 }
 
-static void layec_abi_transform_call(layec_module* module, layec_value* function, layec_builder* builder, layec_value* call) {
+static void layec_abi_transform_call(lyir_module* module, lyir_value* function, lyir_builder* builder, lyir_value* call) {
     assert(module != NULL);
     assert(function != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
     assert(builder != NULL);
     assert(call != NULL);
-    assert(layec_value_get_kind(call) == LAYEC_IR_CALL);
+    assert(layec_value_get_kind(call) == LYIR_IR_CALL);
 
     layec_builder_position_before(builder, call);
 
     for (int64_t i = 0; i < layec_instruction_call_argument_count(call); i++) {
-        layec_value* arg = layec_instruction_call_get_argument_at_index(call, i);
+        lyir_value* arg = layec_instruction_call_get_argument_at_index(call, i);
         assert(arg != NULL);
 
-        layec_type* arg_type = layec_value_get_type(arg);
+        lyir_type* arg_type = layec_value_get_type(arg);
         assert(arg_type != NULL);
 
         int64_t arg_type_bit_width = layec_type_size_in_bits(arg_type);
@@ -276,9 +276,9 @@ static void layec_abi_transform_call(layec_module* module, layec_value* function
         if (layec_type_is_struct(arg_type)) {
             if (arg_lo == LAYEC_CABI_INTEGER && arg_hi == LAYEC_CABI_NO_CLASS) {
                 assert(arg_type_bit_width <= 64);
-                layec_type* new_type = layec_int_type(context, arg_type_bit_width);
+                lyir_type* new_type = layec_int_type(context, arg_type_bit_width);
 
-                if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
+                if (layec_value_get_kind(arg) == LYIR_IR_LOAD) {
                     layec_value_set_type(arg, new_type);
                 } else {
                     fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(layec_value_get_kind(arg)));
@@ -286,9 +286,9 @@ static void layec_abi_transform_call(layec_module* module, layec_value* function
                 }
             } else if (arg_lo == LAYEC_CABI_SSE && arg_hi == LAYEC_CABI_NO_CLASS) {
                 assert(arg_type_bit_width == 16 || arg_type_bit_width == 32 || arg_type_bit_width == 64);
-                layec_type* new_type = layec_float_type(context, arg_type_bit_width);
+                lyir_type* new_type = layec_float_type(context, arg_type_bit_width);
 
-                if (layec_value_get_kind(arg) == LAYEC_IR_LOAD) {
+                if (layec_value_get_kind(arg) == LYIR_IR_LOAD) {
                     layec_value_set_type(arg, new_type);
                 } else {
                     fprintf(stderr, "for value kind %s\n", layec_value_kind_to_cstring(layec_value_get_kind(arg)));
@@ -299,27 +299,27 @@ static void layec_abi_transform_call(layec_module* module, layec_value* function
     }
 }
 
-static void layec_abi_transform_callsites(layec_module* module, layec_value* function, layec_builder* builder) {
+static void layec_abi_transform_callsites(lyir_module* module, lyir_value* function, lyir_builder* builder) {
     assert(module != NULL);
     assert(function != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
     assert(builder != NULL);
 
     int64_t block_count = layec_function_block_count(function);
     for (int64_t block_index = 0; block_index < block_count; block_index++) {
-        layec_value* block = layec_function_get_block_at_index(function, block_index);
+        lyir_value* block = layec_function_get_block_at_index(function, block_index);
         assert(block != NULL);
         assert(layec_value_is_block(block));
 
         for (int64_t i = 0; i < layec_block_instruction_count(block); i++) {
-            layec_value* inst = layec_block_get_instruction_at_index(block, i);
+            lyir_value* inst = layec_block_get_instruction_at_index(block, i);
             assert(inst != NULL);
 
             switch (layec_value_get_kind(inst)) {
                 default: break;
 
-                case LAYEC_IR_CALL: {
+                case LYIR_IR_CALL: {
                     layec_abi_transform_call(module, function, builder, inst);
                 } break;
             }

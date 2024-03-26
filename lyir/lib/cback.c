@@ -45,16 +45,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "../../nob.h"
 
 typedef struct cback_codegen {
-    layec_context* context;
+    lyir_context* context;
     bool use_color;
     string* output;
 } cback_codegen;
 
-static void cback_print_module(cback_codegen* codegen, layec_module* module);
+static void cback_print_module(cback_codegen* codegen, lyir_module* module);
 
-string layec_codegen_c(layec_module* module) {
+string layec_codegen_c(lyir_module* module) {
     assert(module != NULL);
-    layec_context* context = layec_module_context(module);
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
 
     string output_string = string_create(context->allocator);
@@ -70,19 +70,19 @@ string layec_codegen_c(layec_module* module) {
     return output_string;
 }
 
-static void cback_print_header(cback_codegen* codegen, layec_module* module);
-static void cback_declare_structs(cback_codegen* codegen, layec_context* context);
-static void cback_define_structs(cback_codegen* codegen, layec_context* context);
-static void cback_declare_function(cback_codegen* codegen, layec_value* function);
-static void cback_define_function(cback_codegen* codegen, layec_value* function);
+static void cback_print_header(cback_codegen* codegen, lyir_module* module);
+static void cback_declare_structs(cback_codegen* codegen, lyir_context* context);
+static void cback_define_structs(cback_codegen* codegen, lyir_context* context);
+static void cback_declare_function(cback_codegen* codegen, lyir_value* function);
+static void cback_define_function(cback_codegen* codegen, lyir_value* function);
 
-static void cback_print_global(cback_codegen* codegen, layec_value* global);
+static void cback_print_global(cback_codegen* codegen, lyir_value* global);
 
-static void cback_print_type(cback_codegen* codegen, layec_type* type);
-static void cback_print_value(cback_codegen* codegen, layec_value* value, bool include_type);
+static void cback_print_type(cback_codegen* codegen, lyir_type* type);
+static void cback_print_value(cback_codegen* codegen, lyir_value* value, bool include_type);
 
-static void cback_print_module(cback_codegen* codegen, layec_module* module) {
-    layec_context* context = layec_module_context(module);
+static void cback_print_module(cback_codegen* codegen, lyir_module* module) {
+    lyir_context* context = layec_module_context(module);
     assert(context != NULL);
 
     cback_print_header(codegen, module);
@@ -91,7 +91,7 @@ static void cback_print_module(cback_codegen* codegen, layec_module* module) {
 
     for (int64_t i = 0, count = layec_module_global_count(module); i < count; i++) {
         if (i > 0) lca_string_append_format(codegen->output, "\n");
-        layec_value* global = layec_module_get_global_at_index(module, i);
+        lyir_value* global = layec_module_get_global_at_index(module, i);
         cback_print_global(codegen, global);
     }
 
@@ -99,7 +99,7 @@ static void cback_print_module(cback_codegen* codegen, layec_module* module) {
 
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         //if (i > 0) lca_string_append_format(codegen->output,  "\n");
-        layec_value* function = layec_module_get_function_at_index(module, i);
+        lyir_value* function = layec_module_get_function_at_index(module, i);
         cback_declare_function(codegen, function);
     }
 
@@ -107,12 +107,12 @@ static void cback_print_module(cback_codegen* codegen, layec_module* module) {
 
     for (int64_t i = 0, count = layec_module_function_count(module); i < count; i++) {
         if (i > 0) lca_string_append_format(codegen->output,  "\n");
-        layec_value* function = layec_module_get_function_at_index(module, i);
+        lyir_value* function = layec_module_get_function_at_index(module, i);
         cback_define_function(codegen, function);
     }
 }
 
-static void cback_print_header(cback_codegen* codegen, layec_module* module) {
+static void cback_print_header(cback_codegen* codegen, lyir_module* module) {
     lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", STR_EXPAND(layec_module_name(module)));
 
     Nob_String_Builder builder = {0};
@@ -121,9 +121,9 @@ static void cback_print_header(cback_codegen* codegen, layec_module* module) {
     nob_sb_free(builder);
 }
 
-static void cback_declare_structs(cback_codegen* codegen, layec_context* context) {
+static void cback_declare_structs(cback_codegen* codegen, lyir_context* context) {
     for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
-        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        lyir_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
         if (layec_type_struct_is_named(struct_type)) {
             lca_string_append_format(codegen->output, "typedef struct %.*s %.*s;\n", STR_EXPAND(layec_type_struct_name(struct_type)), STR_EXPAND(layec_type_struct_name(struct_type)));
         }
@@ -134,16 +134,16 @@ static void cback_declare_structs(cback_codegen* codegen, layec_context* context
     }
 }
 
-static void cback_define_structs(cback_codegen* codegen, layec_context* context) {
+static void cback_define_structs(cback_codegen* codegen, lyir_context* context) {
     for (int64_t i = 0; i < layec_context_get_struct_type_count(codegen->context); i++) {
-        layec_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
+        lyir_type* struct_type = layec_context_get_struct_type_at_index(codegen->context, i);
         if (layec_type_struct_is_named(struct_type)) {
             lca_string_append_format(codegen->output, "struct %.*s {\n", STR_EXPAND(layec_type_struct_name(struct_type)), STR_EXPAND(layec_type_struct_name(struct_type)));
 
             for (int64_t member_index = 0; member_index < layec_type_struct_member_count(struct_type); member_index++) {
                 lca_string_append_format(codegen->output, "    ");
 
-                layec_type* member_type = layec_type_struct_get_member_type_at_index(struct_type, member_index);
+                lyir_type* member_type = layec_type_struct_get_member_type_at_index(struct_type, member_index);
                 cback_print_type(codegen, member_type);
 
                 lca_string_append_format(codegen->output, " member_%d;\n", member_index);
@@ -154,7 +154,7 @@ static void cback_define_structs(cback_codegen* codegen, layec_context* context)
     }
 }
 
-static void cback_print_block_name(cback_codegen* codegen, layec_value* block) {
+static void cback_print_block_name(cback_codegen* codegen, lyir_value* block) {
     assert(codegen != NULL);
     assert(block != NULL);
 
@@ -167,20 +167,20 @@ static void cback_print_block_name(cback_codegen* codegen, layec_value* block) {
     }
 }
 
-static void cback_print_global(cback_codegen* codegen, layec_value* global) {
+static void cback_print_global(cback_codegen* codegen, lyir_value* global) {
 }
 
-static void cback_print_function_prototype(cback_codegen* codegen, layec_value* function) {
+static void cback_print_function_prototype(cback_codegen* codegen, lyir_value* function) {
     cback_print_type(codegen, layec_function_return_type(function));
     lca_string_append_format(codegen->output, " %.*s(", STR_EXPAND(layec_function_name(function)));
 
     for (int64_t i = 0; i < layec_function_parameter_count(function); i++) {
         if (i > 0) lca_string_append_format(codegen->output, ", ");
 
-        layec_value* param = layec_function_get_parameter_at_index(function, i);
+        lyir_value* param = layec_function_get_parameter_at_index(function, i);
         assert(param != NULL);
 
-        layec_type* param_type = layec_value_get_type(param);
+        lyir_type* param_type = layec_value_get_type(param);
         assert(param_type != NULL);
 
         cback_print_type(codegen, param_type);
@@ -198,23 +198,23 @@ static void cback_print_function_prototype(cback_codegen* codegen, layec_value* 
     lca_string_append_format(codegen->output, ")");
 }
 
-static void cback_declare_function(cback_codegen* codegen, layec_value* function) {
+static void cback_declare_function(cback_codegen* codegen, lyir_value* function) {
     cback_print_function_prototype(codegen, function);
     lca_string_append_format(codegen->output, ";\n");
 }
 
-static void cback_define_function(cback_codegen* codegen, layec_value* function) {
+static void cback_define_function(cback_codegen* codegen, lyir_value* function) {
     cback_print_function_prototype(codegen, function);
     lca_string_append_format(codegen->output, " {\n");
 
     for (int64_t block_index = 0; block_index < layec_function_block_count(function); block_index++) {
-        layec_value* block = layec_function_get_block_at_index(function, block_index);
+        lyir_value* block = layec_function_get_block_at_index(function, block_index);
         assert(block != NULL);
 
         cback_print_block_name(codegen, block);
         lca_string_append_format(codegen->output, ":;\n");
         for (int64_t inst_index = 0; inst_index < layec_block_instruction_count(block); inst_index++) {
-            layec_value* inst = layec_block_get_instruction_at_index(block, inst_index);
+            lyir_value* inst = layec_block_get_instruction_at_index(block, inst_index);
             assert(inst != NULL);
 
             lca_string_append_format(codegen->output, "    ");
@@ -231,7 +231,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, "<<%s>>;", layec_value_kind_to_cstring(layec_value_get_kind(inst)));
                 } break;
 
-                case LAYEC_IR_RETURN: {
+                case LYIR_IR_RETURN: {
                     lca_string_append_format(codegen->output, "return");
 
                     if (layec_instruction_return_has_value(inst)) {
@@ -242,16 +242,16 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ";");
                 } break;
 
-                case LAYEC_IR_BRANCH: {
+                case LYIR_IR_BRANCH: {
                     lca_string_append_format(codegen->output, "goto ");
                     cback_print_block_name(codegen, layec_instruction_branch_get_pass(inst));
                     lca_string_append_format(codegen->output, ";");
                 } break;
 
-                case LAYEC_IR_COND_BRANCH: {
-                    layec_value* condition_value = layec_instruction_get_value(inst);
-                    layec_value* pass_block = layec_instruction_branch_get_pass(inst);
-                    layec_value* fail_block = layec_instruction_branch_get_fail(inst);
+                case LYIR_IR_COND_BRANCH: {
+                    lyir_value* condition_value = layec_instruction_get_value(inst);
+                    lyir_value* pass_block = layec_instruction_branch_get_pass(inst);
+                    lyir_value* fail_block = layec_instruction_branch_get_fail(inst);
                     lca_string_append_format(codegen->output, "if (");
                     cback_print_value(codegen, condition_value, false);
                     lca_string_append_format(codegen->output, ") { goto ");
@@ -261,11 +261,11 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, "; }");
                 } break;
 
-                case LAYEC_IR_ALLOCA: {
+                case LYIR_IR_ALLOCA: {
                     lca_string_append_format(codegen->output, "{0};");
                 } break;
 
-                case LAYEC_IR_STORE: {
+                case LYIR_IR_STORE: {
                     lca_string_append_format(codegen->output, "*(");
                     cback_print_type(codegen, layec_value_get_type(layec_instruction_get_operand(inst)));
                     lca_string_append_format(codegen->output, "*)(");
@@ -275,7 +275,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ";");
                 } break;
 
-                case LAYEC_IR_LOAD: {
+                case LYIR_IR_LOAD: {
                     lca_string_append_format(codegen->output, "*(");
                     cback_print_type(codegen, layec_value_get_type(inst));
                     lca_string_append_format(codegen->output, "*)(");
@@ -283,7 +283,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ");");
                 } break;
 
-                case LAYEC_IR_ADD: {
+                case LYIR_IR_ADD: {
                     lca_string_append_format(codegen->output, "(");
                     cback_print_value(codegen, layec_instruction_binary_get_lhs(inst), false);
                     lca_string_append_format(codegen->output, ") + (");
@@ -291,7 +291,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ");");
                 } break;
 
-                case LAYEC_IR_SUB: {
+                case LYIR_IR_SUB: {
                     lca_string_append_format(codegen->output, "(");
                     cback_print_value(codegen, layec_instruction_binary_get_lhs(inst), false);
                     lca_string_append_format(codegen->output, ") - (");
@@ -299,7 +299,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ");");
                 } break;
 
-                case LAYEC_IR_ICMP_SLT: {
+                case LYIR_IR_ICMP_SLT: {
                     lca_string_append_format(codegen->output, "(");
                     cback_print_value(codegen, layec_instruction_binary_get_lhs(inst), false);
                     lca_string_append_format(codegen->output, ") < (");
@@ -307,7 +307,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                     lca_string_append_format(codegen->output, ");");
                 } break;
 
-                case LAYEC_IR_CALL: {
+                case LYIR_IR_CALL: {
                     cback_print_value(codegen, layec_instruction_callee(inst), false);
                     lca_string_append_format(codegen->output, "(");
 
@@ -316,7 +316,7 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
                             lca_string_append_format(codegen->output, ", ");
                         }
 
-                        layec_value* argument = layec_instruction_call_get_argument_at_index(inst, i);
+                        lyir_value* argument = layec_instruction_call_get_argument_at_index(inst, i);
                         cback_print_value(codegen, argument, false);
                     }
 
@@ -331,22 +331,22 @@ static void cback_define_function(cback_codegen* codegen, layec_value* function)
     lca_string_append_format(codegen->output, "}\n");
 }
 
-static void cback_print_type(cback_codegen* codegen, layec_type* type) {
+static void cback_print_type(cback_codegen* codegen, lyir_type* type) {
     switch (layec_type_get_kind(type)) {
         default: {
             fprintf(stderr, "for lyir type '%s'\n", layec_type_kind_to_cstring(layec_type_get_kind(type)));
             assert(false && "unhandled type kind in C backend");
         } break;
 
-        case LAYEC_TYPE_VOID: {
+        case LYIR_TYPE_VOID: {
             lca_string_append_format(codegen->output, "void");
         } break;
 
-        case LAYEC_TYPE_POINTER: {
+        case LYIR_TYPE_POINTER: {
             lca_string_append_format(codegen->output, "lyir_ptr");
         } break;
 
-        case LAYEC_TYPE_INTEGER: {
+        case LYIR_TYPE_INTEGER: {
             int bit_width = layec_type_size_in_bits(type);
             if (bit_width == 1) {
                 lca_string_append_format(codegen->output, "lyir_bool");
@@ -365,7 +365,7 @@ static void cback_print_type(cback_codegen* codegen, layec_type* type) {
             }
         } break;
 
-        case LAYEC_TYPE_FLOAT: {
+        case LYIR_TYPE_FLOAT: {
             int bit_width = layec_type_size_in_bits(type);
             if (bit_width == 32) {
                 lca_string_append_format(codegen->output, "lyir_f32");
@@ -379,7 +379,7 @@ static void cback_print_type(cback_codegen* codegen, layec_type* type) {
     }
 }
 
-static void cback_print_value(cback_codegen* codegen, layec_value* value, bool include_type) {
+static void cback_print_value(cback_codegen* codegen, lyir_value* value, bool include_type) {
     if (include_type) {
         cback_print_type(codegen, layec_value_get_type(value));
         lca_string_append_format(codegen->output, " ");
@@ -396,11 +396,11 @@ static void cback_print_value(cback_codegen* codegen, layec_value* value, bool i
             }
         } break;
 
-        case LAYEC_IR_FUNCTION: {
+        case LYIR_IR_FUNCTION: {
             lca_string_append_format(codegen->output, "%.*s", STR_EXPAND(layec_function_name(value)));
         } break;
 
-        case LAYEC_IR_GLOBAL_VARIABLE: {
+        case LYIR_IR_GLOBAL_VARIABLE: {
             string_view name = layec_value_name(value);
             if (name.count == 0) {
                 int64_t index = layec_value_index(value);
@@ -410,19 +410,19 @@ static void cback_print_value(cback_codegen* codegen, layec_value* value, bool i
             }
         } break;
 
-        case LAYEC_IR_INTEGER_CONSTANT: {
+        case LYIR_IR_INTEGER_CONSTANT: {
             int64_t ival = layec_value_integer_constant(value);
             if (layec_type_is_ptr(layec_value_get_type(value)) && ival == 0)
                 lca_string_append_format(codegen->output, "NULL");
             else lca_string_append_format(codegen->output, "%lld", ival);
         } break;
 
-        case LAYEC_IR_FLOAT_CONSTANT: {
+        case LYIR_IR_FLOAT_CONSTANT: {
             double float_value = layec_value_float_constant(value);
             lca_string_append_format(codegen->output, "%f", float_value);
         } break;
 
-        case LAYEC_IR_ALLOCA: {
+        case LYIR_IR_ALLOCA: {
             if (!include_type) lca_string_append_format(codegen->output, "&");
             string_view name = layec_value_name(value);
             if (name.count == 0) {

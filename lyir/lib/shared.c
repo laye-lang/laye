@@ -42,54 +42,54 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "lyir.h"
 
-layec_location layec_location_combine(layec_location a, layec_location b) {
+lyir_location lyir_location_combine(lyir_location a, lyir_location b) {
     assert(a.sourceid == b.sourceid);
 
     int64_t start_offset = a.offset < b.offset ? a.offset : b.offset;
     int64_t end_offset = (a.offset + a.length) > (b.offset + b.length) ? (a.offset + a.length) : (b.offset + b.length);
 
-    return (layec_location){
+    return (lyir_location){
         .sourceid = a.sourceid,
         .offset = start_offset,
         .length = (end_offset - start_offset),
     };
 }
 
-const char* layec_status_to_cstring(layec_status status) {
+const char* layec_status_to_cstring(lyir_status status) {
     switch (status) {
         default: assert(false && "unreachable layec_status case");
-        case LAYEC_NO_STATUS: return "NO_STATUS";
-        case LAYEC_INFO: return "INFO";
-        case LAYEC_NOTE: return "NOTE";
-        case LAYEC_WARN: return "WARN";
-        case LAYEC_ERROR: return "ERROR";
-        case LAYEC_FATAL: return "FATAL";
-        case LAYEC_ICE: return "ICE";
+        case LYIR_NO_STATUS: return "NO_STATUS";
+        case LYIR_INFO: return "INFO";
+        case LYIR_NOTE: return "NOTE";
+        case LYIR_WARN: return "WARN";
+        case LYIR_ERROR: return "ERROR";
+        case LYIR_FATAL: return "FATAL";
+        case LYIR_ICE: return "ICE";
     }
 }
 
-const char* layec_value_category_to_cstring(layec_value_category category) {
+const char* layec_value_category_to_cstring(lyir_value_category category) {
     switch (category) {
         default: assert(false && "unreachable layec_value_category case");
-        case LAYEC_LVALUE: return "LVALUE";
-        case LAYEC_RVALUE: return "RVALUE";
+        case LYIR_LVALUE: return "LVALUE";
+        case LYIR_RVALUE: return "RVALUE";
     }
 }
 
-bool layec_evaluated_constant_equals(layec_evaluated_constant a, layec_evaluated_constant b) {
+bool lyir_evaluated_constant_equals(lyir_evaluated_constant a, lyir_evaluated_constant b) {
     if (a.kind != b.kind) return false;
     switch (a.kind) {
         default: assert(false); return false;
-        case LAYEC_EVAL_NULL: return true;
-        case LAYEC_EVAL_VOID: return true;
-        case LAYEC_EVAL_BOOL: return a.bool_value == b.bool_value;
-        case LAYEC_EVAL_INT: return a.int_value == b.int_value;
-        case LAYEC_EVAL_FLOAT: return a.float_value == b.float_value;
-        case LAYEC_EVAL_STRING: return string_view_equals(a.string_value, b.string_value);
+        case LYIR_EVAL_NULL: return true;
+        case LYIR_EVAL_VOID: return true;
+        case LYIR_EVAL_BOOL: return a.bool_value == b.bool_value;
+        case LYIR_EVAL_INT: return a.int_value == b.int_value;
+        case LYIR_EVAL_FLOAT: return a.float_value == b.float_value;
+        case LYIR_EVAL_STRING: return string_view_equals(a.string_value, b.string_value);
     }
 }
 
-int layec_get_significant_bits(int64_t value) {
+int lyir_get_significant_bits(int64_t value) {
     int bit_width = 8 * sizeof value;
     assert(bit_width == 64);
 
