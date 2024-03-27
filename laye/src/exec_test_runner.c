@@ -47,10 +47,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#include "ansi.h"
-
 #define LCA_DA_IMPLEMENTATION
-#include "lcads.h"
+#include "lca.h"
 
 #define LAYEC_PATH "./out/laye1"
 

@@ -41,10 +41,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <assert.h>
 #include <stdio.h>
 
+#define LCA_IMPLEMENTATION
+#define LCA_CLI_IMPLEMENTATION
 #define LCA_DA_IMPLEMENTATION
 #define LCA_MEM_IMPLEMENTATION
-#define LCA_STR_IMPLEMENTATION
 #define LCA_PLAT_IMPLEMENTATION
+#define LCA_STR_IMPLEMENTATION
 #include "c.h"
 #include "laye.h"
 
@@ -184,7 +186,7 @@ static lca_string_view file_name_only(lca_string_view full_path) {
 
 static lca_string_view create_intermediate_file_name(compiler_state* state, lca_string_view name, const char* extension) {
     name = file_name_only(name);
-    lca_string intermediate_file_name = lca_string_view_change_extension(default_allocator, name, extension);
+    lca_string intermediate_file_name = lca_string_view_change_extension(lca_default_allocator, name, extension);
     lca_da_push(state->total_intermediate_files, intermediate_file_name);
     return lca_string_as_view(intermediate_file_name);
 }
@@ -346,11 +348,11 @@ static int backend_llvm(compiler_state* state);
 int main(int argc, char** argv) {
     int exit_code = 0;
 
-    lca_temp_allocator_init(default_allocator, 1024 * 1024);
+    lca_temp_allocator_init(lca_default_allocator, 1024 * 1024);
 
     // setup
 
-    lyir_init_targets(default_allocator);
+    lyir_init_targets(lca_default_allocator);
 
     compiler_state state = {
         .use_color = COLOR_AUTO,
@@ -375,7 +377,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    lyir_context* context = lyir_context_create(default_allocator);
+    lyir_context* context = lyir_context_create(lca_default_allocator);
     assert(context != NULL);
     state.context = context;
 
@@ -408,7 +410,7 @@ int main(int argc, char** argv) {
     } else if (state.use_color == COLOR_NEVER) {
         context->use_color = false;
     } else {
-        context->use_color = lca_plat_stdout_isatty();
+        context->use_color = lca_stdout_isatty();
     }
 
     context->include_directories = state.include_directories;
@@ -419,7 +421,7 @@ int main(int argc, char** argv) {
 
     const char* self_exe = lca_plat_self_exe();
     if (self_exe != NULL) {
-        lca_string libdir_builder = lca_string_create(default_allocator);
+        lca_string libdir_builder = lca_string_create(lca_default_allocator);
         lca_string_append_format(&libdir_builder, "%s", self_exe);
         lca_string_path_parent(&libdir_builder);
 
@@ -655,7 +657,7 @@ static int backend_c(compiler_state* state) {
         lca_string c_module_string = state->c_modules[i];
         lca_string_view source_input_file_path = lca_string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
-        lca_string output_file_path_intermediate = lca_string_view_change_extension(default_allocator, source_input_file_path, ".ir.c");
+        lca_string output_file_path_intermediate = lca_string_view_change_extension(lca_default_allocator, source_input_file_path, ".ir.c");
         lca_da_push(state->total_intermediate_files, output_file_path_intermediate);
 
         bool c_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), c_module_string.data, c_module_string.count);
@@ -728,7 +730,7 @@ static int backend_llvm(compiler_state* state) {
         lca_string llvm_module_string = state->llvm_modules[i];
         lca_string_view source_input_file_path = lca_string_view_path_file_name(lyir_module_name(context->ir_modules[i]));
 
-        lca_string output_file_path_intermediate = lca_string_view_change_extension(default_allocator, source_input_file_path, ".ll");
+        lca_string output_file_path_intermediate = lca_string_view_change_extension(lca_default_allocator, source_input_file_path, ".ll");
         lca_da_push(state->total_intermediate_files, output_file_path_intermediate);
 
         bool ll_file_result = nob_write_entire_file(lca_string_as_cstring(output_file_path_intermediate), llvm_module_string.data, llvm_module_string.count);

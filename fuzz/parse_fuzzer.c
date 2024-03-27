@@ -9,15 +9,15 @@
 #include "layec.h"
 
 int LLVMFuzzerInitialize(int *argc, char ***argv) {
-    lca_temp_allocator_init(default_allocator, 1024 * 1024);
-    lyir_init_targets(default_allocator);
+    lca_temp_allocator_init(lca_default_allocator, 1024 * 1024);
+    lyir_init_targets(lca_default_allocator);
     return 0;
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
     int exit_code = 0;
 
-    lyir_context* context = lyir_context_create(default_allocator);
+    lyir_context* context = lyir_context_create(lca_default_allocator);
     context->use_color = false;
 
     lca_string_view name = LCA_SV_CONSTANT("<fuzz-input>");
@@ -28,8 +28,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
 
     lyir_sourceid sourceid = lyir_context_get_or_add_source_from_string(
         context,
-        lca_string_view_to_string(default_allocator, name),
-        lca_string_view_to_string(default_allocator, data)
+        lca_string_view_to_string(lca_default_allocator, name),
+        lca_string_view_to_string(lca_default_allocator, data)
     );
 
     laye_module* module = laye_parse(context, sourceid);

@@ -264,9 +264,7 @@ static int read_file_to_string(lca_allocator allocator, lca_string file_path, lc
     assert(out_contents != NULL);
     const char* file_path_cstr = lca_string_as_cstring(file_path);
     assert(file_path_cstr != NULL);
-    char* data = lca_plat_file_read(file_path_cstr);
-    int64_t count = (int64_t)strlen(data);
-    *out_contents = lca_string_from_data(allocator, data, count, count + 1);
+    *out_contents = lca_file_read(allocator, file_path_cstr);
     return 0;
 }
 
