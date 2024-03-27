@@ -44,11 +44,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "lcaansi.h"
-#include "lcads.h"
-#include "lcamem.h"
-#include "lcaplat.h"
-#include "lcastr.h"
+#include "lca.h"
 
 // TODO(local): remove Laye stuff from LYIR
 typedef struct laye_node laye_node;

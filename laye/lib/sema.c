@@ -517,7 +517,7 @@ static lca_string laye_sema_get_module_import_file_path(lyir_context* context, l
     // first try to find the file based on the relative directory of the module requesting it
     int64_t last_slash_index = maxi(lca_string_view_last_index_of(relative_module_path, '/'), lca_string_view_last_index_of(relative_module_path, '\\'));
 
-    lca_string lookup_path = lca_string_create(default_allocator);
+    lca_string lookup_path = lca_string_create(lca_default_allocator);
     if (last_slash_index < 0) {
         lca_string_append_format(&lookup_path, "./");
     } else {
@@ -526,7 +526,7 @@ static lca_string laye_sema_get_module_import_file_path(lyir_context* context, l
     }
 
     lca_string_path_append_view(&lookup_path, import_name);
-    if (lca_plat_file_exists(lca_string_as_cstring(lookup_path))) {
+    if (lcat_file_exists(lca_string_as_cstring(lookup_path))) {
         return lookup_path;
     }
 
@@ -538,7 +538,7 @@ static lca_string laye_sema_get_module_import_file_path(lyir_context* context, l
 
         lca_string_append_format(&lookup_path, "%.*s", LCA_STR_EXPAND(include_path));
         lca_string_path_append_view(&lookup_path, import_name);
-        if (lca_plat_file_exists(lca_string_as_cstring(lookup_path))) {
+        if (lcat_file_exists(lca_string_as_cstring(lookup_path))) {
             return lookup_path;
         }
     }
@@ -1848,7 +1848,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     break;
 
                 cannot_dereference_type:;
-                    lca_string type_string = lca_string_create(default_allocator);
+                    lca_string type_string = lca_string_create(lca_default_allocator);
                     laye_type_print_to_string(node->unary.operand->type, &type_string, sema->context->use_color);
                     lyir_write_error(sema->context, node->location, "Cannot dereference type %.*s.", LCA_STR_EXPAND(type_string));
                     lca_string_destroy(&type_string);
@@ -1951,8 +1951,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
 
-                    lca_string lhs_type_string = lca_string_create(default_allocator);
-                    lca_string rhs_type_string = lca_string_create(default_allocator);
+                    lca_string lhs_type_string = lca_string_create(lca_default_allocator);
+                    lca_string rhs_type_string = lca_string_create(lca_default_allocator);
 
                     laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
                     laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
@@ -2014,8 +2014,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->sema_state = LYIR_SEMA_ERRORED;
                     node->type = LTY(sema->context->laye_types.poison);
 
-                    lca_string lhs_type_string = lca_string_create(default_allocator);
-                    lca_string rhs_type_string = lca_string_create(default_allocator);
+                    lca_string lhs_type_string = lca_string_create(lca_default_allocator);
+                    lca_string rhs_type_string = lca_string_create(lca_default_allocator);
 
                     laye_type_print_to_string(lhs_type, &lhs_type_string, sema->context->use_color);
                     laye_type_print_to_string(rhs_type, &rhs_type_string, sema->context->use_color);
@@ -2567,7 +2567,7 @@ static void laye_sema_convert_to_c_varargs_or_error(laye_sema* sema, laye_node**
         return; // fine
     }
 
-    lca_string type_string = lca_string_create(default_allocator);
+    lca_string type_string = lca_string_create(lca_default_allocator);
     laye_type_print_to_string((*node)->type, &type_string, sema->context->use_color);
     lyir_write_error(sema->context, (*node)->location, "Cannot convert type %.*s to a type correct for C varargs.", LCA_STR_EXPAND(type_string));
     lca_string_destroy(&type_string);
