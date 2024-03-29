@@ -118,8 +118,10 @@ typedef struct laye_symbol {
     };
 } laye_symbol;
 
+typedef struct laye_context laye_context;
+
 typedef struct laye_module {
-    lyir_context* context;
+    laye_context* context;
     lyir_sourceid sourceid;
 
     bool has_handled_imports;
@@ -161,6 +163,39 @@ struct laye_scope {
     // types declared in this scope.
     lca_da(laye_aliased_node) type_declarations;
 };
+
+typedef struct laye_context {
+    lyir_context* lyir_context;
+    lca_allocator allocator;
+
+    bool use_color;
+
+    lca_da(struct laye_module*) laye_modules;
+
+    // types for use in Laye semantic analysis.
+    // should not be stored within syntax nodes that have explicit
+    // type syntax in the source code, since source location information
+    // should be preserved whenever possible. These types are more
+    // useful for known type conversions, like type checking the condition
+    // of an if statement or for loop to be convertible to type `bool`, or
+    // when converting array indices into a platform integer type.
+    struct {
+        laye_node* poison;
+        laye_node* unknown;
+        laye_node* var;
+        laye_node* type;
+        laye_node* _void;
+        laye_node* noreturn;
+        laye_node* _bool;
+        laye_node* i8;
+        laye_node* _int;
+        laye_node* _uint;
+        laye_node* _float;
+        laye_node* i8_buffer;
+    } laye_types;
+
+    lyir_dependency_graph* laye_dependencies;
+} laye_context;
 
 typedef enum laye_mut_compare {
     LAYE_MUT_EQUAL,
@@ -1209,12 +1244,15 @@ struct laye_node {
     };
 };
 
+laye_context* laye_context_create(lyir_context* lyir_context);
+void laye_context_destroy(laye_context* context);
+
 //
 
 lca_string laye_module_debug_print(laye_module* module);
-laye_module* laye_parse(lyir_context* context, lyir_sourceid sourceid);
-void laye_analyse(lyir_context* context);
-void laye_generate_ir(lyir_context* context);
+laye_module* laye_parse(laye_context* context, lyir_sourceid sourceid);
+void laye_analyse(laye_context* context);
+void laye_generate_ir(laye_context* context);
 void laye_module_destroy(laye_module* module);
 
 //

@@ -124,34 +124,7 @@ typedef struct lyir_context {
     lca_arena* string_arena;
     lca_da(lca_string) _interned_strings;
     lca_da(lca_string) allocated_strings;
-
-    lca_da(struct laye_module*) laye_modules;
     lca_da(lyir_module*) ir_modules;
-
-// TODO(local): remove Laye stuff from LYIR
-    // types for use in Laye semantic analysis.
-    // should not be stored within syntax nodes that have explicit
-    // type syntax in the source code, since source location information
-    // should be preserved whenever possible. These types are more
-    // useful for known type conversions, like type checking the condition
-    // of an if statement or for loop to be convertible to type `bool`, or
-    // when converting array indices into a platform integer type.
-    struct {
-        laye_node* poison;
-        laye_node* unknown;
-        laye_node* var;
-        laye_node* type;
-        laye_node* _void;
-        laye_node* noreturn;
-        laye_node* _bool;
-        laye_node* i8;
-        laye_node* _int;
-        laye_node* _uint;
-        laye_node* _float;
-        laye_node* i8_buffer;
-    } laye_types;
-    lyir_dependency_graph* laye_dependencies;
-// TODO(local): remove Laye stuff from LYIR
 
     lca_da(lyir_dependency_graph*) _all_depgraphs;
 

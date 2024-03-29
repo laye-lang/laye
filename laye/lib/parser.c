@@ -48,7 +48,7 @@ typedef struct break_continue_target {
 } break_continue_target;
 
 typedef struct laye_parser {
-    lyir_context* context;
+    laye_context* context;
     laye_module* module;
     lyir_sourceid sourceid;
 
@@ -234,7 +234,7 @@ static void laye_next_token(laye_parser* p);
 static laye_node* laye_parse_top_level_node(laye_parser* p);
 static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, lyir_location* location, bool allocate);
 
-laye_module* laye_parse(lyir_context* context, lyir_sourceid sourceid) {
+laye_module* laye_parse(laye_context* context, lyir_sourceid sourceid) {
     assert(context != NULL);
     assert(sourceid >= 0);
 
@@ -701,7 +701,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, LTY(p->context->laye_types.type));
                 assert(result.type.node != NULL);
-                result.type.node->type_primitive.bit_width = p->context->target->size_of_pointer;
+                result.type.node->type_primitive.bit_width = p->context->lyir_context->target->size_of_pointer;
                 result.type.node->type_primitive.is_signed = true;
                 result.type.node->type_primitive.is_platform_specified = true;
             }
@@ -723,7 +723,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             if (allocate) {
                 result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_INT, p->token.location, LTY(p->context->laye_types.type));
                 assert(result.type.node != NULL);
-                result.type.node->type_primitive.bit_width = p->context->target->size_of_pointer;
+                result.type.node->type_primitive.bit_width = p->context->lyir_context->target->size_of_pointer;
                 result.type.node->type_primitive.is_signed = false;
                 result.type.node->type_primitive.is_platform_specified = true;
             }
