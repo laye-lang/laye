@@ -64,6 +64,7 @@ typedef struct laye_irvalue_kv {
 } laye_irvalue_kv;
 
 typedef struct laye_irgen {
+    laye_context* context;
     lca_da(laye_irvalue_kv) ir_values;
 } laye_irgen;
 
@@ -221,7 +222,7 @@ static lyir_value* laye_irgen_get_runtime_assert_function(laye_irgen* irgen, lay
 
     laye_irvalue_kv* kv = laye_irgen_irvalue_kv_get_for_builtin(irgen, module, LAYE_RUNTIME_ASSERT_FUNCTION);
     if (kv->value == NULL) {
-        lyir_context* context = module->context;
+        laye_context* context = module->context;
 
         lca_da(lyir_type*) parameter_types = NULL;
         lca_da_push(parameter_types, laye_convert_type(LTY(context->laye_types.i8_buffer)));
@@ -246,10 +247,12 @@ static lyir_value* laye_irgen_get_runtime_assert_function(laye_irgen* irgen, lay
     return kv->value;
 }
 
-void laye_generate_ir(lyir_context* context) {
+void laye_generate_ir(laye_context* context) {
     assert(context != NULL);
 
-    laye_irgen irgen = {0};
+    laye_irgen irgen = {
+        .context = context,
+    };
 
     for (int64_t i = 0, module_count = lca_da_count(context->laye_modules); i < module_count; i++) {
         laye_module* module = context->laye_modules[i];
@@ -259,7 +262,7 @@ void laye_generate_ir(lyir_context* context) {
 
         lyir_module* ir_module = lyir_module_create(module->context, lca_string_as_view(source.name));
         assert(ir_module != NULL);
-        lca_da_push(module->context->ir_modules, ir_module);
+        lca_da_push(module->context->lyir_context->ir_modules, ir_module);
 
         module->ir_module = ir_module;
     }
@@ -471,6 +474,9 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
     lyir_module* module = lyir_builder_module_get(builder);
     assert(module != NULL);
 
+    laye_context* laye_context = irgen->context;
+    assert(laye_context != NULL);
+
     lyir_context* context = lyir_builder_context_get(builder);
     assert(context != NULL);
 
@@ -544,9 +550,9 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             lca_da(lyir_value*) arguments = NULL;
             lca_da_push(arguments, condition_global_string);
             lca_da_push(arguments, file_name_global_string);
-            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(context->laye_types._int)), node->location.offset)));
-            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(context->laye_types._int)), 0)));
-            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(context->laye_types._int)), 0)));
+            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(laye_context->laye_types._int)), node->location.offset)));
+            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(laye_context->laye_types._int)), 0)));
+            lca_da_push(arguments, (lyir_int_constant_create(context, node->location, laye_convert_type(LTY(laye_context->laye_types._int)), 0)));
             lca_da_push(arguments, message_global_string);
 
             lyir_type* runtime_assert_function_type = lyir_value_type_get(runtime_assert_function);

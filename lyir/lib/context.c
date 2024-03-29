@@ -44,7 +44,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 
 // TODO(local): remove this, very soonly
-#include "laye.h"
+//#include "laye.h"
 
 #include "lyir.h"
 
@@ -111,72 +111,6 @@ lyir_context* lyir_context_create(lca_allocator allocator) {
     context->string_arena = lca_arena_create(allocator, context->max_interned_string_size);
     assert(context->string_arena != NULL);
 
-    context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, (laye_type){0});
-    assert(context->laye_types.type != NULL);
-    context->laye_types.type->type = LTY(context->laye_types.type);
-    context->laye_types.type->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types.poison = laye_node_create_in_context(context, LAYE_NODE_TYPE_POISON, LTY(context->laye_types.type));
-    assert(context->laye_types.poison != NULL);
-    context->laye_types.poison->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types.unknown = laye_node_create_in_context(context, LAYE_NODE_TYPE_UNKNOWN, LTY(context->laye_types.type));
-    assert(context->laye_types.unknown != NULL);
-    context->laye_types.unknown->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types.var = laye_node_create_in_context(context, LAYE_NODE_TYPE_VAR, LTY(context->laye_types.type));
-    assert(context->laye_types.var != NULL);
-    context->laye_types.var->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types._void = laye_node_create_in_context(context, LAYE_NODE_TYPE_VOID, LTY(context->laye_types.type));
-    assert(context->laye_types._void != NULL);
-    context->laye_types._void->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types.noreturn = laye_node_create_in_context(context, LAYE_NODE_TYPE_NORETURN, LTY(context->laye_types.type));
-    assert(context->laye_types.noreturn != NULL);
-    context->laye_types.noreturn->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types._bool = laye_node_create_in_context(context, LAYE_NODE_TYPE_BOOL, LTY(context->laye_types.type));
-    assert(context->laye_types._bool != NULL);
-    context->laye_types._bool->type_primitive.bit_width = 8;
-    context->laye_types._bool->sema_state = LYIR_SEMA_OK;
-
-    context->laye_types.i8 = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
-    assert(context->laye_types.i8 != NULL);
-    context->laye_types.i8->sema_state = LYIR_SEMA_OK;
-    context->laye_types.i8->type_primitive.bit_width = 8;
-    context->laye_types.i8->type_primitive.is_signed = true;
-
-    context->laye_types._int = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
-    assert(context->laye_types._int != NULL);
-    context->laye_types._int->sema_state = LYIR_SEMA_OK;
-    context->laye_types._int->type_primitive.is_platform_specified = true;
-    context->laye_types._int->type_primitive.bit_width = context->target->size_of_pointer;
-    context->laye_types._int->type_primitive.is_signed = true;
-
-    context->laye_types._uint = laye_node_create_in_context(context, LAYE_NODE_TYPE_INT, LTY(context->laye_types.type));
-    assert(context->laye_types._uint != NULL);
-    context->laye_types._uint->sema_state = LYIR_SEMA_OK;
-    context->laye_types._uint->type_primitive.is_platform_specified = true;
-    context->laye_types._uint->type_primitive.bit_width = context->target->size_of_pointer;
-    context->laye_types._uint->type_primitive.is_signed = false;
-
-    // TODO(local): remove the generic `float` type from Laye
-    context->laye_types._float = laye_node_create_in_context(context, LAYE_NODE_TYPE_FLOAT, LTY(context->laye_types.type));
-    assert(context->laye_types._float != NULL);
-    context->laye_types._float->type_primitive.is_platform_specified = true;
-    context->laye_types._float->type_primitive.bit_width = 64;
-    context->laye_types._float->sema_state = LYIR_SEMA_OK;
-    // TODO(local): remove the generic `float` type from Laye
-
-    context->laye_types.i8_buffer = laye_node_create_in_context(context, LAYE_NODE_TYPE_BUFFER, LTY(context->laye_types.type));
-    assert(context->laye_types.i8_buffer != NULL);
-    context->laye_types.i8_buffer->type_container.element_type = LTY(context->laye_types.i8);
-    context->laye_types.i8_buffer->sema_state = LYIR_SEMA_OK;
-
-    context->laye_dependencies = lyir_dependency_graph_create_in_context(context);
-    assert(context->laye_dependencies != NULL);
-
     context->type_arena = lca_arena_create(allocator, 1024 * 1024);
     assert(context->type_arena != NULL);
 
@@ -212,27 +146,8 @@ void lyir_context_destroy(lyir_context* context) {
         context->ir_modules[i] = NULL;
     }
 
-    for (int64_t i = 0; i < lca_da_count(context->laye_modules); i++) {
-        laye_module_destroy(context->laye_modules[i]);
-        context->laye_modules[i] = NULL;
-    }
-
     lca_da_free(context->allocated_strings);
-    lca_da_free(context->laye_modules);
     lca_da_free(context->ir_modules);
-
-    lca_deallocate(allocator, context->laye_types.poison);
-    lca_deallocate(allocator, context->laye_types.unknown);
-    lca_deallocate(allocator, context->laye_types.var);
-    lca_deallocate(allocator, context->laye_types.type);
-    lca_deallocate(allocator, context->laye_types._void);
-    lca_deallocate(allocator, context->laye_types.noreturn);
-    lca_deallocate(allocator, context->laye_types._bool);
-    lca_deallocate(allocator, context->laye_types.i8);
-    lca_deallocate(allocator, context->laye_types._int);
-    lca_deallocate(allocator, context->laye_types._uint);
-    lca_deallocate(allocator, context->laye_types._float);
-    lca_deallocate(allocator, context->laye_types.i8_buffer);
 
     for (int64_t i = 0, count = lca_da_count(context->_all_depgraphs); i < count; i++) {
         lyir_dependency_graph_destroy(context->_all_depgraphs[i]);
