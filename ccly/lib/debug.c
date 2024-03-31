@@ -13,7 +13,7 @@
 #define COL_CONST   BLUE
 
 typedef struct c_print_context {
-    lyir_context* context;
+    c_context* context;
     c_translation_unit* tu;
     bool use_color;
     lca_string* indents;
@@ -40,11 +40,11 @@ lca_string c_translation_unit_debug_print(c_translation_unit* tu) {
     };
 
     bool use_color = print_context.use_color;
-    lca_string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), LCA_STR_EXPAND(lyir_context_get_source(tu->context, tu->sourceid).name), COL(RESET));
+    lca_string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), LCA_STR_EXPAND(lyir_context_get_source(tu->context->lyir_context, tu->sourceid).name), COL(RESET));
 
     for (int64_t i = 0; i < lca_da_count(tu->token_buffer.semantic_tokens); i++) {
         c_token token = tu->token_buffer.semantic_tokens[i];
-        lyir_source source = lyir_context_get_source(tu->context, token.location.sourceid);
+        lyir_source source = lyir_context_get_source(tu->context->lyir_context, token.location.sourceid);
         lca_string_append_format(
             print_context.output,
             "%s :: %.*s\n",
