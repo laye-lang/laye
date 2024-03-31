@@ -127,7 +127,7 @@ lyir_source laye_module_get_source(laye_module* module) {
     assert(module != NULL);
     assert(module->context != NULL);
     assert(module->sourceid >= 0);
-    return lyir_context_get_source(module->context, module->sourceid);
+    return lyir_context_get_source(module->context->lyir_context, module->sourceid);
 }
 
 laye_scope* laye_scope_create(laye_module* module, laye_scope* parent) {
@@ -179,7 +179,7 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, lca_s
                 (declaration->kind != LAYE_NODE_DECL_FUNCTION || existing_declaration->kind != LAYE_NODE_DECL_FUNCTION)
             ) {
                 assert(module->context != NULL);
-                lyir_write_error(module->context, declaration->location, "redeclaration of '%.*s' in this scope.", LCA_STR_EXPAND(alias));
+                lyir_write_error(module->context->lyir_context, declaration->location, "redeclaration of '%.*s' in this scope.", LCA_STR_EXPAND(alias));
                 return;
             }
         }
@@ -494,7 +494,7 @@ int laye_type_size_in_bits(laye_type type) {
     assert(type.node != NULL);
     assert(type.node->context != NULL);
     assert(laye_node_is_type(type.node));
-    lyir_context* context = type.node->context;
+    laye_context* context = type.node->context;
 
     switch (type.node->kind) {
         default: {
@@ -518,7 +518,7 @@ int laye_type_size_in_bits(laye_type type) {
         case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
-            return context->target->size_of_pointer;
+            return context->lyir_context->target->size_of_pointer;
         }
 
         case LAYE_NODE_TYPE_ERROR_PAIR: {
@@ -564,7 +564,7 @@ int laye_type_align_in_bytes(laye_type type) {
     assert(type.node != NULL);
     assert(laye_node_is_type(type.node));
     assert(type.node->context != NULL);
-    lyir_context* context = type.node->context;
+    laye_context* context = type.node->context;
 
     switch (type.node->kind) {
         default: return 1;
@@ -604,7 +604,7 @@ int laye_type_align_in_bytes(laye_type type) {
         case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
-            return align_to(context->target->align_of_pointer, 8) / 8;
+            return align_to(context->lyir_context->target->align_of_pointer, 8) / 8;
         }
 
         case LAYE_NODE_TYPE_STRUCT: {
