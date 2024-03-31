@@ -548,7 +548,7 @@ typedef struct laye_enum_type_variant {
 
 struct laye_node {
     laye_node_kind kind;
-    lyir_context* context;
+    laye_context* context;
     laye_module* module;
 
     // where in the source text the "primary" information for this syntax node is.
@@ -1297,7 +1297,7 @@ laye_node* laye_scope_lookup_value(laye_scope* scope, lca_string_view value_name
 laye_node* laye_scope_lookup_type(laye_scope* scope, lca_string_view type_name);
 
 laye_node* laye_node_create(laye_module* module, laye_node_kind kind, lyir_location location, laye_type type);
-laye_node* laye_node_create_in_context(lyir_context* context, laye_node_kind kind, laye_type type);
+laye_node* laye_node_create_in_context(laye_context* context, laye_node_kind kind, laye_type type);
 void laye_node_destroy(laye_node* node);
 
 void laye_node_set_sema_in_progress(laye_node* node);

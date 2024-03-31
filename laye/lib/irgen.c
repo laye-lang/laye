@@ -232,7 +232,7 @@ static lyir_value* laye_irgen_get_runtime_assert_function(laye_irgen* irgen, lay
         lca_da_push(parameter_types, laye_convert_type(LTY(context->laye_types._int)));
         lca_da_push(parameter_types, laye_convert_type(LTY(context->laye_types.i8_buffer)));
 
-        lyir_type* function_type = lyir_function_type(context, lyir_void_type(context), parameter_types, LYIR_CCC, false);
+        lyir_type* function_type = lyir_function_type(context->lyir_context, lyir_void_type(context->lyir_context), parameter_types, LYIR_CCC, false);
         kv->value = lyir_module_create_function(
             module->ir_module,
             (lyir_location){0},
@@ -258,9 +258,9 @@ void laye_generate_ir(laye_context* context) {
         laye_module* module = context->laye_modules[i];
         assert(module != NULL);
 
-        lyir_source source = lyir_context_get_source(module->context, module->sourceid);
+        lyir_source source = lyir_context_get_source(module->context->lyir_context, module->sourceid);
 
-        lyir_module* ir_module = lyir_module_create(module->context, lca_string_as_view(source.name));
+        lyir_module* ir_module = lyir_module_create(module->context->lyir_context, lca_string_as_view(source.name));
         assert(ir_module != NULL);
         lca_da_push(module->context->lyir_context->ir_modules, ir_module);
 
@@ -304,7 +304,7 @@ void laye_generate_ir(laye_context* context) {
         assert(ir_module != NULL);
 
         // 3. Generate function bodies
-        lyir_builder* builder = lyir_builder_create(module->context);
+        lyir_builder* builder = lyir_builder_create(module->context->lyir_context);
 
         for (int64_t i = 0, count = lca_da_count(module->top_level_nodes); i < count; i++) {
             laye_node* top_level_node = module->top_level_nodes[i];
@@ -362,7 +362,7 @@ static lyir_type* laye_convert_type(laye_type type) {
     assert(laye_node_is_type(type.node));
     // laye_module* module = type->module;
     // assert(module != NULL);
-    lyir_context* context = type.node->context;
+    laye_context* context = type.node->context;
     assert(context != NULL);
 
     switch (type.node->kind) {
@@ -374,19 +374,19 @@ static lyir_type* laye_convert_type(laye_type type) {
 
         case LAYE_NODE_TYPE_VOID:
         case LAYE_NODE_TYPE_NORETURN: {
-            return lyir_void_type(context);
+            return lyir_void_type(context->lyir_context);
         }
 
         case LAYE_NODE_TYPE_BOOL: {
-            return lyir_int_type(context, 1);
+            return lyir_int_type(context->lyir_context, 1);
         }
 
         case LAYE_NODE_TYPE_INT: {
-            return lyir_int_type(context, type.node->type_primitive.bit_width);
+            return lyir_int_type(context->lyir_context, type.node->type_primitive.bit_width);
         }
 
         case LAYE_NODE_TYPE_FLOAT: {
-            return lyir_float_type(context, type.node->type_primitive.bit_width);
+            return lyir_float_type(context->lyir_context, type.node->type_primitive.bit_width);
         }
 
         case LAYE_NODE_TYPE_FUNCTION: {
@@ -409,13 +409,13 @@ static lyir_type* laye_convert_type(laye_type type) {
             assert(calling_convention != LYIR_DEFAULTCC);
 
             assert(lca_da_count(parameter_types) == lca_da_count(type.node->type_function.parameter_types));
-            return lyir_function_type(context, return_type, parameter_types, calling_convention, type.node->type_function.varargs_style == LAYE_VARARGS_C);
+            return lyir_function_type(context->lyir_context, return_type, parameter_types, calling_convention, type.node->type_function.varargs_style == LAYE_VARARGS_C);
         }
 
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_REFERENCE:
         case LAYE_NODE_TYPE_BUFFER: {
-            return lyir_ptr_type(context);
+            return lyir_ptr_type(context->lyir_context);
         }
 
         case LAYE_NODE_TYPE_ARRAY: {
@@ -432,7 +432,7 @@ static lyir_type* laye_convert_type(laye_type type) {
                 length *= length_value->evaluated_constant.result.int_value;
             }
 
-            return lyir_array_type(context, length, element_type);
+            return lyir_array_type(context->lyir_context, length, element_type);
         }
 
         case LAYE_NODE_TYPE_STRUCT: {
@@ -452,7 +452,7 @@ static lyir_type* laye_convert_type(laye_type type) {
                 };
             }
 
-            lyir_type* struct_type = lyir_struct_type(context, type.node->type_struct.name, fields);
+            lyir_type* struct_type = lyir_struct_type(context->lyir_context, type.node->type_struct.name, fields);
             assert(struct_type != NULL);
 
             struct cached_struct_type t = {

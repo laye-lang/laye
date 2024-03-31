@@ -233,7 +233,7 @@ laye_node* laye_node_create(laye_module* module, laye_node_kind kind, lyir_locat
     return node;
 }
 
-laye_node* laye_node_create_in_context(lyir_context* context, laye_node_kind kind, laye_type type) {
+laye_node* laye_node_create_in_context(laye_context* context, laye_node_kind kind, laye_type type) {
     assert(context != NULL);
     if (kind != LAYE_NODE_TYPE_TYPE) assert(type.node != NULL);
     laye_node* node = lca_allocate(context->allocator, sizeof *node);
