@@ -128,6 +128,10 @@ void laye_context_destroy(laye_context* context) {
     if (context == NULL) return;
 
     lca_allocator allocator = context->allocator;
+    
+    lca_da_free(context->include_directories);
+    lca_da_free(context->library_directories);
+    lca_da_free(context->link_libraries);
 
     for (int64_t i = 0; i < lca_da_count(context->laye_modules); i++) {
         laye_module_destroy(context->laye_modules[i]);

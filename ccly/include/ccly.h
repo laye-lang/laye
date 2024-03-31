@@ -43,6 +43,19 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "lyir.h"
 
+typedef struct c_context {
+    lyir_context* lyir_context;
+    lca_allocator allocator;
+
+    bool use_color;
+
+    lca_da(lca_string_view) include_directories;
+    lca_da(lca_string_view) library_directories;
+    lca_da(lca_string_view) link_libraries;
+
+    lca_da(struct c_translation_unit*) c_translation_units;
+} c_context;
+
 #define C_TOKEN_KINDS(X)     \
     X(EOF)                   \
     X(LIT_INT)               \
@@ -163,7 +176,7 @@ typedef struct c_macro_def {
 } c_macro_def;
 
 typedef struct c_translation_unit {
-    lyir_context* context;
+    c_context* context;
     lyir_sourceid sourceid;
 
     lca_arena* arena;
@@ -174,8 +187,11 @@ typedef struct c_translation_unit {
     c_token_buffer token_buffer;
 } c_translation_unit;
 
+c_context* c_context_create(lyir_context* lyir_context);
+void c_context_destroy(c_context* c_context);
+
 lca_string c_translation_unit_debug_print(c_translation_unit* tu);
-c_translation_unit* c_parse(lyir_context* context, lyir_sourceid sourceid);
+c_translation_unit* c_parse(c_context* context, lyir_sourceid sourceid);
 void c_translation_unit_destroy(c_translation_unit* tu);
 
 //
