@@ -129,7 +129,6 @@ void lyir_context_destroy(lyir_context* context) {
     }
 
     lca_da_free(context->sources);
-    lca_da_free(context->include_directories);
     lca_da_free(context->library_directories);
     lca_da_free(context->link_libraries);
 
@@ -161,7 +160,6 @@ void lyir_context_destroy(lyir_context* context) {
     
     lca_da_free(context->types.int_types);
     lca_da_free(context->_all_types);
-    lca_da_free(context->_all_struct_types);
     lca_arena_destroy(context->type_arena);
 
     for (int64_t i = 0, count = lca_da_count(context->_all_values); i < count; i++) {

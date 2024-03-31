@@ -47,7 +47,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_MEM_IMPLEMENTATION
 #define LCA_PLAT_IMPLEMENTATION
 #define LCA_STR_IMPLEMENTATION
-#include "c.h"
+#include "ccly.h"
 #include "laye.h"
 
 #define NOB_NO_LOG_EXIT_STATUS
@@ -168,6 +168,7 @@ typedef struct compiler_state {
 
     lyir_context* lyir_context;
     laye_context* laye_context;
+    c_context* c_context;
 } compiler_state;
 
 static bool parse_args(compiler_state* driver, int* argc, char*** argv);
@@ -215,7 +216,7 @@ static laye_module* parse_module(compiler_state* state, laye_context* context, l
 // TODO(local): parsing a translation unit should likely take in the C front end context, not the Laye front end context
 // TODO(local): parsing a translation unit should likely take in the C front end context, not the Laye front end context
 // TODO(local): parsing a translation unit should likely take in the C front end context, not the Laye front end context
-static c_translation_unit* parse_translation_unit(compiler_state* state, laye_context* context, lca_string_view input_file_path) {
+static c_translation_unit* parse_translation_unit(compiler_state* state, c_context* context, lca_string_view input_file_path) {
     lyir_sourceid sourceid = lyir_context_get_or_add_source_from_file(context->lyir_context, input_file_path);
     if (sourceid < 0) {
         const char* error_string = strerror(errno);
@@ -223,7 +224,7 @@ static c_translation_unit* parse_translation_unit(compiler_state* state, laye_co
         return NULL;
     }
 
-    c_translation_unit* tu = c_parse(context->lyir_context, sourceid);
+    c_translation_unit* tu = c_parse(context, sourceid);
     assert(tu != NULL);
     lca_da_push(state->translation_units, tu);
 
@@ -390,6 +391,10 @@ int main(int argc, char** argv) {
     assert(laye_context != NULL);
     state.laye_context = laye_context;
 
+    c_context* c_context = c_context_create(lyir_context);
+    assert(c_context != NULL);
+    state.c_context = c_context;
+
     if (state.emit_lyir) {
         if (!state.assemble_only) {
             fprintf(stderr, "-emit-lyir cannot be used when linking.\n");
@@ -422,9 +427,26 @@ int main(int argc, char** argv) {
         laye_context->use_color = lca_stdout_isatty();
     }
 
-    laye_context->include_directories = state.include_directories;
-    laye_context->library_directories = state.library_directories;
-    laye_context->link_libraries = state.link_libraries;
+    for (int64_t i = 0; i < lca_da_count(state.include_directories); i++) {
+        lca_da_push(laye_context->include_directories, state.include_directories[i]);
+        lca_da_push(c_context->include_directories, state.include_directories[i]);
+    }
+
+    for (int64_t i = 0; i < lca_da_count(state.library_directories); i++) {
+        lca_da_push(lyir_context->library_directories, state.library_directories[i]);
+        lca_da_push(laye_context->library_directories, state.library_directories[i]);
+        lca_da_push(c_context->library_directories, state.library_directories[i]);
+    }
+
+    for (int64_t i = 0; i < lca_da_count(state.link_libraries); i++) {
+        lca_da_push(lyir_context->link_libraries, state.link_libraries[i]);
+        lca_da_push(laye_context->link_libraries, state.link_libraries[i]);
+        lca_da_push(c_context->link_libraries, state.link_libraries[i]);
+    }
+
+    lca_da_free(state.include_directories);
+    lca_da_free(state.library_directories);
+    lca_da_free(state.link_libraries);
 
     laye_context->use_byte_positions_in_diagnostics = state.use_byte_positions_in_diagnostics;
 
@@ -490,7 +512,7 @@ found_stdlib:;
 
             assert(module != NULL);
         } else if (input_file_kind == SOURCE_C || (input_file_kind == SOURCE_DEFAULT && lca_string_view_ends_with_cstring(input_file_path, ".c"))) {
-            c_translation_unit* tu = parse_translation_unit(&state, laye_context, input_file_path);
+            c_translation_unit* tu = parse_translation_unit(&state, c_context, input_file_path);
             if (tu == NULL) {
                 if (!state.sema_only && !state.parse_only) exit_code = 1;
                 goto program_exit;
@@ -635,6 +657,7 @@ program_exit:;
     lca_da_free(state.input_files);
 
     laye_context_destroy(laye_context);
+    c_context_destroy(c_context);
     lyir_context_destroy(lyir_context);
     lca_temp_allocator_clear();
 #endif // !NDEBUG
