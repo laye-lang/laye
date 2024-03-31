@@ -116,7 +116,6 @@ typedef struct lyir_context {
     bool use_byte_positions_in_diagnostics;
 
     lca_da(lyir_source) sources;
-    lca_da(lca_string_view) include_directories;
     lca_da(lca_string_view) library_directories;
     lca_da(lca_string_view) link_libraries;
 
@@ -130,7 +129,6 @@ typedef struct lyir_context {
 
     lca_arena* type_arena;
     lca_da(lyir_type*) _all_types;
-    lca_da(struct cached_struct_type { laye_node* node; lyir_type* type; }) _all_struct_types;
 
     struct {
         lyir_type* poison;

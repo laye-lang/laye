@@ -169,6 +169,12 @@ typedef struct laye_context {
     lca_allocator allocator;
 
     bool use_color;
+    bool has_reported_errors;
+    bool use_byte_positions_in_diagnostics;
+
+    lca_da(lca_string_view) include_directories;
+    lca_da(lca_string_view) library_directories;
+    lca_da(lca_string_view) link_libraries;
 
     lca_da(struct laye_module*) laye_modules;
 
@@ -195,6 +201,8 @@ typedef struct laye_context {
     } laye_types;
 
     lyir_dependency_graph* laye_dependencies;
+
+    lca_da(struct cached_struct_type { laye_node* node; lyir_type* type; }) _all_struct_types;
 } laye_context;
 
 typedef enum laye_mut_compare {
