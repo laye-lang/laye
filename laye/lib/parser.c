@@ -131,9 +131,9 @@ static void laye_parse_result_copy_diags(laye_parse_result* target, laye_parse_r
     }
 }
 
-static void laye_parse_result_write_diags(lyir_context* context, laye_parse_result result) {
+static void laye_parse_result_write_diags(laye_context* context, laye_parse_result result) {
     for (int64_t i = 0, count = lca_da_count(result.diags); i < count; i++) {
-        lyir_write_diag(context, result.diags[i]);
+        lyir_write_diag(context->lyir_context, result.diags[i]);
     }
 }
 
@@ -250,7 +250,7 @@ laye_module* laye_parse(laye_context* context, lyir_sourceid sourceid) {
     assert(module_scope != NULL);
     module->scope = module_scope;
 
-    lyir_source source = lyir_context_get_source(context, sourceid);
+    lyir_source source = lyir_context_get_source(context->lyir_context, sourceid);
 
     laye_parser p = {
         .context = context,
@@ -412,7 +412,7 @@ static void laye_parser_expect(laye_parser* p, laye_token_kind kind, laye_parse_
 
     if (!laye_parser_consume(p, kind, NULL)) {
         assert((kind > __LAYE_PRINTABLE_TOKEN_START__ && kind <= __LAYE_PRINTABLE_TOKEN_END__) && "support certain non-printable kinds");
-        lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected '%c'.", (int)kind));
+        lca_da_push(result->diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '%c'.", (int)kind));
     }
 }
 
@@ -496,7 +496,7 @@ static bool laye_parse_type_modifiable_modifiers(laye_parser* p, laye_parse_resu
             if (type_is_modifiable && result->success) {
                 result->success = false;
                 if (allocate) {
-                    lca_da_push(result->diags, lyir_error(p->context, mut_token.location, "Duplicate type modifier 'mut'."));
+                    lca_da_push(result->diags, lyir_error(p->context->lyir_context, mut_token.location, "Duplicate type modifier 'mut'."));
                 }
             }
 
@@ -560,7 +560,7 @@ static laye_parse_result laye_try_parse_type_continue(laye_parser* p, laye_type 
             if (!laye_parser_consume(p, ']', &closing_token)) {
                 if (allocate) {
                     result.success = false;
-                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
+                    lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ']'."));
                 }
             }
 
@@ -637,7 +637,7 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
                 laye_node* poison = laye_node_create(p->module, LAYE_NODE_TYPE_POISON, p->token.location, LTY(p->context->laye_types.type));
                 result = laye_parse_result_combine_type(
                     result,
-                    laye_parse_result_failure_type(laye_type_qualify(poison, false), lyir_error(p->context, p->token.location, "Unexpected token when a type was expected."))
+                    laye_parse_result_failure_type(laye_type_qualify(poison, false), lyir_error(p->context->lyir_context, p->token.location, "Unexpected token when a type was expected."))
                 );
                 laye_next_token(p);
             }
@@ -853,9 +853,9 @@ static void laye_expect_semi(laye_parser* p, laye_parse_result* result) {
 
     if (!laye_parser_consume(p, ';', NULL)) {
         if (result) {
-            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected ';'."));
+            lca_da_push(result->diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ';'."));
         } else {
-            lyir_write_error(p->context, p->token.location, "Expected ';'.");
+            lyir_write_error(p->context->lyir_context, p->token.location, "Expected ';'.");
         }
     }
 }
@@ -905,7 +905,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                             foreign_node->meta_attribute.mangling = LYIR_MANGLE_LAYE;
                         } else {
                             lyir_write_error(
-                                p->context,
+                                p->context->lyir_context,
                                 p->token.location,
                                 "Unknown name mangling kind '%.*s'. Expected one of 'none' or 'laye'.",
                                 LCA_STR_EXPAND(mangling_kind_name)
@@ -915,7 +915,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                         laye_next_token(p);
                     } else {
                         lyir_write_error(
-                            p->context,
+                            p->context->lyir_context,
                             p->token.location,
                             "Expected an identifier as the foreign name mangling kind. Expected one of 'none' or 'laye'."
                         );
@@ -924,7 +924,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                     }
 
                     if (!laye_parser_consume(p, ')', NULL)) {
-                        lyir_write_error(p->context, p->token.location, "Expected ')' to close foreign name mangling kind parameter.");
+                        lyir_write_error(p->context->lyir_context, p->token.location, "Expected ')' to close foreign name mangling kind parameter.");
                     }
                 }
 
@@ -952,7 +952,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                             callconv_node->meta_attribute.calling_convention = LYIR_LAYECC;
                         } else {
                             lyir_write_error(
-                                p->context,
+                                p->context->lyir_context,
                                 p->token.location,
                                 "Unknown calling convention kind '%.*s'. Expected one of 'cdecl' or 'laye'.",
                                 LCA_STR_EXPAND(callconv_kind_name)
@@ -962,7 +962,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                         laye_next_token(p);
                     } else {
                         lyir_write_error(
-                            p->context,
+                            p->context->lyir_context,
                             p->token.location,
                             "Expected an identifier as the calling convention kind. Expected one of 'cdecl' or 'laye'."
                         );
@@ -971,7 +971,7 @@ static lca_da(laye_node*) laye_parse_attributes(laye_parser* p, laye_parse_resul
                     }
 
                     if (!laye_parser_consume(p, ')', NULL)) {
-                        lyir_write_error(p->context, p->token.location, "Expected ')' to close calling convention kind parameter.");
+                        lyir_write_error(p->context->lyir_context, p->token.location, "Expected ')' to close calling convention kind parameter.");
                     }
                 }
             } break;
@@ -1021,7 +1021,7 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
 
         result = laye_parse_result_combine(
             result,
-            laye_parse_result_failure(compound_expression, lyir_error(p->context, p->token.location, "Expected '}'."))
+            laye_parse_result_failure(compound_expression, lyir_error(p->context->lyir_context, p->token.location, "Expected '}'."))
         );
     }
 
@@ -1059,7 +1059,7 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(la
     do {
         if (laye_parser_consume(p, '*', &temp_token)) {
             if (import_decl->decl_import.is_wildcard) {
-                lca_da_push(result.diags, lyir_error(p->context, temp_token.location, "Duplicate wildcard specifier in import declaration."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, temp_token.location, "Duplicate wildcard specifier in import declaration."));
             }
 
             import_decl->decl_import.is_wildcard = true;
@@ -1076,7 +1076,7 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(la
 
         laye_token identifier_token = {0};
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
-            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query."));
+            lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifier as import query."));
             continue;
         } else {
             lca_da_push(pieces, identifier_token);
@@ -1084,7 +1084,7 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(la
 
         while (laye_parser_consume(p, LAYE_TOKEN_COLONCOLON, NULL)) {
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &identifier_token)) {
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier to continue import query."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifier to continue import query."));
                 break;
             } else {
                 lca_da_push(pieces, identifier_token);
@@ -1093,7 +1093,7 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(la
 
         if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &alias)) {
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier as import query alias."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifier as import query alias."));
             }
         }
 
@@ -1121,21 +1121,21 @@ static laye_parse_result laye_parse_import_declaration(laye_parser* p, lca_da(la
     } while (laye_parser_consume(p, ',', NULL));
 
     if (!laye_parser_consume(p, LAYE_TOKEN_FROM, NULL)) {
-        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected 'from'."));
+        lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected 'from'."));
     }
 
     if (laye_parser_at2(p, LAYE_TOKEN_LITSTRING, LAYE_TOKEN_IDENT) && (laye_parser_peek_at(p, ';') || laye_parser_peek_at(p, LAYE_TOKEN_AS))) {
         import_decl->decl_import.module_name = p->token;
         laye_next_token(p);
     } else {
-        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected identifier or string as module name."));
+        lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifier or string as module name."));
     }
 
 parse_alias_or_end:;
 
     if (laye_parser_consume(p, LAYE_TOKEN_AS, NULL)) {
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &import_decl->decl_import.import_alias)) {
-            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as import declaration alias."));
+            lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier as import declaration alias."));
         }
     }
 
@@ -1164,7 +1164,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &ident_token)) {
         result = laye_parse_result_combine(
             result,
-            laye_parse_result_failure(struct_decl, lyir_error(p->context, p->token.location, "Expected an identifier to name this %s.", is_variant ? "variant" : "struct"))
+            laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier to name this %s.", is_variant ? "variant" : "struct"))
         );
 
         if (!laye_parser_at(p, '{')) {
@@ -1180,7 +1180,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     if (!laye_parser_consume(p, '{', NULL)) {
         return laye_parse_result_combine(
             result,
-            laye_parse_result_failure(struct_decl, lyir_error(p->context, p->token.location, "Expected '{' to begin this %s.", is_variant ? "variant" : "struct"))
+            laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to begin this %s.", is_variant ? "variant" : "struct"))
         );
     }
 
@@ -1190,7 +1190,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
             if (!is_variant) {
                 result = laye_parse_result_combine(
                     result,
-                    laye_parse_result_failure(struct_decl, lyir_error(p->context, p->token.location, "Struct variants must be declared with the `variant` keyword."))
+                    laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Struct variants must be declared with the `variant` keyword."))
                 );
 
                 laye_parse_result variant_result = laye_parse_struct_declaration(p, NULL);
@@ -1212,7 +1212,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &field_name_token)) {
             result = laye_parse_result_combine(
                 result,
-                laye_parse_result_failure(struct_decl, lyir_error(p->context, p->token.location, "Expected an identifier to name this field."))
+                laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier to name this field."))
             );
         }
 
@@ -1229,7 +1229,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     if (!laye_parser_consume(p, '}', NULL)) {
         result = laye_parse_result_combine(
             result,
-            laye_parse_result_failure(struct_decl, lyir_error(p->context, p->token.location, "Expected '}' to end this %s.", is_variant ? "variant" : "struct"))
+            laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Expected '}' to end this %s.", is_variant ? "variant" : "struct"))
         );
     }
 
@@ -1257,12 +1257,12 @@ static laye_parse_result laye_parse_test_declaration(laye_parser* p) {
             test_node->decl_test.is_named = true;
             test_node->decl_test.nameref = laye_parse_nameref(p, &result, NULL, true);
         } else {
-            lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
+            lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Test declaration must either reference a declaration by name or have a string description."));
         }
     }
 
     if (!laye_parser_at(p, '{')) {
-        lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected a test body, starting with a '{'."));
+        lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected a test body, starting with a '{'."));
         goto return_test_decl;
     }
 
@@ -1291,7 +1291,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
         while (!laye_parser_at2(p, LAYE_TOKEN_EOF, ')')) {
             if (varargs_style != LAYE_VARARGS_NONE && !has_errored_for_additional_params) {
                 has_errored_for_additional_params = true;
-                lyir_write_error(p->context, p->token.location, "Additional parameters are not allowed after `varargs`.");
+                lyir_write_error(p->context->lyir_context, p->token.location, "Additional parameters are not allowed after `varargs`.");
             }
 
             if (laye_parser_consume(p, LAYE_TOKEN_VARARGS, NULL)) {
@@ -1309,7 +1309,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
 
             laye_token name_token = p->token;
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, NULL)) {
-                lyir_write_error(p->context, p->token.location, "Expected an identifier.");
+                lyir_write_error(p->context->lyir_context, p->token.location, "Expected an identifier.");
                 name_token.kind = LAYE_TOKEN_INVALID;
                 name_token.location.length = 0;
                 name_token.string_value = LCA_SV_CONSTANT("<invalid>");
@@ -1326,7 +1326,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
 
             if (laye_parser_consume(p, ',', NULL)) {
                 if (laye_parser_at2(p, LAYE_TOKEN_EOF, ')')) {
-                    lyir_write_error(p->context, p->token.location, "Expected a type.");
+                    lyir_write_error(p->context->lyir_context, p->token.location, "Expected a type.");
                     break;
                 }
             } else {
@@ -1335,7 +1335,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
         }
 
         if (!laye_parser_consume(p, ')', NULL)) {
-            lyir_write_error(p->context, p->token.location, "Expected ')' to close function parameter list.");
+            lyir_write_error(p->context->lyir_context, p->token.location, "Expected ')' to close function parameter list.");
             laye_parser_try_synchronize(p, ')');
         }
 
@@ -1372,7 +1372,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
                 assert(function_body_expr != NULL);
 
                 if (!laye_parser_consume(p, ';', NULL)) {
-                    lyir_write_error(p->context, p->token.location, "Expected ';'.");
+                    lyir_write_error(p->context->lyir_context, p->token.location, "Expected ';'.");
                 }
 
                 laye_node* implicit_return_node = laye_node_create(p->module, LAYE_NODE_RETURN, function_body_expr->location, LTY(p->context->laye_types.noreturn));
@@ -1388,7 +1388,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
                 assert(1 == lca_da_count(function_body->compound.children));
             } else {
                 if (!laye_parser_at(p, '{')) {
-                    lyir_write_error(p->context, p->token.location, "Expected '{'.");
+                    lyir_write_error(p->context->lyir_context, p->token.location, "Expected '{'.");
                     function_body = laye_node_create(p->module, LAYE_NODE_INVALID, p->token.location, LTY(p->context->laye_types.poison));
                     assert(function_body != NULL);
                 } else {
@@ -1457,7 +1457,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         case LAYE_TOKEN_XYZZY: {
             if (lca_da_count(attributes) != 0) {
                 result.success = false;
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to statements."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Cannot apply attributes to statements."));
                 lca_da_free(attributes);
             }
 
@@ -1475,7 +1475,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
         case LAYE_TOKEN_TEST: {
             if (lca_da_count(attributes) != 0) {
                 result.success = false;
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Cannot apply attributes to test declarations."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Cannot apply attributes to test declarations."));
                 lca_da_free(attributes);
             }
 
@@ -1498,7 +1498,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                 laye_node* invalid_node = laye_parser_create_invalid_node_from_child(p, declared_type_result.node);
                 invalid_node->attribute_nodes = attributes;
                 laye_parser_try_synchronize_to_end_of_node(p);
-                return laye_parse_result_failure(invalid_node, lyir_error(p->context, invalid_node->location, "Expected 'import', 'struct', 'enum', or a function declaration."));
+                return laye_parse_result_failure(invalid_node, lyir_error(p->context->lyir_context, invalid_node->location, "Expected 'import', 'struct', 'enum', or a function declaration."));
             }
 
             laye_token name_token = {0};
@@ -1514,7 +1514,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
                 invalid_node->attribute_nodes = attributes;
                 return laye_parse_result_combine(
                     declared_type_result,
-                    laye_parse_result_failure(invalid_node, lyir_error(p->context, invalid_node->location, "Expected an identifier."))
+                    laye_parse_result_failure(invalid_node, lyir_error(p->context->lyir_context, invalid_node->location, "Expected an identifier."))
                 );
             }
 
@@ -1548,7 +1548,7 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
             laye_next_token(p);
 
             if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &field_token)) {
-                lca_da_push(result.diags, lyir_error(p->context, field_token.location, "Expected an identifier as the member name."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, field_token.location, "Expected an identifier as the member name."));
             }
             
             laye_node* member_expr = laye_node_create(p->module, LAYE_NODE_MEMBER, field_token.location, LTY(p->context->laye_types.unknown));
@@ -1572,7 +1572,7 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
             }
 
             if (!laye_parser_consume(p, ')', NULL)) {
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ')'."));
             }
 
             laye_node* call_expr = laye_node_create(p->module, LAYE_NODE_CALL, primary_expr->location, LTY(p->context->laye_types.unknown));
@@ -1596,7 +1596,7 @@ static laye_parse_result laye_parse_primary_expression_continue(laye_parser* p, 
             }
 
             if (!laye_parser_consume(p, ']', NULL)) {
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected ']'."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ']'."));
             }
 
             laye_node* index_expr = laye_node_create(p->module, LAYE_NODE_INDEX, primary_expr->location, LTY(p->context->laye_types.unknown));
@@ -1623,7 +1623,7 @@ static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_parse_res
     laye_next_token(p);
 
     if (!laye_parser_consume(p, '(', NULL)) {
-        lyir_write_error(p->context, p->token.location, "Expected '(' to open `if` condition.");
+        lyir_write_error(p->context->lyir_context, p->token.location, "Expected '(' to open `if` condition.");
     }
 
     *result = laye_parse_result_combine(*result, laye_parse_expression(p));
@@ -1631,7 +1631,7 @@ static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_parse_res
     assert(if_condition != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        lyir_write_error(p->context, p->token.location, "Expected ')' to close `if` condition.");
+        lyir_write_error(p->context->lyir_context, p->token.location, "Expected ')' to close `if` condition.");
     }
 
     laye_node* if_body = NULL;
@@ -1644,7 +1644,7 @@ static void laye_parse_if_only(laye_parser* p, bool expr_context, laye_parse_res
             *result = laye_parse_result_combine(*result, laye_parse_expression(p));
             if_body = result->node;
         } else {
-            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(result->diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `if` body. (Compound expressions are currently required, but may not be in future versions.)"));
             *result = laye_parse_result_combine(*result, laye_parse_statement(p, true));
             if_body = result->node;
         }
@@ -1711,7 +1711,7 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
                     result = laye_parse_result_combine(result, laye_parse_expression(p));
                     else_body = result.node;
                 } else {
-                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+                    lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
                     result = laye_parse_result_combine(result, laye_parse_statement(p, true));
                     else_body = result.node;
                 }
@@ -1757,7 +1757,7 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
         laye_token next_piece = {0};
         if (!laye_parser_consume(p, LAYE_TOKEN_IDENT, &next_piece)) {
             result->success = false;
-            lca_da_push(result->diags, lyir_error(p->context, p->token.location, "Expected identifier."));
+            lca_da_push(result->diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifier."));
             break;
         }
 
@@ -1790,7 +1790,7 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             laye_node* invalid_expr = laye_node_create(p->module, LAYE_NODE_INVALID, token_location, LTY(p->context->laye_types.poison));
             assert(invalid_expr != NULL);
 
-            return laye_parse_result_failure(invalid_expr, lyir_error(p->context, token_location, "Unexpected token. Expected an expression."));
+            return laye_parse_result_failure(invalid_expr, lyir_error(p->context->lyir_context, token_location, "Unexpected token. Expected an expression."));
         }
 
         case LAYE_TOKEN_CAST: {
@@ -1830,7 +1830,7 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             } else {
                 expr_result = laye_parse_result_combine(
                     expr_result,
-                    laye_parse_result_failure(expr_result.node, lyir_error(p->context, expr_result.node->location, "Expected ')'."))
+                    laye_parse_result_failure(expr_result.node, lyir_error(p->context->lyir_context, expr_result.node->location, "Expected ')'."))
                 );
             }
 
@@ -1999,11 +1999,11 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
             assert(p->scope != NULL);
             laye_scope_declare(p->scope, foreach_node->foreach.index_binding);
         } else {
-            lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator index binding name."));
+            lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifer as iterator index binding name."));
         }
 
         if (!laye_parser_consume(p, ',', NULL)) {
-            lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ','."));
+            lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ','."));
         }
     }
 
@@ -2016,13 +2016,13 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
         assert(p->scope != NULL);
         laye_scope_declare(p->scope, foreach_node->foreach.element_binding);
     } else {
-        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected identifer as iterator element binding name."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected identifer as iterator element binding name."));
     }
 
     assert(foreach_node->foreach.element_binding != NULL);
 
     if (!laye_parser_consume(p, ':', NULL)) {
-        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ':'."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ':'."));
     }
 
     foreach_result = laye_parse_result_combine(foreach_result, laye_parse_expression(p));
@@ -2030,14 +2030,14 @@ static laye_parse_result laye_parse_foreach_from_names(laye_parser* p, laye_pars
     foreach_node->foreach.iterable = foreach_result.node;
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         foreach_result = laye_parse_result_combine(foreach_result, laye_parse_compound_expression(p));
         foreach_node->foreach.pass = foreach_result.node;
     } else {
-        lca_da_push(foreach_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(foreach_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
         foreach_result = laye_parse_result_combine(foreach_result, laye_parse_statement(p, true));
         foreach_node->foreach.pass = foreach_result.node;
     }
@@ -2062,7 +2062,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
     laye_parse_result for_result = laye_parse_result_success(for_node);
 
     if (!laye_parser_consume(p, '(', NULL)) {
-        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
+        lca_da_push(for_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '('."));
     }
 
     if (laye_parser_at(p, LAYE_TOKEN_ENUM) || (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, ':'))) {
@@ -2111,14 +2111,14 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
     assert(for_node->_for.increment != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(for_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
         for_node->_for.pass = for_result.node;
     } else {
-        lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(for_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `for` body. (Compound expressions are currently required, but may not be in future versions.)"));
         for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
         for_node->_for.pass = for_result.node;
     }
@@ -2128,7 +2128,7 @@ static laye_parse_result laye_parse_for(laye_parser* p) {
             for_result = laye_parse_result_combine(for_result, laye_parse_compound_expression(p));
             for_node->_for.fail = for_result.node;
         } else {
-            lca_da_push(for_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `for` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(for_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `for` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
             for_result = laye_parse_result_combine(for_result, laye_parse_statement(p, true));
             for_node->_for.fail = for_result.node;
         }
@@ -2163,7 +2163,7 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
     }
 
     if (!laye_parser_consume(p, '(', NULL)) {
-        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '('."));
+        lca_da_push(while_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '('."));
     }
 
     while_result = laye_parse_result_combine(while_result, laye_parse_expression(p));
@@ -2171,14 +2171,14 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
     assert(while_node->_while.condition != NULL);
 
     if (!laye_parser_consume(p, ')', NULL)) {
-        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected ')'."));
+        lca_da_push(while_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected ')'."));
     }
 
     if (laye_parser_at(p, '{')) {
         while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
         while_node->_while.pass = while_result.node;
     } else {
-        lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` body. (Compound expressions are currently required, but may not be in future versions.)"));
+        lca_da_push(while_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `while` body. (Compound expressions are currently required, but may not be in future versions.)"));
         while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
         while_node->_while.pass = while_result.node;
     }
@@ -2188,7 +2188,7 @@ static laye_parse_result laye_parse_while(laye_parser* p) {
             while_result = laye_parse_result_combine(while_result, laye_parse_compound_expression(p));
             while_node->_while.fail = while_result.node;
         } else {
-            lca_da_push(while_result.diags, lyir_error(p->context, p->token.location, "Expected '{' to open `while` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
+            lca_da_push(while_result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to open `while` `else` body. (Compound expressions are currently required, but may not be in future versions.)"));
             while_result = laye_parse_result_combine(while_result, laye_parse_statement(p, true));
             while_node->_while.fail = while_result.node;
         }
@@ -2266,7 +2266,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
 
             if (laye_parser_consume(p, ',', NULL)) {
                 if (!laye_parser_consume(p, LAYE_TOKEN_LITSTRING, &assert_node->_assert.message)) {
-                    lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected string literal for assert message."));
+                    lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected string literal for assert message."));
                 }
             }
 
@@ -2340,10 +2340,10 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (consume_semi) laye_expect_semi(p, &result);
 
             if (lca_da_count(p->break_continue_stack) == 0) {
-                lyir_write_error(p->context, result.node->location, "`break` statement can only occur within a `for` loop.");
+                lyir_write_error(p->context->lyir_context, result.node->location, "`break` statement can only occur within a `for` loop.");
             } else {
                 if (result.node->_break.target.count != 0) {
-                    lyir_write_error(p->context, result.node->location, "`break` currently does not support label targets.");
+                    lyir_write_error(p->context->lyir_context, result.node->location, "`break` currently does not support label targets.");
                 } else {
                     break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
                     assert(bc_targ.target != NULL);
@@ -2378,10 +2378,10 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (consume_semi) laye_expect_semi(p, &result);
 
             if (lca_da_count(p->break_continue_stack) == 0) {
-                lyir_write_error(p->context, result.node->location, "`continue` statement can only occur within a `for` loop.");
+                lyir_write_error(p->context->lyir_context, result.node->location, "`continue` statement can only occur within a `for` loop.");
             } else {
                 if (result.node->_continue.target.count != 0) {
-                    lyir_write_error(p->context, result.node->location, "`continue` currently does not support label targets.");
+                    lyir_write_error(p->context->lyir_context, result.node->location, "`continue` currently does not support label targets.");
                 } else {
                     break_continue_target bc_targ = laye_parser_peek_break_continue_target(p);
                     assert(bc_targ.target != NULL);
@@ -2413,7 +2413,7 @@ static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi)
             if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &target_label)) {
                 result.node->_goto.label = target_label.string_value;
             } else {
-                lca_da_push(result.diags, lyir_error(p->context, p->token.location, "Expected an identifier as `goto` target label name."));
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier as `goto` target label name."));
             }
             if (consume_semi) laye_expect_semi(p, &result);
         } break;
@@ -2614,7 +2614,7 @@ try_again:;
                 lca_string_view line_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                 line_trivia.location.length = line_comment_text.count - 2;
-                line_trivia.text = lyir_context_intern_string_view(p->context, line_comment_text);
+                line_trivia.text = lyir_context_intern_string_view(p->context->lyir_context, line_comment_text);
 
                 // lca_da_push(trivia, line_trivia);
 
@@ -2641,7 +2641,7 @@ try_again:;
                     lca_string_view line_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     line_trivia.location.length = line_comment_text.count - 2;
-                    line_trivia.text = lyir_context_intern_string_view(p->context, line_comment_text);
+                    line_trivia.text = lyir_context_intern_string_view(p->context->lyir_context, line_comment_text);
 
                     // lca_da_push(trivia, line_trivia);
 
@@ -2682,10 +2682,10 @@ try_again:;
                     lca_string_view block_comment_text = lca_string_slice(p->source.text, text_start_position, text_end_position - text_start_position);
 
                     block_trivia.location.length = p->lexer_position - block_trivia.location.offset;
-                    block_trivia.text = lyir_context_intern_string_view(p->context, block_comment_text);
+                    block_trivia.text = lyir_context_intern_string_view(p->context->lyir_context, block_comment_text);
 
                     if (nesting_count > 0) {
-                        lyir_write_error(p->context, block_trivia.location, "Unterminated delimimted comment.");
+                        lyir_write_error(p->context->lyir_context, block_trivia.location, "Unterminated delimimted comment.");
                     }
 
                     // lca_da_push(trivia, block_trivia);
@@ -3022,7 +3022,7 @@ restart_token:;
                     switch (c) {
                         default: {
                             // clang-format off
-                            lyir_write_error(p->context, (lyir_location) {
+                            lyir_write_error(p->context->lyir_context, (lyir_location) {
                                 .sourceid = token.location.sourceid,
                                 .offset = p->lexer_position,
                                 .length = 1,
@@ -3094,7 +3094,7 @@ restart_token:;
                             int value = 0;
                             for (int i = 0; i < 2; i++) {
                                 if (p->lexer_position >= p->source.text.count || p->current_char == '"' || !is_digit_char(p->current_char, 16)) {
-                                    lyir_write_error(p->context, token.location, "The \\x escape sequence requires exactly two hexadecimal digits.");
+                                    lyir_write_error(p->context->lyir_context, token.location, "The \\x escape sequence requires exactly two hexadecimal digits.");
                                     break;
                                 }
 
@@ -3112,22 +3112,22 @@ restart_token:;
                 }
             }
 
-            token.string_value = lyir_context_intern_string_view(p->context, (lca_string_view){.data = string_data, .count = lca_da_count(string_data)});
+            token.string_value = lyir_context_intern_string_view(p->context->lyir_context, (lca_string_view){.data = string_data, .count = lca_da_count(string_data)});
             lca_da_free(string_data);
 
             if (p->current_char != terminator) {
                 token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context, token.location, "Unterminated %s literal.", (is_char ? "rune" : "string"));
+                lyir_write_error(p->context->lyir_context, token.location, "Unterminated %s literal.", (is_char ? "rune" : "string"));
             } else {
                 laye_char_advance(p);
             }
 
             if (error_char) {
                 token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context, token.location, "Too many characters in rune literal.");
+                lyir_write_error(p->context->lyir_context, token.location, "Too many characters in rune literal.");
             } else if (is_char && token.string_value.count == 0) {
                 token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context, token.location, "Not enough characters in rune literal.");
+                lyir_write_error(p->context->lyir_context, token.location, "Not enough characters in rune literal.");
             }
         } break;
 
@@ -3163,7 +3163,7 @@ restart_token:;
                 radix_location.length = p->lexer_position - radix_location.offset;
 
                 if (integer_value < 2 || integer_value > 36) {
-                    lyir_write_error(p->context, radix_location, "Integer base must be between 2 and 36 inclusive.");
+                    lyir_write_error(p->context->lyir_context, radix_location, "Integer base must be between 2 and 36 inclusive.");
                     if (integer_value < 2) {
                         radix = 2;
                     } else radix = 36;
@@ -3171,12 +3171,12 @@ restart_token:;
 
                 laye_char_advance(p);
                 if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
-                    lyir_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d.", radix);
+                    lyir_write_error(p->context->lyir_context, laye_char_location(p), "Expected a digit value in base %d.", radix);
                     goto end_literal_integer_radix;
                 }
 
                 if (p->current_char == '_') {
-                    lyir_write_error(p->context, laye_char_location(p), "Integer literals cannot begin wtih an underscore.");
+                    lyir_write_error(p->context->lyir_context, laye_char_location(p), "Integer literals cannot begin wtih an underscore.");
                 }
 
                 integer_value = 0;
@@ -3201,7 +3201,7 @@ restart_token:;
                         // in this case, we can't fall back to the identifier parser, so we do actually error it.
                         if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
                             laye_char_advance(p);
-                            lyir_write_error(p->context, laye_char_location(p), "Integer literals cannot end in an underscore.");
+                            lyir_write_error(p->context->lyir_context, laye_char_location(p), "Integer literals cannot end in an underscore.");
                             continue;
                         }
                     }
@@ -3218,8 +3218,8 @@ restart_token:;
                     };
 
                     if (will_be_float)
-                        lyir_write_error(p->context, integer_value_location, "Float value contains digits outside its specified base.");
-                    else lyir_write_error(p->context, integer_value_location, "Integer value contains digits outside its specified base.");
+                        lyir_write_error(p->context->lyir_context, integer_value_location, "Float value contains digits outside its specified base.");
+                    else lyir_write_error(p->context->lyir_context, integer_value_location, "Integer value contains digits outside its specified base.");
                 }
 
                 if (will_be_float) {
@@ -3238,12 +3238,12 @@ restart_token:;
 
                 laye_char_advance(p);
                 if (!is_digit_char_in_any_radix(p->current_char) && p->current_char != '_') {
-                    lyir_write_error(p->context, laye_char_location(p), "Expected a digit value in base %d.", radix);
+                    lyir_write_error(p->context->lyir_context, laye_char_location(p), "Expected a digit value in base %d.", radix);
                     goto end_literal_float;
                 }
 
                 if (p->current_char == '_') {
-                    lyir_write_error(p->context, laye_char_location(p), "The fractional part of a float literal cannot begin with an underscore.");
+                    lyir_write_error(p->context->lyir_context, laye_char_location(p), "The fractional part of a float literal cannot begin with an underscore.");
                 }
 
                 bool should_report_invalid_digits = false;
@@ -3254,7 +3254,7 @@ restart_token:;
                         int64_t digit_value = digit_value_in_any_radix(p->current_char);
                         if (!is_digit_char(p->current_char, radix)) {
                             digit_value = radix - 1;
-                            lyir_write_error(p->context, laye_char_location(p), "'%c' is not a digit value in base %d.", p->current_char, radix);
+                            lyir_write_error(p->context->lyir_context, laye_char_location(p), "'%c' is not a digit value in base %d.", p->current_char, radix);
                         }
 
                         assert(digit_value >= 0 && digit_value < radix);
@@ -3265,7 +3265,7 @@ restart_token:;
                         // in this case, we can't fall back to the identifier parser, so we do actually error it.
                         if (!is_digit_char_in_any_radix(laye_char_peek(p))) {
                             laye_char_advance(p);
-                            lyir_write_error(p->context, laye_char_location(p), "Float literals cannot end in an underscore.");
+                            lyir_write_error(p->context->lyir_context, laye_char_location(p), "Float literals cannot end in an underscore.");
                             continue;
                         }
                     }
@@ -3279,7 +3279,7 @@ restart_token:;
                         .offset = fractional_value_start_position,
                         .length = p->lexer_position - fractional_value_start_position,
                     };
-                    lyir_write_error(p->context, integer_value_location, "Float value contains digits outside its specified base.");
+                    lyir_write_error(p->context->lyir_context, integer_value_location, "Float value contains digits outside its specified base.");
                 }
 
             end_literal_float:;
@@ -3367,7 +3367,7 @@ restart_token:;
                 }
             }
 
-            token.string_value = lyir_context_intern_string_view(p->context, identifier_source_view);
+            token.string_value = lyir_context_intern_string_view(p->context->lyir_context, identifier_source_view);
             assert(token.string_value.count > 0);
             assert(token.string_value.data != NULL);
             token.kind = LAYE_TOKEN_IDENT;
@@ -3378,7 +3378,7 @@ restart_token:;
 
             token.kind = LAYE_TOKEN_UNKNOWN;
             token.location.length = p->lexer_position - token.location.offset;
-            lyir_write_error(p->context, token.location, "Invalid character in Laye source file.");
+            lyir_write_error(p->context->lyir_context, token.location, "Invalid character in Laye source file.");
 
             lca_da_push(p->module->_all_tokens, token);
 
