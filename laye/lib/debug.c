@@ -53,7 +53,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define COL_CONST   BLUE
 
 typedef struct laye_print_context {
-    lyir_context* context;
+    laye_context* context;
     laye_module* module;
     bool use_color;
     lca_string* indents;
@@ -118,7 +118,7 @@ lca_string laye_module_debug_print(laye_module* module) {
     };
 
     bool use_color = print_context.use_color;
-    lca_string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), LCA_STR_EXPAND(lyir_context_get_source(module->context, module->sourceid).name), COL(RESET));
+    lca_string_append_format(print_context.output, "%s; %.*s%s\n", COL(COL_COMMENT), LCA_STR_EXPAND(lyir_context_get_source(module->context->lyir_context, module->sourceid).name), COL(RESET));
     lca_string_append_format(print_context.output, "%s; %016llX%s\n", COL(COL_COMMENT), (size_t)module, COL(RESET));
     if (module->imports != NULL) {
         //string_append_format(print_context.output, "%s; Imports:\n", COL(COL_COMMENT));
@@ -237,7 +237,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         default: break;
 
         case LAYE_NODE_DECL_IMPORT: {
-            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->location.sourceid);
             lca_string_append_format(
                 print_context->output,
                 " %s%.*s",
@@ -312,7 +312,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_DECL_TEST: {
-            lyir_source source = lyir_context_get_source(print_context->context, node->decl_test.description.location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->decl_test.description.location.sourceid);
             if (node->decl_test.is_named) {
                 lca_string_append_format(print_context->output, " ");
                 laye_nameref_print_to_string(node->decl_test.nameref, print_context->output, use_color);
@@ -488,7 +488,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_ASSERT: {
             if (node->_assert.message.kind != LAYE_TOKEN_INVALID) {
-                lyir_source source = lyir_context_get_source(print_context->context, node->_assert.message.location.sourceid);
+                lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->_assert.message.location.sourceid);
                 lca_string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->_assert.message.location.length, source.text.data + node->_assert.message.location.offset);
             }
 
@@ -555,7 +555,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         case LAYE_NODE_UNARY: {
             lca_da_push(children, node->unary.operand);
 
-            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->location.sourceid);
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->unary.operator.location.length, source.text.data + node->unary.operator.location.offset);
         } break;
 
@@ -563,7 +563,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             lca_da_push(children, node->binary.lhs);
             lca_da_push(children, node->binary.rhs);
 
-            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->location.sourceid);
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->binary.operator.location.length, source.text.data + node->binary.operator.location.offset);
         } break;
 
@@ -571,7 +571,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
             lca_da_push(children, node->assignment.lhs);
             lca_da_push(children, node->assignment.rhs);
 
-            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->location.sourceid);
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NODE), (int)node->location.length, source.text.data + node->location.offset);
         } break;
 
@@ -589,7 +589,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         } break;
 
         case LAYE_NODE_LITSTRING: {
-            lyir_source source = lyir_context_get_source(print_context->context, node->location.sourceid);
+            lyir_source source = lyir_context_get_source(print_context->context->lyir_context, node->location.sourceid);
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_CONST), (int)node->location.length, source.text.data + node->location.offset);
         } break;
     }
