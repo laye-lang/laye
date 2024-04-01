@@ -1,5 +1,6 @@
 // 0
-// q %layec -S -emit-lyir -o - %s
+// R
+// %layec -S -emit-lyir -o - %s
 
 int add(int a, int b) {
     if (a == b) {

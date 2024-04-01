@@ -341,8 +341,8 @@ lyir_diag lyir_ice(lyir_context* context, lyir_location location, const char* fo
 }
 
 void lyir_write_diag(lyir_context* context, lyir_diag diag) {
-    lyir_context_print_location_info(context, diag.location, diag.status, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(diag.message));
+    lyir_context_print_location_info(context, diag.location, diag.status, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(diag.message));
     if (diag.status == LYIR_ERROR || diag.status == LYIR_FATAL || diag.status == LYIR_ICE) {
         context->has_reported_errors = true;
     }
@@ -350,33 +350,33 @@ void lyir_write_diag(lyir_context* context, lyir_diag diag) {
 
 void lyir_write_info(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    lyir_context_print_location_info(context, location, LYIR_INFO, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
+    lyir_context_print_location_info(context, location, LYIR_INFO, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_note(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    lyir_context_print_location_info(context, location, LYIR_NOTE, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
+    lyir_context_print_location_info(context, location, LYIR_NOTE, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_warn(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    lyir_context_print_location_info(context, location, LYIR_WARN, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
+    lyir_context_print_location_info(context, location, LYIR_WARN, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(message));
 }
 
 void lyir_write_error(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    lyir_context_print_location_info(context, location, LYIR_ERROR, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
+    lyir_context_print_location_info(context, location, LYIR_ERROR, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 
 void lyir_write_ice(lyir_context* context, lyir_location location, const char* format, ...) {
     GET_MESSAGE;
-    lyir_context_print_location_info(context, location, LYIR_ICE, stderr, context->use_color);
-    fprintf(stderr, " %.*s\n", LCA_STR_EXPAND(message));
+    lyir_context_print_location_info(context, location, LYIR_ICE, stdout, context->use_color);
+    fprintf(stdout, " %.*s\n", LCA_STR_EXPAND(message));
     context->has_reported_errors = true;
 }
 

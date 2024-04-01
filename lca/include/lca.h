@@ -248,7 +248,7 @@ bool lca_stderr_isatty(void);
 bool lcat_file_exists(const char* file_path);
 lca_string lca_file_read(lca_allocator allocator, const char* file_path);
 
-const char* lca_plat_self_exe(void);
+char* lca_plat_self_exe(void);
 
 void lca_command_append1(lca_command* command, const char* argument);
 void lca_command_append_many(lca_command* command, const char** arguments, int argument_count);
@@ -821,7 +821,7 @@ lca_string lca_file_read(lca_allocator allocator, const char* file_path) {
     return lca_string_from_data(allocator, data, count, count + 1);
 }
 
-const char* lca_plat_self_exe(void) {
+char* lca_plat_self_exe(void) {
 #    if defined(__linux__)
     char* buffer = malloc(1024);
     memset(buffer, 0, 1024);
