@@ -383,6 +383,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    char* self_exe = NULL;
+
     lyir_context* lyir_context = lyir_context_create(lca_default_allocator);
     assert(lyir_context != NULL);
     state.lyir_context = lyir_context;
@@ -450,8 +452,7 @@ int main(int argc, char** argv) {
 
     laye_context->use_byte_positions_in_diagnostics = state.use_byte_positions_in_diagnostics;
 
-    const char* self_exe = lca_plat_self_exe();
-    fprintf(stderr, "\n\n%s\n\n", self_exe);
+    self_exe = lca_plat_self_exe();
     if (self_exe != NULL) {
         lca_string libdir_builder = lca_string_create(lca_default_allocator);
         lca_string_append_format(&libdir_builder, "%s", self_exe);
@@ -645,6 +646,8 @@ program_exit:;
     }
 
 #ifndef NDEBUG
+    free(self_exe);
+
     for (int64_t i = 0; i < lca_da_count(state.total_intermediate_files); i++) {
         lca_string_destroy(&state.total_intermediate_files[i]);
     }

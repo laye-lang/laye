@@ -223,12 +223,70 @@ defer:;
     return result;
 }
 
+static bool run_fchk(bool rebuild) {
+    if (!build_project(laye_driver_project)) {
+        return false;
+    }
+
+    Nob_Cmd cmd = {0};
+
+    if (!nob_file_exists("test-out")) {
+        nob_cmd_append(&cmd, "cmake", "-S", ".", "-B", "test-out", "-DBUILD_TESTING=ON");
+        if (!nob_cmd_run_sync(cmd)) {
+            return false;
+        }
+
+        cmd.count = 0;
+        nob_cmd_append(&cmd, "cmake", "--build", "test-out");
+        if (!nob_cmd_run_sync(cmd)) {
+            return false;
+        }
+    } else if (rebuild) {
+        cmd.count = 0;
+        nob_cmd_append(&cmd, "cmake", "--build", "test-out");
+        if (!nob_cmd_run_sync(cmd)) {
+            return false;
+        }
+    }
+
+    cmd.count = 0;
+    nob_cmd_append(&cmd, "ctest", "--test-dir", "test-out", "-j`nproc`", "--progress");
+    if (!nob_cmd_run_sync(cmd)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool nob_test() {
+    if (!run_fchk(false)) {
+        return false;
+    }
+
+    return true;
+}
+
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
 
     int result = 0;
 
     const char* program = nob_shift_args(&argc, &argv);
+
+    if (argc > 0) {
+        const char* command = nob_shift_args(&argc, &argv);
+
+        if (0 == strcmp("test", command)) {
+            if (!nob_test()) {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        nob_log(NOB_ERROR, "invalid command: '%s'", command);
+        return 1;
+    }
 
     if (!build_project(laye_driver_project)) {
         return 1;

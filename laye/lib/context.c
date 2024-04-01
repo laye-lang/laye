@@ -153,4 +153,6 @@ void laye_context_destroy(laye_context* context) {
     lca_deallocate(allocator, context->laye_types._uint);
     lca_deallocate(allocator, context->laye_types._float);
     lca_deallocate(allocator, context->laye_types.i8_buffer);
+
+    lca_deallocate(allocator, context);
 }
