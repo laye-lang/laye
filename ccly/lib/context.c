@@ -15,10 +15,10 @@ void c_context_destroy(c_context* c_context) {
     if (c_context == NULL) return;
     lca_allocator allocator = c_context->allocator;
 
-    arr_free(c_context->c_translation_units);
-    arr_free(c_context->include_directories);
-    arr_free(c_context->library_directories);
-    arr_free(c_context->link_libraries);
+    lca_da_free(c_context->c_translation_units);
+    lca_da_free(c_context->include_directories);
+    lca_da_free(c_context->library_directories);
+    lca_da_free(c_context->link_libraries);
 
     lca_deallocate(allocator, c_context);
 }

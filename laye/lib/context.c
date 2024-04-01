@@ -54,6 +54,7 @@ laye_context* laye_context_create(lyir_context* lyir_context) {
     laye_context* context = lca_allocate(allocator, sizeof *context);
     assert(context != NULL);
     context->lyir_context = lyir_context;
+    context->allocator = allocator;
 
     context->laye_types.type = laye_node_create_in_context(context, LAYE_NODE_TYPE_TYPE, (laye_type){0});
     assert(context->laye_types.type != NULL);
@@ -118,7 +119,7 @@ laye_context* laye_context_create(lyir_context* lyir_context) {
     context->laye_types.i8_buffer->type_container.element_type = LTY(context->laye_types.i8);
     context->laye_types.i8_buffer->sema_state = LYIR_SEMA_OK;
 
-    context->laye_dependencies = lyir_dependency_graph_create_in_context(context);
+    context->laye_dependencies = lyir_dependency_graph_create_in_context(lyir_context);
     assert(context->laye_dependencies != NULL);
 
     return context;

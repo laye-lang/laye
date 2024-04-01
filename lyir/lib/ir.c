@@ -228,7 +228,7 @@ int64_t lyir_context_get_struct_type_count(lyir_context* context) {
 lyir_type* lyir_context_get_struct_type_at_index(lyir_context* context, int64_t index) {
     assert(context != NULL);
     assert(index >= 0 && index < lca_da_count(context->_all_struct_types));
-    return context->_all_struct_types[index].type;
+    return context->_all_struct_types[index];
 }
 
 lyir_module* lyir_module_create(lyir_context* context, lca_string_view module_name) {

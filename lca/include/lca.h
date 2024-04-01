@@ -824,6 +824,7 @@ lca_string lca_file_read(lca_allocator allocator, const char* file_path) {
 const char* lca_plat_self_exe(void) {
 #    if defined(__linux__)
     char* buffer = malloc(1024);
+    memset(buffer, 0, 1024);
     ssize_t n = readlink("/proc/self/exe", buffer, 1024);
     if (n < 0) {
         free(buffer);
