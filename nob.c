@@ -59,10 +59,12 @@ static const char* laye_driver_project_sources[] = {
     "./lyir/lib/llvm.c",
     "./lyir/lib/shared.c",
 
+    "./ccly/lib/context.c",
     "./ccly/lib/data.c",
     "./ccly/lib/debug.c",
     "./ccly/lib/parser.c",
 
+    "./laye/lib/context.c",
     "./laye/lib/data.c",
     "./laye/lib/debug.c",
     "./laye/lib/irgen.c",

@@ -144,6 +144,7 @@ typedef struct lyir_context {
     } values;
 
     lca_da(lyir_value*) _all_values;
+    lca_da(lyir_type*) _all_struct_types;
 } lyir_context;
 
 typedef struct lyir_location {
