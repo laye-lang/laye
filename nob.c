@@ -86,6 +86,27 @@ static project_info laye_driver_project = {
 };
 // == Laye Compiler Driver ==
 
+// == Laye Execution Test Runner ==
+static const char* exec_test_runner_project_includes[] = {
+    "./lca/include",
+    NULL, // sentinel
+};
+
+static const char* exec_test_runner_project_sources[] = {
+    "./laye/src/exec_test_runner.c",
+    NULL, // sentinel
+};
+
+static project_info exec_test_runner_project = {
+    "exec_test_runner",
+    "Laye Execution Test Runner",
+    "exec_test_runner",
+
+    exec_test_runner_project_includes,
+    exec_test_runner_project_sources,
+};
+// == Laye Execution Test Runner ==
+
 static void path_get_file_name(const char** path_ref, int* length, bool remove_extension) {
     const char* path = *path_ref;
     *length = (int)strlen(path);
@@ -128,27 +149,41 @@ static void path_get_first_directory_name(const char** path_ref, int* length) {
     }
 }
 
-static void cflags(Nob_Cmd* cmd) {
+static void cflags(Nob_Cmd* cmd, bool debug) {
     nob_cmd_append(cmd, "-std=c2x");
     nob_cmd_append(cmd, "-pedantic");
     nob_cmd_append(cmd, "-pedantic-errors");
-    nob_cmd_append(cmd, "-ggdb");
+    nob_cmd_append(cmd, "-fdata-sections");
+    nob_cmd_append(cmd, "-ffunction-sections");
     nob_cmd_append(cmd, "-Werror=return-type");
     nob_cmd_append(cmd, "-D__USE_POSIX");
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
+
+    if (debug) {
+        nob_cmd_append(cmd, "-fsanitize=address");
+        nob_cmd_append(cmd, "-ggdb");
+    } else {
+        nob_cmd_append(cmd, "-Os");
+    }
 }
 
-static void ldflags(Nob_Cmd* cmd) {
-    nob_cmd_append(cmd, "-fsanitize=address");
+static void ldflags(Nob_Cmd* cmd, bool debug) {
+    nob_cmd_append(cmd, "-Wl,--gc-sections");
+    nob_cmd_append(cmd, "-Wl,--as-needed");
+
+    if (debug) {
+        nob_cmd_append(cmd, "-fsanitize=address");
+    } else {
+        nob_cmd_append(cmd, "-Os");
+    }
 }
 
-static bool rebuild_c(project_info project, const char* source_file, const char* object_file) {
+static bool rebuild_c(project_info project, const char* source_file, const char* object_file, bool debug) {
     bool result = true;
     Nob_Cmd cmd = {0};
 
     nob_cmd_append(&cmd, CC);
-    cflags(&cmd);
-    ldflags(&cmd);
+    cflags(&cmd, debug);
     nob_cmd_append(&cmd, "-I", ".");
     for (int i = 0; project.includes[i] != NULL && i < 10; i++) {
         nob_cmd_append(&cmd, "-I", project.includes[i]);
@@ -192,7 +227,7 @@ static bool build_project(project_info project) {
     }
 
     nob_cmd_append(&cmd, CC);
-    ldflags(&cmd);
+    ldflags(&cmd, true);
     nob_cmd_append(&cmd, "-o", output_path);
 
     for (int64_t i = 0; project.sources[i] != NULL && i < 100; i++) {
@@ -210,7 +245,7 @@ static bool build_project(project_info project) {
         nob_cmd_append(&cmd, object_file);
 
         if (nob_needs_rebuild1(object_file, source_file)) {
-            rebuild_c(project, source_file, object_file);
+            rebuild_c(project, source_file, object_file, true);
         }
     }
 
@@ -258,13 +293,39 @@ static bool run_fchk(bool rebuild) {
     return true;
 }
 
-static bool nob_test() {
-    if (!run_fchk(false)) {
-        return false;
+static bool nob_build(bool explicit, int argc, char** argv) {
+    bool result = true;
+
+    if (!build_project(laye_driver_project)) {
+        nob_return_defer(false);
     }
 
-    return true;
+defer:;
+    return result;
 }
+
+static bool nob_test(int argc, char** argv) {
+    bool result = true;
+
+    if (!build_project(exec_test_runner_project)) {
+        nob_return_defer(false);
+    }
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "./out/exec_test_runner");
+    if (!nob_cmd_run_sync(cmd)) {
+        nob_return_defer(false);
+    }
+
+    if (!run_fchk(false)) {
+        nob_return_defer(false);
+    }
+
+defer:;
+    return result;
+}
+
+#define delegate_to_command(SHIFT, CMD, ...) do { if (SHIFT) { nob_shift_args(&argc, &argv); } return CMD(__VA_ARGS__ __VA_OPT__(,) argc, argv) ? 0 : 1; } while (0)
 
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
@@ -274,24 +335,14 @@ int main(int argc, char** argv) {
     const char* program = nob_shift_args(&argc, &argv);
 
     if (argc > 0) {
-        const char* command = nob_shift_args(&argc, &argv);
+        const char* maybe_command = argv[0];
 
-        if (0 == strcmp("test", command)) {
-            if (!nob_test()) {
-                return 1;
-            }
-
-            return 0;
+        if (0 == strcmp("build", maybe_command)) {
+            delegate_to_command(true, nob_build, true);
+        } else if (0 == strcmp("test", maybe_command)) {
+            delegate_to_command(true, nob_test);
         }
-
-        nob_log(NOB_ERROR, "invalid command: '%s'", command);
-        return 1;
     }
 
-    if (!build_project(laye_driver_project)) {
-        return 1;
-    }
-
-defer:
-    return 0;
+    delegate_to_command(false, nob_build, false);
 }

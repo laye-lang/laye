@@ -47,10 +47,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#define LCA_DA_IMPLEMENTATION
+#define LCA_IMPLEMENTATION
 #include "lca.h"
 
-#define LAYEC_PATH "./out/laye1"
+#define LAYEC_PATH "./out/layec"
 
 #define FCHK_DIR  "./fchk"
 #define FCHK_OUT  FCHK_DIR "/out"
