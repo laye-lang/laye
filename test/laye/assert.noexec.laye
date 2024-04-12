@@ -1,4 +1,5 @@
-// R %layec -S -emit-lyir -o - %s
+// R
+//  %layec -S -emit-lyir -o - %s
 
 // NOTE: You can use the assert funcionality regardless of what you've imported.
 // The compiler knows which functions should exist and what their signature is, so

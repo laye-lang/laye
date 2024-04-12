@@ -228,6 +228,7 @@ static bool build_project(project_info project) {
 
     nob_cmd_append(&cmd, CC);
     ldflags(&cmd, true);
+    nob_cmd_append(&cmd, "-fwhole-program");
     nob_cmd_append(&cmd, "-o", output_path);
 
     for (int64_t i = 0; project.sources[i] != NULL && i < 100; i++) {
