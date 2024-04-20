@@ -2252,6 +2252,13 @@ static void layec_instruction_print(layec_print_context* print_context, lyir_val
             lyir_value_print_to_string(instruction->operand, print_context->output, true, use_color);
         } break;
 
+        case LYIR_IR_SITOFP: {
+            lca_string_append_format(print_context->output, "%ssitofp ", COL(COL_KEYWORD));
+            lyir_type_print_to_string(instruction->type, print_context->output, use_color);
+            lca_string_append_format(print_context->output, "%s, ", COL(RESET));
+            lyir_value_print_to_string(instruction->operand, print_context->output, true, use_color);
+        } break;
+
         case LYIR_IR_NEG: {
             lca_string_append_format(print_context->output, "%sneg ", COL(COL_KEYWORD));
             lyir_value_print_to_string(instruction->operand, print_context->output, true, use_color);
