@@ -2517,6 +2517,10 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
     }
 
     if (laye_type_is_int(from) && laye_type_is_float(to)) {
+        if (perform_conversion) {
+            laye_sema_insert_implicit_cast(sema, node_ref, to);
+        }
+        
         return 1 + score;
     }
 
@@ -2534,6 +2538,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
         return LAYE_CONVERT_IMPOSSIBLE;
     }
 
+    /*
     if (laye_type_is_int(from) && laye_type_is_float(to)) {
         int from_size = laye_type_size_in_bits(from);
 
@@ -2547,6 +2552,7 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
 
         return LAYE_CONVERT_IMPOSSIBLE;
     }
+    */
 
     return LAYE_CONVERT_IMPOSSIBLE;
 }
