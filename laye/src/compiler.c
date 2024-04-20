@@ -714,8 +714,8 @@ static int backend_c(compiler_state* state) {
         lca_string_view_to_cstring(temp_allocator, state->output_file)
     );
 
-    for (int64_t i = 0; i < lca_da_count(state->link_libraries); i++) {
-        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->link_libraries[i]));
+    for (int64_t i = 0; i < lca_da_count(state->lyir_context->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->lyir_context->link_libraries[i]));
         nob_cmd_append(&clang_cc_cmd, s);
     }
 
@@ -787,8 +787,8 @@ static int backend_llvm(compiler_state* state) {
         lca_string_view_to_cstring(temp_allocator, state->output_file)
     );
 
-    for (int64_t i = 0; i < lca_da_count(state->link_libraries); i++) {
-        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->link_libraries[i]));
+    for (int64_t i = 0; i < lca_da_count(state->lyir_context->link_libraries); i++) {
+        const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->lyir_context->link_libraries[i]));
         nob_cmd_append(&clang_ll_cmd, s);
     }
 

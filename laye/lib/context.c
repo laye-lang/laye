@@ -140,6 +140,7 @@ void laye_context_destroy(laye_context* context) {
     }
 
     lca_da_free(context->laye_modules);
+    lca_da_free(context->_all_struct_types);
 
     lca_deallocate(allocator, context->laye_types.poison);
     lca_deallocate(allocator, context->laye_types.unknown);

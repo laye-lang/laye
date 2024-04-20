@@ -951,6 +951,8 @@ lyir_type* lyir_struct_type(lyir_context* context, lca_string_view name, lca_da(
     struct_type->_struct.named = true;
     struct_type->_struct.name = name;
     struct_type->_struct.members = members;
+    lca_da_push(context->_all_struct_types, struct_type);
+
     return struct_type;
 }
 

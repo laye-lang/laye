@@ -1,0 +1,17 @@
+// 0
+// R %layec -S -emit-lyir -o - %s
+
+int int_to_float() {
+    i32 a = 10;
+    f32 b = 20;
+
+    if (b > a) {
+        return 0;
+    }
+
+    return 1;
+}
+
+int main() {
+    return int_to_float();
+}
