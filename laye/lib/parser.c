@@ -2805,6 +2805,210 @@ static bool is_digit_char(int c, int radix) {
     return radix > digit_value && digit_value != -1;
 }
 
+static void laye_lex_string(laye_parser* p, laye_token* token) {
+    assert(p != NULL);
+    assert(token != NULL);
+    assert(p->current_char == '\'' || p->current_char == '"');
+
+    bool is_char = p->current_char == '\'';
+    if (is_char) {
+        token->kind = LAYE_TOKEN_LITRUNE;
+    } else {
+        token->kind = LAYE_TOKEN_LITSTRING;
+    }
+    char terminator = p->current_char;
+
+    laye_char_advance(p);
+
+    lca_da(char) string_data = NULL;
+
+    bool error_char = false;
+    while (p->current_char != 0 && p->current_char != terminator) {
+        char c = p->current_char;
+        assert(c != terminator);
+
+        if (is_char && string_data != NULL) {
+            error_char = true;
+        }
+
+        if (c == '\\') {
+            laye_char_advance(p);
+            c = p->current_char;
+            switch (c) {
+                default: {
+                    // clang-format off
+                    lyir_write_error(p->context->lyir_context, (lyir_location) {
+                        .sourceid = token->location.sourceid,
+                        .offset = p->lexer_position,
+                        .length = 1,
+                    }, "Invalid character in escape string sequence.");
+                    // clang-format on
+
+                    lca_da_push(string_data, c);
+                    laye_char_advance(p);
+                } break;
+
+                case '\\': {
+                    lca_da_push(string_data, '\\');
+                    laye_char_advance(p);
+                } break;
+
+                case '"': {
+                    lca_da_push(string_data, '"');
+                    laye_char_advance(p);
+                } break;
+
+                case '\'': {
+                    lca_da_push(string_data, '\'');
+                    laye_char_advance(p);
+                } break;
+
+                case 'a': {
+                    lca_da_push(string_data, '\a');
+                    laye_char_advance(p);
+                } break;
+
+                case 'b': {
+                    lca_da_push(string_data, '\b');
+                    laye_char_advance(p);
+                } break;
+
+                case 'f': {
+                    lca_da_push(string_data, '\f');
+                    laye_char_advance(p);
+                } break;
+
+                case 'n': {
+                    lca_da_push(string_data, '\n');
+                    laye_char_advance(p);
+                } break;
+
+                case 'r': {
+                    lca_da_push(string_data, '\r');
+                    laye_char_advance(p);
+                } break;
+
+                case 't': {
+                    lca_da_push(string_data, '\t');
+                    laye_char_advance(p);
+                } break;
+
+                case 'v': {
+                    lca_da_push(string_data, '\v');
+                    laye_char_advance(p);
+                } break;
+
+                case '0': {
+                    lca_da_push(string_data, '\0');
+                    laye_char_advance(p);
+                } break;
+
+                case 'x': {
+                    laye_char_advance(p);
+
+                    int value = 0;
+                    for (int i = 0; i < 2; i++) {
+                        if (p->lexer_position >= p->source.text.count || p->current_char == '"' || !is_digit_char(p->current_char, 16)) {
+                            lyir_write_error(p->context->lyir_context, token->location, "The \\x escape sequence requires exactly two hexadecimal digits.");
+                            break;
+                        }
+
+                        int digit_value = (int)digit_value_in_any_radix(p->current_char);
+                        value = (value << 4) | (digit_value & 0xF);
+                        laye_char_advance(p);
+                    }
+
+                    lca_da_push(string_data, (char)(value & 0xFF));
+                } break;
+            }
+        } else {
+            lca_da_push(string_data, c);
+            laye_char_advance(p);
+        }
+    }
+
+    token->string_value = lyir_context_intern_string_view(p->context->lyir_context, (lca_string_view){.data = string_data, .count = lca_da_count(string_data)});
+    lca_da_free(string_data);
+
+    if (p->current_char != terminator) {
+        token->location.length = p->lexer_position - token->location.offset;
+        lyir_write_error(p->context->lyir_context, token->location, "Unterminated %s literal.", (is_char ? "rune" : "string"));
+    } else {
+        laye_char_advance(p);
+    }
+
+    if (error_char) {
+        token->location.length = p->lexer_position - token->location.offset;
+        lyir_write_error(p->context->lyir_context, token->location, "Too many characters in rune literal.");
+    } else if (is_char && token->string_value.count == 0) {
+        token->location.length = p->lexer_position - token->location.offset;
+        lyir_write_error(p->context->lyir_context, token->location, "Not enough characters in rune literal.");
+    }
+}
+
+static void laye_lex_identifier(laye_parser* p, laye_token* token, bool allow_keywords) {
+    while (is_identifier_char(p->current_char)) {
+        laye_char_advance(p);
+    }
+
+    token->location.length = p->lexer_position - token->location.offset;
+    assert(token->location.length > 0);
+    lca_string_view identifier_source_view = lca_string_slice(p->source.text, token->location.offset, token->location.length);
+
+    for (int64_t i = 0; laye_keywords[i].kind != 0; i++) {
+        if (lca_string_view_equals_cstring(identifier_source_view, laye_keywords[i].text)) {
+            token->kind = laye_keywords[i].kind;
+            return;
+        }
+    }
+
+    if (allow_keywords) {
+        char first_char = identifier_source_view.data[0];
+        if (first_char == 'i' || first_char == 'u' || first_char == 'f' || first_char == 'b') {
+            bool are_remaining_characters_digits = true;
+            int64_t integer_value = 0;
+            for (int64_t i = 1; are_remaining_characters_digits && i < identifier_source_view.count; i++) {
+                char c = identifier_source_view.data[i];
+                if (c < '0' || c > '9') {
+                    are_remaining_characters_digits = false;
+                } else {
+                    integer_value = integer_value * 10 + (c - '0');
+                }
+            }
+
+            if (are_remaining_characters_digits) {
+                if (first_char == 'f') {
+                    if (integer_value == 32 || integer_value == 64 || integer_value == 80 || integer_value == 128) {
+                        token->kind = LAYE_TOKEN_FLOATSIZED;
+                        token->int_value = integer_value;
+                        return;
+                    }
+                    // TODO(local): else error? or just allow it?
+                } else if (first_char == 'b') {
+                    if (integer_value > 0 && integer_value < 65536) {
+                        token->kind = LAYE_TOKEN_BOOLSIZED;
+                        token->int_value = integer_value;
+                        return;
+                    }
+                    // TODO(local): else error? or just allow it?
+                } else {
+                    if (integer_value > 0 && integer_value < 65536) {
+                        token->kind = first_char == 'i' ? LAYE_TOKEN_INTSIZED : LAYE_TOKEN_UINTSIZED;
+                        token->int_value = integer_value;
+                        return;
+                    }
+                    // TODO(local): else error? or just allow it?
+                }
+            }
+        }
+    }
+
+    token->string_value = lyir_context_intern_string_view(p->context->lyir_context, identifier_source_view);
+    assert(token->string_value.count > 0);
+    assert(token->string_value.data != NULL);
+    token->kind = LAYE_TOKEN_IDENT;
+}
+
 static void laye_next_token(laye_parser* p) {
 restart_token:;
     assert(p != NULL);
@@ -3003,142 +3207,29 @@ restart_token:;
             token.kind = '?';
         } break;
 
-        case '\'':
-        case '"': {
-            bool is_char = c == '\'';
-            if (is_char) {
-                token.kind = LAYE_TOKEN_LITRUNE;
-            } else {
-                token.kind = LAYE_TOKEN_LITSTRING;
-            }
-            char terminator = c;
-
+        case '@': {
             laye_char_advance(p);
 
-            lca_da(char) string_data = NULL;
-
-            bool error_char = false;
-            while (p->current_char != 0 && p->current_char != terminator) {
-                char c = p->current_char;
-                assert(c != terminator);
-
-                if (is_char && string_data != NULL) {
-                    error_char = true;
-                }
-
-                if (c == '\\') {
-                    laye_char_advance(p);
-                    c = p->current_char;
-                    switch (c) {
-                        default: {
-                            // clang-format off
-                            lyir_write_error(p->context->lyir_context, (lyir_location) {
-                                .sourceid = token.location.sourceid,
-                                .offset = p->lexer_position,
-                                .length = 1,
-                            }, "Invalid character in escape string sequence.");
-                            // clang-format on
-
-                            lca_da_push(string_data, c);
-                            laye_char_advance(p);
-                        } break;
-
-                        case '\\': {
-                            lca_da_push(string_data, '\\');
-                            laye_char_advance(p);
-                        } break;
-
-                        case '"': {
-                            lca_da_push(string_data, '"');
-                            laye_char_advance(p);
-                        } break;
-
-                        case '\'': {
-                            lca_da_push(string_data, '\'');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'a': {
-                            lca_da_push(string_data, '\a');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'b': {
-                            lca_da_push(string_data, '\b');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'f': {
-                            lca_da_push(string_data, '\f');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'n': {
-                            lca_da_push(string_data, '\n');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'r': {
-                            lca_da_push(string_data, '\r');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 't': {
-                            lca_da_push(string_data, '\t');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'v': {
-                            lca_da_push(string_data, '\v');
-                            laye_char_advance(p);
-                        } break;
-
-                        case '0': {
-                            lca_da_push(string_data, '\0');
-                            laye_char_advance(p);
-                        } break;
-
-                        case 'x': {
-                            laye_char_advance(p);
-
-                            int value = 0;
-                            for (int i = 0; i < 2; i++) {
-                                if (p->lexer_position >= p->source.text.count || p->current_char == '"' || !is_digit_char(p->current_char, 16)) {
-                                    lyir_write_error(p->context->lyir_context, token.location, "The \\x escape sequence requires exactly two hexadecimal digits.");
-                                    break;
-                                }
-
-                                int digit_value = (int)digit_value_in_any_radix(p->current_char);
-                                value = (value << 4) | (digit_value & 0xF);
-                                laye_char_advance(p);
-                            }
-
-                            lca_da_push(string_data, (char)(value & 0xFF));
-                        } break;
-                    }
-                } else {
-                    lca_da_push(string_data, c);
-                    laye_char_advance(p);
-                }
-            }
-
-            token.string_value = lyir_context_intern_string_view(p->context->lyir_context, (lca_string_view){.data = string_data, .count = lca_da_count(string_data)});
-            lca_da_free(string_data);
-
-            if (p->current_char != terminator) {
-                token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context->lyir_context, token.location, "Unterminated %s literal.", (is_char ? "rune" : "string"));
+            if (p->current_char == '"') {
+                laye_lex_string(p, &token);
+            } else if (is_identifier_char(p->current_char)) {
+                laye_lex_identifier(p, &token, false);
             } else {
-                laye_char_advance(p);
+                // clang-format off
+                lyir_write_error(p->context->lyir_context, (lyir_location) {
+                    .sourceid = token.location.sourceid,
+                    .offset = p->lexer_position,
+                    .length = 1,
+                }, "Invalid character beginning escaped identifier.");
+                // clang-format on
             }
 
-            if (error_char) {
-                token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context->lyir_context, token.location, "Too many characters in rune literal.");
-            } else if (is_char && token.string_value.count == 0) {
-                token.location.length = p->lexer_position - token.location.offset;
-                lyir_write_error(p->context->lyir_context, token.location, "Not enough characters in rune literal.");
-            }
+            token.kind = LAYE_TOKEN_IDENT;
+        } break;
+
+        case '\'':
+        case '"': {
+            laye_lex_string(p, &token);
         } break;
 
             // clang-format off
@@ -3323,64 +3414,7 @@ restart_token:;
         // clang-format on
         case '_': {
         identfier_lex:;
-            while (is_identifier_char(p->current_char)) {
-                laye_char_advance(p);
-            }
-
-            token.location.length = p->lexer_position - token.location.offset;
-            assert(token.location.length > 0);
-            lca_string_view identifier_source_view = lca_string_slice(p->source.text, token.location.offset, token.location.length);
-
-            for (int64_t i = 0; laye_keywords[i].kind != 0; i++) {
-                if (lca_string_view_equals_cstring(identifier_source_view, laye_keywords[i].text)) {
-                    token.kind = laye_keywords[i].kind;
-                    goto token_finished;
-                }
-            }
-
-            char first_char = identifier_source_view.data[0];
-            if (first_char == 'i' || first_char == 'u' || first_char == 'f' || first_char == 'b') {
-                bool are_remaining_characters_digits = true;
-                int64_t integer_value = 0;
-                for (int64_t i = 1; are_remaining_characters_digits && i < identifier_source_view.count; i++) {
-                    char c = identifier_source_view.data[i];
-                    if (c < '0' || c > '9') {
-                        are_remaining_characters_digits = false;
-                    } else {
-                        integer_value = integer_value * 10 + (c - '0');
-                    }
-                }
-
-                if (are_remaining_characters_digits) {
-                    if (first_char == 'f') {
-                        if (integer_value == 32 || integer_value == 64 || integer_value == 80 || integer_value == 128) {
-                            token.kind = LAYE_TOKEN_FLOATSIZED;
-                            token.int_value = integer_value;
-                            goto token_finished;
-                        }
-                        // TODO(local): else error? or just allow it?
-                    } else if (first_char == 'b') {
-                        if (integer_value > 0 && integer_value < 65536) {
-                            token.kind = LAYE_TOKEN_BOOLSIZED;
-                            token.int_value = integer_value;
-                            goto token_finished;
-                        }
-                        // TODO(local): else error? or just allow it?
-                    } else {
-                        if (integer_value > 0 && integer_value < 65536) {
-                            token.kind = first_char == 'i' ? LAYE_TOKEN_INTSIZED : LAYE_TOKEN_UINTSIZED;
-                            token.int_value = integer_value;
-                            goto token_finished;
-                        }
-                        // TODO(local): else error? or just allow it?
-                    }
-                }
-            }
-
-            token.string_value = lyir_context_intern_string_view(p->context->lyir_context, identifier_source_view);
-            assert(token.string_value.count > 0);
-            assert(token.string_value.data != NULL);
-            token.kind = LAYE_TOKEN_IDENT;
+            laye_lex_identifier(p, &token, true);
         } break;
 
         default: {

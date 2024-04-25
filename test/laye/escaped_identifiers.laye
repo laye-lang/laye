@@ -1,0 +1,19 @@
+// 69
+// R %layec -S -emit-lyir -o - %s
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca int64
+// +   store %0, int64 34
+// +   %1 = alloca int64
+// +   store %1, int64 35
+// +   %2 = load int64, %0
+// +   %3 = load int64, %1
+// +   %4 = add int64 %2, %3
+// +   return int64 %4
+// + }
+int main() {
+    int @yield = 34;
+    int @"foo bar baz" = 35;
+    return @yield + @"foo bar baz";
+}
