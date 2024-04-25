@@ -294,7 +294,7 @@ static bool run_fchk(bool rebuild) {
     return true;
 }
 
-static bool nob_build(bool explicit, int argc, char** argv) {
+static bool ensure_compilers_are_rebuilt() {
     bool result = true;
 
     if (!build_project(laye_driver_project)) {
@@ -305,8 +305,23 @@ defer:;
     return result;
 }
 
+static bool nob_build(bool explicit, int argc, char** argv) {
+    bool result = true;
+
+    if (!ensure_compilers_are_rebuilt()) {
+        nob_return_defer(false);
+    }
+
+defer:;
+    return result;
+}
+
 static bool nob_test(int argc, char** argv) {
     bool result = true;
+
+    if (!ensure_compilers_are_rebuilt()) {
+        nob_return_defer(false);
+    }
 
     if (!build_project(exec_test_runner_project)) {
         nob_return_defer(false);
