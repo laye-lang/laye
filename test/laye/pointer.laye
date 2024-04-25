@@ -49,6 +49,6 @@ int shorter() {
 int other() {
     int mut value = 0;
     int mut* value_ptr = &value;
-    { yield *value_ptr; } = 42;
+    do { yield *value_ptr; } = 42;
     return value;
 }

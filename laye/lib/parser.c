@@ -988,13 +988,23 @@ static laye_parse_result laye_parse_compound_expression(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
-    assert(p->token.kind == '{');
+    assert(p->token.kind == LAYE_TOKEN_DO || p->token.kind == '{');
+
+    laye_token_kind start_token_kind = p->token.kind;
 
     lyir_location start_location = p->token.location;
     laye_next_token(p);
 
     laye_node* compound_expression = laye_node_create(p->module, LAYE_NODE_COMPOUND, p->token.location, LTY(p->context->laye_types._void));
     laye_parse_result result = laye_parse_result_success(compound_expression);
+
+    if (start_token_kind == LAYE_TOKEN_DO) {
+        if (laye_parser_at(p, '{')) {
+            laye_next_token(p);
+        } else {
+            return laye_parse_result_combine(result, laye_parse_result_failure(compound_expression, lyir_error(p->context->lyir_context, p->token.location, "Expected '{'.")));
+        }
+    }
 
     laye_parser_push_scope(p);
 
@@ -1837,7 +1847,7 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             return laye_parse_result_combine(expr_result, laye_parse_primary_expression_continue(p, expr_result.node));
         } break;
 
-        case '{': {
+        case LAYE_TOKEN_DO: {
             laye_parse_result expr_result = laye_parse_compound_expression(p);
             assert(expr_result.node != NULL);
             expr_result.node->compound.is_expr = true;
