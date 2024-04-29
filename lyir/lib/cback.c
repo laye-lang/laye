@@ -113,7 +113,7 @@ static void cback_print_module(cback_codegen* codegen, lyir_module* module) {
 static void cback_print_header(cback_codegen* codegen, lyir_module* module) {
     lca_string_append_format(codegen->output, "// Source File: '%.*s'\n\n", LCA_STR_EXPAND(lyir_module_name(module)));
 
-    lca_string source_text = lca_file_read(codegen->context->allocator, "./stage1/src/lyir_cir_preamble.h");
+    lca_string source_text = lca_file_read(codegen->context->allocator, "./lyir/lib/lyir_cir_preamble.h");
     lca_string_append_format(codegen->output, "%s\n", lca_string_as_cstring(source_text));
     lca_string_destroy(&source_text);
 }
