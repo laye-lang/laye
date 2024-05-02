@@ -316,6 +316,42 @@ defer:;
     return result;
 }
 
+static bool nob_run(int argc, char** argv) {
+    bool result = true;
+    
+    int build_argc = argc;
+    char** build_argv = argv;
+
+    Nob_Cmd run_cmd = {0};
+
+    for (int i = 0; i < argc; i++) {
+        if (0 == strcmp("--", argv[i])) {
+            build_argc = i;
+        }
+    }
+
+    if (build_argc != argc) {
+        argc = argc - build_argc;
+        argv += build_argc + 1;
+    }
+
+    if (!nob_build(false, build_argc, build_argv)) {
+        nob_return_defer(false);
+    }
+
+    nob_cmd_append(&run_cmd, "./out/layec");
+    nob_da_append_many(&run_cmd, argv, argc);
+
+    if (!nob_cmd_run_sync(run_cmd)) {
+        nob_return_defer(false);
+    }
+
+defer:;
+    nob_cmd_free(run_cmd);
+
+    return result;
+}
+
 static bool nob_test(int argc, char** argv) {
     bool result = true;
 
@@ -355,6 +391,8 @@ int main(int argc, char** argv) {
 
         if (0 == strcmp("build", maybe_command)) {
             delegate_to_command(true, nob_build, true);
+        } else if (0 == strcmp("run", maybe_command)) {
+            delegate_to_command(true, nob_run);
         } else if (0 == strcmp("test", maybe_command)) {
             delegate_to_command(true, nob_test);
         }

@@ -1,0 +1,23 @@
+// 0
+// R
+
+struct foo {
+    int a;
+    bar b;
+    i8[*] c;
+    bool d;
+}
+
+struct bar {
+    int a;
+    i8[*] b;
+}
+
+int main() {
+    bar c0 = bar { 1, "Hello, bar!" };
+    bar c1 = { 2, "Hello, inferred constructor!" };
+    //var c2 = bar mut { b = "Hello, named fields!", a = 3 };
+    foo c3 = { 1, { 2, "bar" }, "foo", true };
+    //var arr = bar mut[3] {1, 2, 3};
+    return 0;
+}

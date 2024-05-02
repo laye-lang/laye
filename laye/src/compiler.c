@@ -836,6 +836,8 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
             args->sema_only = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-S")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--assemble"))) {
             args->assemble_only = true;
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-c"))) {
+            args->assemble_only = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-c"))) {
             args->emit_c = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-lyir"))) {

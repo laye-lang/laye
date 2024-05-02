@@ -546,6 +546,12 @@ typedef struct laye_enum_type_variant {
     int64_t value;
 } laye_enum_type_variant;
 
+typedef enum laye_member_init_kind {
+    LAYE_MEMBER_INIT_NONE,
+    LAYE_MEMBER_INIT_NAMED,
+    LAYE_MEMBER_INIT_INDEXED,
+} laye_member_init_kind;
+
 struct laye_node {
     laye_node_kind kind;
     laye_context* context;
@@ -1096,8 +1102,13 @@ struct laye_node {
 
         struct {
             // TODO(local): array index member initializer
-            // the name of the field to initialize.
-            laye_token field_name;
+            laye_member_init_kind kind;
+            union {
+                // the name of the field to initialize.
+                laye_token name;
+                //
+                laye_node* index;
+            };
             // the value to initialize the field with.
             laye_node* value;
         } member_initializer;

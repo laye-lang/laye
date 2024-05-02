@@ -1064,7 +1064,9 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
     assert(lyir_context != NULL);
 
     node->sema_state = LYIR_SEMA_IN_PROGRESS;
-    laye_sema_analyse_type(sema, &node->type);
+    if (node->type.node->kind != LAYE_NODE_TYPE_VAR) {
+        laye_sema_analyse_type(sema, &node->type);
+    }
 
     switch (node->kind) {
         default: {
@@ -1103,16 +1105,52 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         } break;
 
         case LAYE_NODE_DECL_BINDING: {
-            if (!laye_sema_analyse_type(sema, &node->declared_type)) {
+            bool infer = false;
+            if (node->declared_type.node->kind == LAYE_NODE_TYPE_VAR) {
+                infer = true;
+                node->declared_type.node->sema_state = LYIR_SEMA_OK;
+
+                if (node->decl_binding.initializer == NULL) {
+                    node->declared_type = LTY(sema->context->laye_types.poison);
+                    node->sema_state = LYIR_SEMA_ERRORED;
+                    lyir_write_error(
+                        lyir_context,
+                        node->declared_type.node->location,
+                        "Cannot infer the type of a declaration without an initializer."
+                    );
+
+                    goto done_with_decl_binding;
+                }
+            } else if (!laye_sema_analyse_type(sema, &node->declared_type)) {
                 node->sema_state = LYIR_SEMA_ERRORED;
                 break;
             }
+
             assert(node->declared_type.node != NULL);
             if (node->decl_binding.initializer != NULL) {
-                if (laye_sema_analyse_node(sema, &node->decl_binding.initializer, node->declared_type)) {
-                    laye_sema_convert_or_error(sema, &node->decl_binding.initializer, node->declared_type);
+                laye_type expected_type = {0};
+                if (!infer) {
+                    expected_type = node->declared_type;
+                }
+
+                if (laye_sema_analyse_node(sema, &node->decl_binding.initializer, expected_type)) {
+                    if (!infer) {
+                        assert(expected_type.node != NULL);
+                        laye_sema_convert_or_error(sema, &node->decl_binding.initializer, expected_type);
+                    }
+                }
+
+                if (infer) {
+                    assert(node->decl_binding.initializer->type.node != NULL);
+                    node->declared_type = node->decl_binding.initializer->type;
                 }
             }
+
+        done_with_decl_binding:;
+            assert(node->declared_type.node != NULL);
+            assert(node->declared_type.node->kind != LAYE_NODE_TYPE_VAR);
+            assert(node->decl_binding.initializer->type.node != NULL);
+            assert(node->decl_binding.initializer->type.node->kind != LAYE_NODE_TYPE_VAR);
         } break;
 
         case LAYE_NODE_DECL_STRUCT: {
@@ -1809,6 +1847,95 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             lca_string_destroy(&from_type_string);
         } break;
 
+        case LAYE_NODE_CTOR: {
+            bool has_usable_type = true;
+
+            lyir_location type_location = node->type.node->location;
+            if (node->type.node->kind == LAYE_NODE_TYPE_VAR) {
+                if (expected_type.node != NULL) {
+                    node->type = expected_type;
+                } else {
+                    has_usable_type = false;
+                    node->sema_state = LYIR_SEMA_ERRORED;
+                    node->type = LTY(laye_context->laye_types.poison);
+                    lyir_write_error(
+                        lyir_context,
+                        node->location,
+                        "Unable to infer the type of this constructor in this context."
+                    );
+                }
+            } else if (!laye_sema_analyse_type(sema, &node->type)) {
+                node->sema_state = LYIR_SEMA_ERRORED;
+                node->type = LTY(laye_context->laye_types.poison);
+                // continue to analyze the initializers, though
+            }
+
+            laye_node* ctor_type_node = NULL;
+            // TODO(local): is this how we have to determine if something is a struct type????
+            if (has_usable_type && node->type.node->kind == LAYE_NODE_TYPE_STRUCT) {
+                ctor_type_node = node->type.node;
+            } else {
+                has_usable_type = false;
+                lyir_write_error(
+                    lyir_context,
+                    type_location,
+                    "Can only construct a struct type."
+                );
+            }
+
+            if (has_usable_type) {
+                assert(ctor_type_node != NULL);
+                assert(ctor_type_node->kind == LAYE_NODE_TYPE_STRUCT);
+            } else {
+                assert(ctor_type_node == NULL);
+            }
+
+            for (int64_t i = 0, init_index = 0, count = lca_da_count(node->ctor.initializers); i < count; i++) {
+                laye_node* init = node->ctor.initializers[i];
+                assert(init != NULL);
+
+                if (init->member_initializer.kind == LAYE_MEMBER_INIT_NONE) {
+                    if (!has_usable_type) {
+                        continue;
+                    }
+
+                    if (init_index >= lca_da_count(ctor_type_node->type_struct.fields)) {
+                        node->sema_state = LYIR_SEMA_ERRORED;
+                        lyir_write_error(
+                            lyir_context,
+                            init->location,
+                            "Too many initializers."
+                        );
+                    } else {
+                        laye_struct_type_field field = ctor_type_node->type_struct.fields[init_index];
+                        assert(field.type.node != NULL);
+
+                        laye_sema_analyse_node(sema, &init->member_initializer.value, field.type);
+                        laye_sema_convert_or_error(sema, &init->member_initializer.value, field.type);
+                    }
+
+                    init_index++;
+                } else {
+                    laye_sema_analyse_node(sema, &init->member_initializer.value, NOTY);
+
+                    lyir_location designator_location = {0};
+                    if (init->member_initializer.kind == LAYE_MEMBER_INIT_INDEXED) {
+                        designator_location = init->member_initializer.index->location;
+                    } else {
+                        designator_location = init->member_initializer.name.location;
+                    }
+
+                    node->sema_state = LYIR_SEMA_ERRORED;
+                    lyir_write_error(
+                        lyir_context,
+                        designator_location,
+                        "Currently, initializer designations are not supported."
+                    );
+                    continue;
+                }
+            }
+        } break;
+
         case LAYE_NODE_UNARY: {
             if (!laye_sema_analyse_node(sema, &node->unary.operand, NOTY)) {
                 node->sema_state = LYIR_SEMA_ERRORED;
@@ -2103,6 +2230,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 laye_sema_convert_or_error(sema, node_ref, expected_type);
             }
             assert(laye_type_is_buffer(node->type));
+        } break;
+
+        case LAYE_NODE_TYPE_VAR: {
+            node->sema_state = LYIR_SEMA_ERRORED;
+            node->type = LTY(laye_context->laye_types.poison);
+            lyir_write_error(lyir_context, node->location, "Cannot infer a type here.");
         } break;
 
         case LAYE_NODE_TYPE_NAMEREF: {

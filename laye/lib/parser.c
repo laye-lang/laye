@@ -643,6 +643,16 @@ static laye_parse_result laye_try_parse_type_impl(laye_parser* p, bool allocate,
             }
         } break;
 
+        case LAYE_TOKEN_VAR: {
+            if (allocate) {
+                result.type.node = laye_node_create(p->module, LAYE_NODE_TYPE_VAR, p->token.location, LTY(p->context->laye_types.type));
+                assert(result.type.node != NULL);
+            } else {
+                result.type.node = p->context->laye_types.var;
+            }
+            laye_next_token(p);
+        } break;
+
         case LAYE_TOKEN_IDENT: {
             lyir_location nameref_location = p->token.location;
             assert(p->scope != NULL);
@@ -1784,11 +1794,71 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
     return nameref;
 }
 
+static laye_parse_result laye_parse_constructor_body(laye_parser* p, laye_type type) {
+    assert(p != NULL);
+    assert(p->token.kind == '{');
+
+    if (type.node == NULL) {
+        type = LTY(laye_node_create(p->module, LAYE_NODE_TYPE_VAR, p->token.location, LTY(p->context->laye_types.type)));
+    }
+
+    assert(type.node != NULL);
+
+    // TODO(local): what is the constructor's location? should the caller be responsible for populating it?
+    laye_node* ctor = laye_node_create(p->module, LAYE_NODE_CTOR, p->token.location, type);
+    laye_parse_result result = {
+        .success = true,
+        .node = ctor,
+    };
+
+    laye_next_token(p);
+
+    while (!laye_parser_at2(p, '}', LAYE_TOKEN_EOF)) {
+        laye_node* initializer = laye_node_create(p->module, LAYE_NODE_MEMBER_INITIALIZER, p->token.location, LTY(p->context->laye_types.unknown));
+
+        if (laye_parser_at(p, LAYE_TOKEN_IDENT) && laye_parser_peek_at(p, '=')) {
+            initializer->member_initializer.kind = LAYE_MEMBER_INIT_NAMED;
+            initializer->member_initializer.name = p->token;
+            laye_next_token(p);
+            laye_next_token(p);
+        }
+
+        laye_parse_result value_result = laye_parse_expression(p);
+        assert(value_result.node != NULL);
+        if (!value_result.success) {
+            laye_parse_result_write_diags(p->context, value_result);
+        }
+
+        initializer->member_initializer.value = value_result.node;
+        lca_da_push(ctor->ctor.initializers, initializer);
+
+        if (!laye_parser_consume(p, ',', NULL)) {
+            break;
+        }
+    }
+
+    laye_parser_expect(p, '}', &result);
+
+    result.node = ctor;
+    return result;
+}
+
 static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
     assert(p != NULL);
     assert(p->context != NULL);
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
+
+    struct laye_parser_mark mark = laye_parser_mark(p);
+
+    laye_parse_result type_parse_result = laye_parse_type(p);
+    if (type_parse_result.success && laye_parser_at(p, '{')) {
+        assert(type_parse_result.diags == NULL);
+        return laye_parse_constructor_body(p, type_parse_result.type);
+    }
+
+    laye_parser_reset_to_mark(p, mark);
+    laye_parse_result_destroy(type_parse_result);
 
     switch (p->token.kind) {
         default: {
@@ -1852,6 +1922,10 @@ static laye_parse_result laye_parse_primary_expression(laye_parser* p) {
             assert(expr_result.node != NULL);
             expr_result.node->compound.is_expr = true;
             return laye_parse_result_combine(expr_result, laye_parse_primary_expression_continue(p, expr_result.node));
+        } break;
+
+        case '{': {
+            return laye_parse_constructor_body(p, (laye_type){0});
         } break;
 
         case '-':
