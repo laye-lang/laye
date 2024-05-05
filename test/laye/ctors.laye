@@ -1,6 +1,12 @@
-// 0
+// 4
 // R
 
+// define global.0 = int8[12] "Hello, bar!\00"
+// define global.1 = int8[29] "Hello, inferred constructor!\00"
+// define global.2 = int8[4] "bar\00"
+// define global.3 = int8[4] "foo\00"
+
+// define foo = struct { int64, @bar, ptr, int1, int8[7] }
 struct foo {
     int a;
     bar b;
@@ -8,16 +14,54 @@ struct foo {
     bool d;
 }
 
+// define bar = struct { int64, ptr }
 struct bar {
     int a;
     i8[*] b;
 }
 
+// define exported ccc main() -> int64 {
+// entry:
+//   %0 = alloca @bar
+//   builtin @memset(ptr %0, int8 0, int64 16)
+//   %1 = ptradd ptr %0, int64 0
+//   store %1, int64 1
+//   %2 = ptradd ptr %0, int64 8
+//   store %2, ptr @global.0
+//   %3 = alloca @bar
+//   builtin @memset(ptr %3, int8 0, int64 16)
+//   %4 = ptradd ptr %3, int64 0
+//   store %4, int64 2
+//   %5 = ptradd ptr %3, int64 8
+//   store %5, ptr @global.1
+//   %6 = alloca @foo
+//   builtin @memset(ptr %6, int8 0, int64 40)
+//   %7 = ptradd ptr %6, int64 0
+//   store %7, int64 1
+//   %8 = ptradd ptr %6, int64 8
+//   %9 = ptradd ptr %8, int64 0
+//   store %9, int64 2
+//   %10 = ptradd ptr %8, int64 8
+//   store %10, ptr @global.2
+//   %11 = ptradd ptr %6, int64 8
+//   store %11, ptr @global.3
+//   %12 = ptradd ptr %6, int64 8
+//   store %12, int1 1
+//   %13 = ptradd ptr %0, int64 0
+//   %14 = load int64, %13
+//   %15 = ptradd ptr %3, int64 0
+//   %16 = load int64, %15
+//   %17 = ptradd ptr %6, int64 0
+//   %18 = load int64, %17
+//   %19 = add int64 %16, %18
+//   %20 = add int64 %14, %19
+//   return int64 %20
+// }
 int main() {
     bar c0 = bar { 1, "Hello, bar!" };
     bar c1 = { 2, "Hello, inferred constructor!" };
     foo c3 = { 1, { 2, "bar" }, "foo", true };
     //var c2 = bar mut { b = "Hello, named fields!", a = 3 };
     //var arr = bar mut[3] {1, 2, 3};
-    return 0;
+    return c0.a + c1.a + c3.a;
 }

@@ -312,6 +312,7 @@ void laye_node_destroy(laye_node* node) {
 
         case LAYE_NODE_CTOR: {
             lca_da_free(node->ctor.initializers);
+            lca_da_free(node->ctor.calculated_offsets);
         } break;
 
         case LAYE_NODE_NEW: {

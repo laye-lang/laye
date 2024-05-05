@@ -1149,8 +1149,10 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         done_with_decl_binding:;
             assert(node->declared_type.node != NULL);
             assert(node->declared_type.node->kind != LAYE_NODE_TYPE_VAR);
-            assert(node->decl_binding.initializer->type.node != NULL);
-            assert(node->decl_binding.initializer->type.node->kind != LAYE_NODE_TYPE_VAR);
+            if (node->decl_binding.initializer != NULL) {
+                assert(node->decl_binding.initializer->type.node != NULL);
+                assert(node->decl_binding.initializer->type.node->kind != LAYE_NODE_TYPE_VAR);
+            }
         } break;
 
         case LAYE_NODE_DECL_STRUCT: {
