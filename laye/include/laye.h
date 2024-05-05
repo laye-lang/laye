@@ -1089,6 +1089,7 @@ struct laye_node {
         // returns a pointer (or an overloaded return) to the type instead.
         struct {
             lca_da(laye_node*) initializers;
+            lca_da(int64_t) calculated_offsets;
         } ctor;
 
         struct {
@@ -1362,6 +1363,11 @@ bool laye_type_is_strict_alias(laye_type type);
 laye_type laye_type_qualify(laye_node* type_node, bool is_modifiable);
 laye_type laye_type_add_qualifiers(laye_type type, bool is_modifiable);
 laye_type laye_type_with_source(laye_node* type_node, laye_node* source_node, bool is_modifiable);
+
+int laye_type_struct_field_offset_bits(laye_type struct_type, int64_t field_index);
+int laye_type_struct_field_offset_bytes(laye_type struct_type, int64_t field_index);
+int64_t laye_type_struct_field_index_by_name(laye_type struct_type, lca_string_view field_name);
+int64_t laye_type_struct_variant_index_by_name(laye_type struct_type, lca_string_view variant_name);
 
 laye_type laye_type_strip_pointers_and_references(laye_type type);
 laye_type laye_type_strip_references(laye_type type);

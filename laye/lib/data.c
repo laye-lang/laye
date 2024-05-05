@@ -838,6 +838,48 @@ bool laye_type_is_modifiable(laye_type type) {
     return type.is_modifiable;
 }
 
+
+int laye_type_struct_field_offset_bits(laye_type struct_type, int64_t field_index) {
+    assert(struct_type.node != NULL);
+    assert(struct_type.node->kind == LAYE_NODE_TYPE_STRUCT);
+    assert(field_index < lca_da_count(struct_type.node->type_struct.fields));
+
+    int64_t member_offset = 0;
+    laye_type member_type = {0};
+
+    for (int64_t i = 0, count = lca_da_count(struct_type.node->type_struct.fields) && i < field_index; i < count; i++) {
+        laye_struct_type_field f = struct_type.node->type_struct.fields[i];
+        member_offset = align_to(member_offset, 8 * laye_type_align_in_bytes(f.type));
+        member_offset += laye_type_size_in_bits(f.type);
+    }
+
+    laye_struct_type_field field_in_question = struct_type.node->type_struct.fields[field_index];
+    return align_to(member_offset, 8 * laye_type_align_in_bytes(field_in_question.type));
+}
+
+int laye_type_struct_field_offset_bytes(laye_type struct_type, int64_t field_index) {
+    int offset_in_bits = laye_type_struct_field_offset_bits(struct_type, field_index);
+    return align_to(offset_in_bits, 8) / 8;
+}
+
+int64_t laye_type_struct_field_index_by_name(laye_type struct_type, lca_string_view field_name) {
+    assert(struct_type.node != NULL);
+    assert(struct_type.node->kind == LAYE_NODE_TYPE_STRUCT);
+
+    for (int64_t i = 0, count = lca_da_count(struct_type.node->type_struct.fields); i < count; i++) {
+        laye_struct_type_field f = struct_type.node->type_struct.fields[i];
+        if (lca_string_view_equals(field_name, f.name)) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int64_t laye_type_struct_variant_index_by_name(laye_type struct_type, lca_string_view variant_name) {
+    assert(false && "unimplemented");
+}
+
 laye_type laye_type_strip_pointers_and_references(laye_type type) {
     assert(type.node != NULL);
     assert(laye_node_is_type(type.node));

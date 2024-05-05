@@ -466,6 +466,54 @@ static lyir_type* laye_convert_type(laye_type type) {
     }
 }
 
+static void laye_generate_ctor(laye_irgen* irgen, lyir_builder* builder, laye_node* ctor, lyir_value* address, bool zero_init) {
+    assert(irgen != NULL);
+    assert(builder != NULL);
+    assert(ctor != NULL);
+    assert(address != NULL);
+
+    lyir_context* context = lyir_builder_context_get(builder);
+    assert(context != NULL);
+
+    laye_type struct_type = ctor->type;
+    assert(struct_type.node != NULL);
+    assert(struct_type.node->kind == LAYE_NODE_TYPE_STRUCT || struct_type.node->kind == LAYE_NODE_TYPE_ARRAY);
+
+    bool is_struct_ctor = struct_type.node->kind == LAYE_NODE_TYPE_STRUCT;
+    lca_da(laye_node*) inits = ctor->ctor.initializers;
+    lca_da(int64_t) offsets = ctor->ctor.calculated_offsets;
+
+    assert(lca_da_count(inits) == lca_da_count(offsets));
+
+    lyir_type* intptr_type = lyir_int_type(context, context->target->size_of_pointer);
+    assert(intptr_type != NULL);
+
+    if (zero_init) {
+        int64_t size_in_bytes = laye_type_size_in_bytes(struct_type);
+        lyir_value* zero_const = lyir_int_constant_create(context, ctor->location, lyir_int_type(context, 8), 0);
+        lyir_value* byte_count = lyir_int_constant_create(context, ctor->location, lyir_int_type(context, context->target->size_of_pointer), size_in_bytes);
+        lyir_build_builtin_memset(builder, ctor->location, address, zero_const, byte_count);
+    }
+
+    for (int64_t i = 0, count = lca_da_count(inits); i < count; i++) {
+        laye_node* init_node = inits[i]->member_initializer.value;
+
+        int64_t offset = offsets[i];
+        lyir_value* offset_value = lyir_int_constant_create(context, inits[i]->location, intptr_type, offset);
+
+        lyir_value* init_address = lyir_build_ptradd(builder, inits[i]->location, address, offset_value);
+        
+        if (init_node->kind == LAYE_NODE_CTOR) {
+            laye_generate_ctor(irgen, builder, init_node, init_address, false);
+        } else {
+            lyir_value* init_value = laye_generate_node(irgen, builder, init_node);
+            assert(init_value != NULL);
+
+            lyir_build_store(builder, inits[i]->location, init_address, init_value);
+        }
+    }
+}
+
 static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, laye_node* node) {
     assert(irgen != NULL);
     assert(builder != NULL);
@@ -498,10 +546,14 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             assert(lyir_type_is_ptr(lyir_value_type_get(alloca)));
 
             if (node->decl_binding.initializer != NULL) {
-                lyir_value* initial_value = laye_generate_node(irgen, builder, node->decl_binding.initializer);
-                assert(initial_value != NULL);
+                if (node->decl_binding.initializer->kind == LAYE_NODE_CTOR) {
+                    laye_generate_ctor(irgen, builder, node->decl_binding.initializer, alloca, true);
+                } else {
+                    lyir_value* initial_value = laye_generate_node(irgen, builder, node->decl_binding.initializer);
+                    assert(initial_value != NULL);
 
-                lyir_build_store(builder, node->location, alloca, initial_value);
+                    lyir_build_store(builder, node->location, alloca, initial_value);
+                }
             } else {
                 int64_t size_in_bytes = lyir_type_size_in_bytes(type_to_alloca);
                 lyir_value* zero_const = lyir_int_constant_create(context, node->location, lyir_int_type(context, 8), 0);
@@ -1173,6 +1225,10 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
             return result_value;
         }
+
+        case LAYE_NODE_CTOR: {
+            assert(false && "should never hit ctor in this case");
+        } break;
 
         case LAYE_NODE_CAST: {
             laye_type from = node->cast.operand->type;

@@ -1717,28 +1717,16 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 case LAYE_NODE_TYPE_STRUCT: {
                     laye_node* struct_type_node = value_type.node;
 
-                    int64_t member_offset = 0;
-                    laye_type member_type = {0};
-
-                    for (int64_t i = 0, count = lca_da_count(struct_type_node->type_struct.fields); i < count; i++) {
-                        laye_struct_type_field f = struct_type_node->type_struct.fields[i];
-                        if (lca_string_view_equals(member_name, f.name)) {
-                            member_type = f.type;
-                            break;
-                        } else {
-                            member_offset += laye_type_size_in_bytes(f.type);
-                        }
-                    }
-
-                    if (member_offset >= laye_type_size_in_bytes(value_type)) {
+                    int64_t member_index = laye_type_struct_field_index_by_name(value_type, member_name);
+                    if (member_index < 0) {
                         node->sema_state = LYIR_SEMA_ERRORED;
                         node->type = LTY(laye_context->laye_types.poison);
                         lyir_write_error(lyir_context, node->location, "No such member '%.*s'.", LCA_STR_EXPAND(member_name));
                         break;
                     }
 
-                    node->member.member_offset = member_offset;
-                    node->type = member_type;
+                    node->member.member_offset = laye_type_struct_field_offset_bytes(value_type, member_index);
+                    node->type = value_type.node->type_struct.fields[member_index].type;
                 } break;
             }
         } break;
@@ -1870,48 +1858,66 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 // continue to analyze the initializers, though
             }
 
-            laye_node* ctor_type_node = NULL;
+            laye_type ctor_type = {0};
             // TODO(local): is this how we have to determine if something is a struct type????
             if (has_usable_type && node->type.node->kind == LAYE_NODE_TYPE_STRUCT) {
-                ctor_type_node = node->type.node;
+                ctor_type = node->type;
             } else {
                 has_usable_type = false;
                 lyir_write_error(
                     lyir_context,
                     type_location,
-                    "Can only construct a struct type."
+                    "Can only construct a struct or array type."
                 );
             }
 
+            bool is_struct_ctor = ctor_type.node->kind == LAYE_NODE_TYPE_STRUCT;
             if (has_usable_type) {
-                assert(ctor_type_node != NULL);
-                assert(ctor_type_node->kind == LAYE_NODE_TYPE_STRUCT);
+                assert(ctor_type.node != NULL);
+                assert(ctor_type.node->kind == LAYE_NODE_TYPE_STRUCT || ctor_type.node->kind == LAYE_NODE_TYPE_ARRAY);
+
+                if (ctor_type.node->kind == LAYE_NODE_TYPE_ARRAY) {
+                    lyir_write_error(
+                        lyir_context,
+                        type_location,
+                        "Sorry, can only construct a struct type for the time being."
+                    );
+                }
             } else {
-                assert(ctor_type_node == NULL);
+                assert(ctor_type.node == NULL);
             }
 
             for (int64_t i = 0, init_index = 0, count = lca_da_count(node->ctor.initializers); i < count; i++) {
                 laye_node* init = node->ctor.initializers[i];
                 assert(init != NULL);
 
+                int64_t calculated_offset = -1;
+
                 if (init->member_initializer.kind == LAYE_MEMBER_INIT_NONE) {
                     if (!has_usable_type) {
                         continue;
                     }
 
-                    if (init_index >= lca_da_count(ctor_type_node->type_struct.fields)) {
-                        node->sema_state = LYIR_SEMA_ERRORED;
-                        lyir_write_error(
-                            lyir_context,
-                            init->location,
-                            "Too many initializers."
-                        );
-                    } else {
-                        laye_struct_type_field field = ctor_type_node->type_struct.fields[init_index];
-                        assert(field.type.node != NULL);
+                    if (is_struct_ctor) {
+                        if (init_index >= lca_da_count(ctor_type.node->type_struct.fields)) {
+                            node->sema_state = LYIR_SEMA_ERRORED;
+                            lyir_write_error(
+                                lyir_context,
+                                init->location,
+                                "Too many initializers."
+                            );
+                        } else {
+                            laye_struct_type_field field = ctor_type.node->type_struct.fields[init_index];
+                            assert(field.type.node != NULL);
 
-                        laye_sema_analyse_node(sema, &init->member_initializer.value, field.type);
-                        laye_sema_convert_or_error(sema, &init->member_initializer.value, field.type);
+                            laye_sema_analyse_node(sema, &init->member_initializer.value, field.type);
+                            laye_sema_convert_or_error(sema, &init->member_initializer.value, field.type);
+
+                            calculated_offset = laye_type_struct_field_offset_bytes(ctor_type, init_index);
+                        }
+                    } else {
+                        fprintf(stderr, "for ctor type %s\n", laye_node_kind_to_cstring(ctor_type.node->kind));
+                        assert(false && "unimplmented constructor type");
                     }
 
                     init_index++;
@@ -1931,8 +1937,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         designator_location,
                         "Currently, initializer designations are not supported."
                     );
-                    continue;
                 }
+
+                lca_da_push(node->ctor.calculated_offsets, calculated_offset);
+            }
+
+            if (node->sema_state == LYIR_SEMA_OK) {
+                assert(lca_da_count(node->ctor.calculated_offsets) == lca_da_count(node->ctor.initializers) && "did not generate the correct number of pre-calculated initializer offsets for the number of ctor member initializers");
             }
         } break;
 
