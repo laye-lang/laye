@@ -848,7 +848,7 @@ int laye_type_struct_field_offset_bits(laye_type struct_type, int64_t field_inde
     int64_t member_offset = 0;
     laye_type member_type = {0};
 
-    for (int64_t i = 0, count = lca_da_count(struct_type.node->type_struct.fields) && i < field_index; i < count; i++) {
+    for (int64_t i = 0, count = lca_da_count(struct_type.node->type_struct.fields); i < field_index; i++) {
         laye_struct_type_field f = struct_type.node->type_struct.fields[i];
         member_offset = align_to(member_offset, 8 * laye_type_align_in_bytes(f.type));
         member_offset += laye_type_size_in_bits(f.type);

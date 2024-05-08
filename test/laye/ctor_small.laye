@@ -1,0 +1,35 @@
+// 6
+// R %layec -S -emit-lyir -o - %s
+
+// * define foo = struct { int64, @bar }
+struct foo {
+    int a;
+    bar b;
+}
+
+// * define bar = struct { int64 }
+struct bar {
+    int a;
+}
+
+// * define exported ccc main() -> int64 {
+// + entry:
+// +   %0 = alloca @foo
+// +   builtin @memset(ptr %0, int8 0, int64 16)
+// +   %1 = ptradd ptr %0, int64 0
+// +   store %1, int64 2
+// +   %2 = ptradd ptr %0, int64 8
+// +   %3 = ptradd ptr %2, int64 0
+// +   store %3, int64 4
+// +   %4 = ptradd ptr %0, int64 0
+// +   %5 = load int64, %4
+// +   %6 = ptradd ptr %0, int64 8
+// +   %7 = ptradd ptr %6, int64 0
+// +   %8 = load int64, %7
+// +   %9 = add int64 %5, %8
+// +   return int64 %9
+// + }
+int main() {
+    foo c = { 2, { 4 } };
+    return c.a + c.b.a;
+}
