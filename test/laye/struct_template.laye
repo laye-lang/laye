@@ -5,7 +5,12 @@ struct vec<T, int N> {
     T[N] data;
 }
 
-void add<T, int N>(vec<T, N> a, vec<T, N> b) {
+vec2<T, N> add<T, int N>(vec<T, N> a, vec<T, N> b) {
+    vec2<T, N> result;
+    for (int i = 0; i < N; i = i + 1) {
+        result.data[i] = a.data[i] + b.data[i];
+    }
+    return result;
 }
 
 int main() {
