@@ -164,6 +164,7 @@ static void laye_node_debug_print_children(laye_print_context* print_context, lc
 
 void laye_constant_print_to_string(lyir_evaluated_constant constant, lca_string* s, bool use_color);
 void laye_nameref_print_to_string(laye_nameref nameref, lca_string* s, bool use_color);
+void laye_template_parameters_print_to_string(lca_da(laye_node*) template_params, lca_string* s, bool use_color);
 
 static void laye_node_debug_print(laye_print_context* print_context, laye_node* node) {
     assert(print_context != NULL);
@@ -282,6 +283,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_DECL_FUNCTION: {
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), LCA_STR_EXPAND(node->declared_name));
+            laye_template_parameters_print_to_string(node->template_parameters, print_context->output, use_color);
 
             if (node->decl_function.body != NULL)
                 lca_da_push(children, node->decl_function.body);
@@ -289,6 +291,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_DECL_BINDING: {
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), LCA_STR_EXPAND(node->declared_name));
+            laye_template_parameters_print_to_string(node->template_parameters, print_context->output, use_color);
 
             if (node->decl_binding.initializer != NULL)
                 lca_da_push(children, node->decl_binding.initializer);
@@ -296,6 +299,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_DECL_STRUCT: {
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), LCA_STR_EXPAND(node->declared_name));
+            laye_template_parameters_print_to_string(node->template_parameters, print_context->output, use_color);
 
             for (int64_t i = 0, count = lca_da_count(node->decl_struct.field_declarations); i < count; i++)
                 lca_da_push(children, node->decl_struct.field_declarations[i]);
@@ -306,6 +310,7 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 
         case LAYE_NODE_DECL_STRUCT_FIELD: {
             lca_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), LCA_STR_EXPAND(node->declared_name));
+            laye_template_parameters_print_to_string(node->template_parameters, print_context->output, use_color);
 
             if (node->decl_binding.initializer != NULL)
                 lca_da_push(children, node->decl_struct_field.initializer);
@@ -606,6 +611,41 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
 #define COL_TEMPLATE_PARAM YELLOW
 #define COL_UNREAL         RED
 
+void laye_template_parameters_print_to_string(lca_da(laye_node*) template_params, lca_string* s, bool use_color) {
+    assert(s != NULL);
+
+    if (lca_da_count(template_params) == 0) {
+        return;
+    }
+
+    lca_string_append_format(s, "%s<", COL(RESET));
+    for (int64_t i = 0; i < lca_da_count(template_params); i++) {
+        if (i > 0) {
+            lca_string_append_format(s, "%s, ", COL(RESET));
+        }
+
+        laye_node* template_param = template_params[i];
+        assert(template_param != NULL);
+
+        if (template_param->kind == LAYE_NODE_DECL_TEMPLATE_TYPE) {
+            if (template_param->decl_template_type.is_duckable) {
+                lca_string_append_format(s, "%svar ", COL(COL_KEYWORD));
+            }
+
+            lca_string_append_format(s, "%s%.*s", COL(COL_TEMPLATE_PARAM), LCA_STR_EXPAND(template_param->declared_name));
+        } else if (template_param->kind == LAYE_NODE_DECL_TEMPLATE_VALUE) {
+            laye_type_print_to_string(template_param->declared_type, s, use_color);
+            lca_string_append_format(s, " ");
+            lca_string_append_format(s, "%s%.*s", COL(COL_TEMPLATE_PARAM), LCA_STR_EXPAND(template_param->declared_name));
+        } else {
+            fprintf(stderr, "for node kind %s\n", laye_node_kind_to_cstring(template_param->kind));
+            assert(false && "invalid template parameter declaration kind");
+        }
+    }
+
+    lca_string_append_format(s, "%s>", COL(RESET));
+}
+
 void laye_nameref_print_to_string(laye_nameref nameref, lca_string* s, bool use_color) {
     if (nameref.kind == LAYE_NAMEREF_HEADLESS) {
         lca_string_append_format(s, "%s::", COL(COL_DELIM));
@@ -629,12 +669,22 @@ void laye_nameref_print_to_string(laye_nameref nameref, lca_string* s, bool use_
             }
 
             laye_template_arg template_argument = nameref.template_arguments[i];
+        retry_print_arg:;
             if (template_argument.is_type) {
                 laye_type_print_to_string(template_argument.type, s, use_color);
             } else if (template_argument.node->kind == LAYE_NODE_EVALUATED_CONSTANT) {
                 laye_constant_print_to_string(template_argument.node->evaluated_constant.result, s, use_color);
             } else {
-                lca_string_append_format(s, "%s{?}", COL(COL_ERROR));
+                lyir_evaluated_constant check_eval_const;
+                if (laye_expr_evaluate(template_argument.node, &check_eval_const, false)) {
+                    laye_node* eval_const = laye_node_create(template_argument.node->module, LAYE_NODE_EVALUATED_CONSTANT, template_argument.node->location, template_argument.node->type);
+                    eval_const->evaluated_constant.expr = template_argument.node;
+                    eval_const->evaluated_constant.result = check_eval_const;
+                    template_argument.node = eval_const;
+                    goto retry_print_arg;
+                }
+
+                lca_string_append_format(s, "%s{? %s}", COL(COL_ERROR), laye_node_kind_to_cstring(template_argument.node->kind));
             }
         }
 
@@ -751,6 +801,9 @@ void laye_type_print_to_string(laye_type type, lca_string* s, bool use_color) {
         } break;
 
         case LAYE_NODE_TYPE_NAMEREF: {
+            laye_nameref_print_to_string(type.node->nameref, s, use_color);
+            break;
+
             if (type.node->nameref.kind == LAYE_NAMEREF_HEADLESS) {
                 lca_string_append_format(s, "%s::", COL(COL_DELIM));
             } else if (type.node->nameref.kind == LAYE_NAMEREF_GLOBAL) {

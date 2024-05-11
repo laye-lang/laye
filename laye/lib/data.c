@@ -839,7 +839,6 @@ bool laye_type_is_modifiable(laye_type type) {
     return type.is_modifiable;
 }
 
-
 int laye_type_struct_field_offset_bits(laye_type struct_type, int64_t field_index) {
     assert(struct_type.node != NULL);
     assert(struct_type.node->kind == LAYE_NODE_TYPE_STRUCT);

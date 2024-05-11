@@ -472,6 +472,7 @@ static laye_parse_result laye_parse_declaration(laye_parser* p, bool can_be_expr
 
 static laye_parse_result laye_parse_statement(laye_parser* p, bool consume_semi);
 static laye_parse_result laye_parse_expression(laye_parser* p);
+static laye_parse_result laye_parse_primary_expression(laye_parser* p);
 
 static laye_node* laye_parse_top_level_node(laye_parser* p) {
     assert(p != NULL);
@@ -1165,6 +1166,68 @@ parse_end:;
     return result;
 }
 
+static laye_parse_result laye_parse_decl_template_parameters(laye_parser* p, laye_node* decl_node) {
+    assert(p != NULL);
+    assert(decl_node != NULL);
+    assert(laye_node_is_decl(decl_node));
+    assert(laye_parser_at(p, '<'));
+
+    laye_parse_result result = laye_parse_result_success(decl_node);
+    laye_parser_expect(p, '<', &result);
+
+    decl_node->template_parameters = NULL;
+    do {
+        laye_node* template_param = NULL;
+
+        if (laye_parser_at(p, LAYE_TOKEN_VAR)) {
+            template_param = laye_node_create(p->module, LAYE_NODE_DECL_TEMPLATE_TYPE, p->token.location, LTY(p->module->context->laye_types.type));
+            template_param->decl_template_type.is_duckable = true;
+            laye_next_token(p);
+
+            laye_token declared_name;
+            if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &declared_name)) {
+                template_param->declared_name = declared_name.string_value;
+                template_param->location = declared_name.location;
+            } else {
+                lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier."));
+            }
+        } else if (laye_parser_at(p, LAYE_TOKEN_IDENT) && (laye_parser_peek_at(p, ',') || laye_parser_peek_at(p, '>'))) {
+            template_param = laye_node_create(p->module, LAYE_NODE_DECL_TEMPLATE_TYPE, p->token.location, LTY(p->module->context->laye_types.type));
+            template_param->declared_name = p->token.string_value;
+            laye_next_token(p);
+        } else {
+            template_param = laye_node_create(p->module, LAYE_NODE_DECL_TEMPLATE_VALUE, p->token.location, LTY(p->module->context->laye_types.type));
+
+            laye_parse_result value_type_result = laye_parse_type(p);
+            assert(value_type_result.type.node != NULL);
+            template_param->declared_type = value_type_result.type;
+            template_param->location = template_param->declared_type.node->location;
+            laye_parse_result_copy_diags(&result, value_type_result);
+            laye_parse_result_destroy(value_type_result);
+
+            if (value_type_result.success) {
+                laye_token declared_name;
+                if (laye_parser_consume(p, LAYE_TOKEN_IDENT, &declared_name)) {
+                    template_param->declared_name = declared_name.string_value;
+                    template_param->location = declared_name.location;
+                } else {
+                    lca_da_push(result.diags, lyir_error(p->context->lyir_context, p->token.location, "Expected an identifier."));
+                }
+            }
+        }
+
+        assert(template_param != NULL);
+        lca_da_push(decl_node->template_parameters, template_param);
+
+        if (laye_parser_at(p, '>')) {
+            break;
+        }
+    } while (laye_parser_consume(p, ',', NULL));
+
+    laye_parser_expect(p, '>', &result);
+    return result;
+}
+
 static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(laye_node*) attributes) {
     assert(p != NULL);
     assert(p->context != NULL);
@@ -1177,7 +1240,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
 
     laye_parse_result result = laye_parse_result_success(struct_decl);
 
-    bool is_variant = p->token.kind == LAYE_TOKEN_VAR;
+    bool is_variant = p->token.kind == LAYE_TOKEN_VARIANT;
     laye_next_token(p);
 
     laye_token ident_token = {0};
@@ -1195,6 +1258,11 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
 
         assert(p->scope != NULL);
         laye_scope_declare(p->scope, struct_decl);
+
+        if (laye_parser_at(p, '<')) {
+            result = laye_parse_decl_template_parameters(p, struct_decl);
+            assert(result.node == struct_decl);
+        }
     }
 
     if (!laye_parser_consume(p, '{', NULL)) {
@@ -1301,6 +1369,17 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
     assert(p->module != NULL);
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
+    laye_node* decl_node = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, name_token.location, LTY(p->context->laye_types._void));
+    // TODO(local): I don't think this will actually cause problems, but this *might* need a similar solution to expressions:
+    // checking whitespace before the <>
+    if (laye_parser_at(p, '<')) {
+        laye_parse_result result = laye_parse_decl_template_parameters(p, decl_node);
+        assert(result.node == decl_node);
+
+        laye_parse_result_write_diags(p->context, result);
+        laye_parse_result_destroy(result);
+    }
+
     if (laye_parser_consume(p, '(', NULL)) {
         lca_da(laye_type) parameter_types = NULL;
         lca_da(laye_node*) parameters = NULL;
@@ -1365,8 +1444,9 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
         function_type->type_function.parameter_types = parameter_types;
         function_type->type_function.varargs_style = varargs_style;
 
-        laye_node* function_node = laye_node_create(p->module, LAYE_NODE_DECL_FUNCTION, name_token.location, LTY(p->context->laye_types._void));
+        laye_node* function_node = decl_node;
         assert(function_node != NULL);
+        function_node->kind = LAYE_NODE_DECL_FUNCTION;
         laye_apply_attributes(function_node, attributes);
         function_node->declared_name = name_token.string_value;
         function_node->declared_type = LTY(function_type);
@@ -1429,7 +1509,7 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
         return laye_parse_result_success(function_node);
     }
 
-    laye_node* binding_node = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, name_token.location, LTY(p->context->laye_types._void));
+    laye_node* binding_node = decl_node;
     assert(binding_node != NULL);
     laye_apply_attributes(binding_node, attributes);
     binding_node->declared_type = declared_type;
@@ -1748,10 +1828,60 @@ static laye_parse_result laye_parse_if(laye_parser* p, bool expr_context) {
     return result;
 }
 
+static lca_da(laye_template_arg) laye_parse_template_arguments(laye_parser* p, laye_parse_result* result, lyir_location* location, bool allocate) {
+    assert(p != NULL);
+    assert(p->scope != NULL);
+    assert(p->scope->module != NULL);
+    assert(result != NULL);
+    assert(laye_parser_at(p, '<'));
+
+    lca_da(laye_template_arg) args = NULL;
+    laye_parser_expect(p, '<', result);
+
+    do {
+        laye_template_arg arg = {0};
+
+        if (laye_can_parse_type(p)) {
+            arg.is_type = true;
+            arg.type = laye_parse_type_or_error(p);
+            assert(arg.type.node != NULL);
+        } else {
+            //laye_parse_result value_result = laye_parse_expression(p);
+            laye_parse_result value_result = laye_parse_primary_expression(p);
+            assert(value_result.node != NULL);
+
+            // TODO(local): if the expression parse also fails, we should probably rewind instead.
+            // then consume everything we can up to a comma, a greater or a right shift as errors.
+
+            if (allocate) {
+                arg.is_type = false;
+                arg.node = value_result.node;
+                laye_parse_result_write_diags(p->context, value_result);
+            } else {
+                laye_node_destroy(value_result.node);
+            }
+            
+            laye_parse_result_destroy(value_result);
+        }
+
+        if (allocate) {
+            lca_da_push(args, arg);
+        }
+
+        if (laye_parser_at(p, '>')) {
+            break;
+        }
+    } while (laye_parser_consume(p, ',', NULL));
+
+    laye_parser_expect(p, '>', result);
+    return args;
+}
+
 static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result, lyir_location* location, bool allocate) {
     assert(p != NULL);
     assert(p->scope != NULL);
     assert(p->scope->module != NULL);
+    assert(result != NULL);
 
     laye_nameref nameref = {
         .scope = p->scope
@@ -1789,6 +1919,10 @@ static laye_nameref laye_parse_nameref(laye_parser* p, laye_parse_result* result
         if (allocate) {
             lca_da_push(nameref.pieces, next_piece);
         }
+    }
+
+    if (laye_parser_at(p, '<') && p->token.location.offset == last_name_location.offset + last_name_location.length) {
+        nameref.template_arguments = laye_parse_template_arguments(p, result, location, allocate);
     }
 
     return nameref;

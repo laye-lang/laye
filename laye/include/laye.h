@@ -725,9 +725,10 @@ struct laye_node {
         } decl_alias;
 
         struct {
-            // currently, there is nothing unique to a template type declaration,
-            // but there might be in the future?
-            int dummy;
+            // true if this type parameter was prefixed with the `var` keyword,
+            // causing usages of it to be unbound, unconstrained.
+            // This enables duck typing in templates.
+            bool is_duckable;
         } decl_template_type;
 
         struct {
