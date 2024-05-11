@@ -153,6 +153,11 @@ static void cflags(Nob_Cmd* cmd, bool debug) {
     nob_cmd_append(cmd, "-std=c2x");
     nob_cmd_append(cmd, "-pedantic");
     nob_cmd_append(cmd, "-pedantic-errors");
+    nob_cmd_append(cmd, "-Wall");
+    nob_cmd_append(cmd, "-Wextra");
+    nob_cmd_append(cmd, "-Wno-unused-parameter");
+    nob_cmd_append(cmd, "-Wno-unused-variable");
+    nob_cmd_append(cmd, "-Wno-unused-function");
     nob_cmd_append(cmd, "-fdata-sections");
     nob_cmd_append(cmd, "-ffunction-sections");
     nob_cmd_append(cmd, "-Werror=return-type");

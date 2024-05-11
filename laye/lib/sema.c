@@ -890,7 +890,7 @@ static laye_node* laye_sema_build_struct_type(laye_sema* sema, laye_node* node, 
         assert(variant_type->kind == LAYE_NODE_TYPE_STRUCT);
 
         laye_struct_type_variant variant = {
-            .type = variant_type,
+            .type = LTY(variant_type),
             .name = variant_node->declared_name,
         };
 

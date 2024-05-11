@@ -768,7 +768,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
 
             bool has_initializer = node->_for.initializer != NULL && node->_for.initializer->kind != LAYE_NODE_XYZZY;
             bool has_increment = node->_for.increment != NULL && node->_for.increment->kind != LAYE_NODE_XYZZY;
-            bool has_always_true_condition = !has_breaks && node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value);
+            bool has_always_true_condition = !has_breaks && (node->_for.condition == NULL || (node->_for.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_for.condition->evaluated_constant.result.bool_value));
 
             bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
 
@@ -968,7 +968,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
             bool has_breaks = node->_while.has_breaks;
             bool has_continues = node->_while.has_continues;
 
-            bool has_always_true_condition = !has_breaks && node->_while.condition == NULL || (node->_while.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_while.condition->evaluated_constant.result.bool_value);
+            bool has_always_true_condition = !has_breaks && (node->_while.condition == NULL || (node->_while.condition->kind == LAYE_NODE_EVALUATED_CONSTANT && node->_while.condition->evaluated_constant.result.bool_value));
 
             bool requires_join_block = has_breaks || !laye_type_is_noreturn(node->type);
 
