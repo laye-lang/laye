@@ -81,6 +81,17 @@ static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, ly
 // TODO(local): redeclaration of a name as an import namespace should be a semantic error. They can't participate in overload resolution,
 // so should just be disallowed for simplicity.
 
+static void laye_sema_set_errored(laye_node* node) {
+    assert(node);
+    node->dependence |= LAYE_DEPENDENCE_ERROR_DEPENDENT;
+    node->sema_state = LYIR_SEMA_DONE;
+}
+
+static bool laye_sema_is_errored(laye_node* node) {
+    assert(node);
+    return (node->dependence & LAYE_DEPENDENCE_ERROR) != 0;
+}
+
 static laye_node* laye_sema_lookup_entity(laye_module* from_module, laye_nameref nameref, bool is_type_entity) {
     assert(from_module != NULL);
     assert(from_module->context != NULL);
@@ -585,7 +596,7 @@ static void laye_sema_resolve_module_import_declarations(laye_context* laye_cont
             case LAYE_NODE_DECL_IMPORT: {
                 laye_token module_name_token = top_level_node->decl_import.module_name;
                 if (module_name_token.kind == LAYE_TOKEN_IDENT) {
-                    top_level_node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(top_level_node);
                     lyir_write_error(lyir_context, module_name_token.location, "Currently, module names cannot be identifiers; this syntax is reserved for future features that are not implemented yet.");
                 }
 
@@ -593,7 +604,7 @@ static void laye_sema_resolve_module_import_declarations(laye_context* laye_cont
                 lca_string lookup_path = laye_sema_get_module_import_file_path(laye_context, lca_string_as_view(source.name), module_name_token.string_value);
 
                 if (lookup_path.count == 0) {
-                    top_level_node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(top_level_node);
                     lyir_write_error(lyir_context, module_name_token.location, "Cannot find module file to import: '%.*s'", LCA_STR_EXPAND(module_name_token.string_value));
                     continue;
                 }
@@ -643,7 +654,7 @@ static void laye_sema_build_module_symbol_tables(laye_module* module) {
 
     for (int64_t i = 0, count = lca_da_count(module->top_level_nodes); i < count; i++) {
         laye_node* top_level_node = module->top_level_nodes[i];
-        if (top_level_node->sema_state == LYIR_SEMA_ERRORED) {
+        if (laye_sema_is_errored(top_level_node)) {
             continue;
         }
 
@@ -924,7 +935,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
         case LAYE_NODE_DECL_FUNCTION: {
             assert(node->decl_function.return_type.node != NULL);
             if (!laye_sema_analyse_type(sema, &node->decl_function.return_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(context->laye_types.poison);
             }
 
@@ -932,7 +943,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
                 assert(node->decl_function.parameter_declarations[i] != NULL);
                 assert(node->decl_function.parameter_declarations[i]->declared_type.node != NULL);
                 if (!laye_sema_analyse_type(sema, &node->decl_function.parameter_declarations[i]->declared_type)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(context->laye_types.poison);
                 }
             }
@@ -940,7 +951,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
             assert(node->declared_type.node != NULL);
             assert(laye_type_is_function(node->declared_type));
             if (!laye_sema_analyse_type(sema, &node->declared_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(context->laye_types.poison);
             }
 
@@ -968,7 +979,7 @@ static void laye_sema_resolve_top_level_types(laye_sema* sema, laye_node** node_
             laye_sema_analyse_type(sema, &node->declared_type);
             assert(node->declared_type.node != NULL);
             assert(node->declared_type.node->kind == LAYE_NODE_TYPE_STRUCT);
-            node->sema_state = LYIR_SEMA_OK;
+            node->sema_state = LYIR_SEMA_DONE;
         } break;
 
         case LAYE_NODE_DECL_BINDING:
@@ -1059,11 +1070,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
     assert(node->type.node != NULL);
 
     if (expected_type.node != NULL) {
-        assert(expected_type.node->sema_state == LYIR_SEMA_OK);
+        assert(expected_type.node->sema_state == LYIR_SEMA_DONE);
     }
 
-    if (node->sema_state == LYIR_SEMA_OK || node->sema_state == LYIR_SEMA_ERRORED) {
-        return node->sema_state == LYIR_SEMA_OK;
+    if (node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(node)) {
+        return node->sema_state == LYIR_SEMA_DONE;
     }
 
     if (node->sema_state == LYIR_SEMA_IN_PROGRESS) {
@@ -1104,7 +1115,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     if (laye_type_is_void(node->decl_function.return_type)) {
                         laye_node* implicit_return = laye_node_create(node->module, LAYE_NODE_RETURN, node->decl_function.body->location, LTY(laye_context->laye_types.noreturn));
                         assert(implicit_return != NULL);
-                        implicit_return->sema_state = LYIR_SEMA_OK;
+                        implicit_return->sema_state = LYIR_SEMA_DONE;
                         implicit_return->compiler_generated = true;
                         lca_da_push(node->decl_function.body->compound.children, implicit_return);
                         node->decl_function.body->type = LTY(laye_context->laye_types.noreturn);
@@ -1124,11 +1135,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             bool infer = false;
             if (node->declared_type.node->kind == LAYE_NODE_TYPE_VAR) {
                 infer = true;
-                node->declared_type.node->sema_state = LYIR_SEMA_OK;
+                node->declared_type.node->sema_state = LYIR_SEMA_DONE;
 
                 if (node->decl_binding.initializer == NULL) {
                     node->declared_type = LTY(sema->context->laye_types.poison);
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     lyir_write_error(
                         lyir_context,
                         node->declared_type.node->location,
@@ -1138,7 +1149,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     goto done_with_decl_binding;
                 }
             } else if (!laye_sema_analyse_type(sema, &node->declared_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 break;
             }
 
@@ -1192,13 +1203,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 assert(lca_da_count(node->decl_test.nameref.pieces) > 0);
                 node->decl_test.referenced_decl_node = laye_sema_lookup_value_declaration(node->module, node->decl_test.nameref);
                 if (node->decl_test.referenced_decl_node == NULL) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             }
 
             assert(node->decl_test.body != NULL);
             if (!laye_sema_analyse_node_and_discard(sema, &node->decl_test.body)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
             // sema->is_in_test = false;
@@ -1207,7 +1218,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_ASSERT: {
             assert(node->_assert.condition != NULL);
             if (!laye_sema_analyse_node(sema, &node->_assert.condition, LTY(laye_context->laye_types._bool))) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 break;
             }
 
@@ -1223,7 +1234,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 if (laye_sema_analyse_node(sema, &node->_if.conditions[i], LTY(laye_context->laye_types._bool))) {
                     laye_sema_convert_or_error(sema, &node->_if.conditions[i], LTY(laye_context->laye_types._bool));
                 } else {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
 
                 laye_node* prev_yield_target = sema->current_yield_target;
@@ -1241,7 +1252,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         laye_sema_convert_or_error(sema, &node->_if.passes[i], expected_type);
                     }
                 } else {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
 
                 sema->current_yield_target = prev_yield_target;
@@ -1263,7 +1274,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 }
 
                 if (!laye_sema_analyse_node(sema, &node->_if.fail, expected_type)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
 
                 sema->current_yield_target = prev_yield_target;
@@ -1290,7 +1301,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_FOR: {
             if (node->_for.initializer != NULL) {
                 if (!laye_sema_analyse_node(sema, &node->_for.initializer, NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             }
 
@@ -1299,7 +1310,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 is_condition_always_true = true;
             } else {
                 if (!laye_sema_analyse_node(sema, &node->_for.condition, LTY(laye_context->laye_types._bool))) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 } else {
                     // laye_sema_lvalue_to_rvalue(sema, &node->_for.condition, true);
                     laye_sema_convert_or_error(sema, &node->_for.condition, LTY(laye_context->laye_types._bool));
@@ -1319,7 +1330,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             if (node->_for.increment != NULL) {
                 if (!laye_sema_analyse_node(sema, &node->_for.increment, NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             }
 
@@ -1328,12 +1339,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             if (!laye_sema_analyse_node(sema, &node->_for.pass, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
             if (node->_for.fail != NULL) {
                 if (!laye_sema_analyse_node(sema, &node->_for.fail, NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             }
 
@@ -1345,7 +1356,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
         case LAYE_NODE_FOREACH: {
             if (!laye_sema_analyse_node(sema, &node->foreach.iterable, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
             laye_type iterable_type = node->foreach.iterable->type;
@@ -1355,7 +1366,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 if (node->foreach.index_binding != NULL) {
                     node->foreach.index_binding->declared_type = LTY(laye_context->laye_types._int);
                     if (!laye_sema_analyse_node(sema, &node->foreach.index_binding, NOTY)) {
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                     }
                 }
 
@@ -1365,7 +1376,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 element_reference_type.node->type_container.element_type = iterable_type.node->type_container.element_type;
                 node->foreach.element_binding->declared_type = element_reference_type;
                 if (!laye_sema_analyse_node(sema, &node->foreach.element_binding, NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             } else {
                 if (node->foreach.index_binding != NULL) {
@@ -1383,7 +1394,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             if (!laye_sema_analyse_node(sema, &node->foreach.pass, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
         } break;
 
@@ -1393,7 +1404,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 is_condition_always_true = true;
             } else {
                 if (!laye_sema_analyse_node(sema, &node->_while.condition, LTY(laye_context->laye_types._bool))) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 } else {
                     // laye_sema_lvalue_to_rvalue(sema, &node->_while.condition, true);
                     laye_sema_convert_or_error(sema, &node->_while.condition, LTY(laye_context->laye_types._bool));
@@ -1416,12 +1427,12 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             if (!laye_sema_analyse_node(sema, &node->_while.pass, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
             if (node->_while.fail != NULL) {
                 if (!laye_sema_analyse_node(sema, &node->_while.fail, NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                 }
             }
 
@@ -1498,7 +1509,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             if (!laye_expr_is_lvalue(node->assignment.lhs)) {
                 lyir_write_error(lyir_context, node->assignment.lhs->location, "Cannot assign to a non-lvalue.");
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             } else {
                 laye_type nonref_target_type = laye_type_strip_references(node->assignment.lhs->type);
                 laye_sema_convert_or_error(sema, &node->assignment.rhs, nonref_target_type);
@@ -1506,11 +1517,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             if (!node->assignment.lhs->type.is_modifiable && !laye_type_is_poison(node->assignment.lhs->type)) {
                 lyir_write_error(lyir_context, node->assignment.lhs->location, "Left-hand side of assignment is not mutable.");
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
-            if (node->assignment.lhs->sema_state != LYIR_SEMA_OK || node->assignment.rhs->sema_state != LYIR_SEMA_OK) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+            if (node->assignment.lhs->sema_state != LYIR_SEMA_DONE || node->assignment.rhs->sema_state != LYIR_SEMA_DONE) {
+                laye_sema_set_errored(node);
             }
         } break;
 
@@ -1556,7 +1567,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             laye_type callee_type = node->call.callee->type;
-            assert(callee_type.node->sema_state == LYIR_SEMA_OK || callee_type.node->sema_state == LYIR_SEMA_ERRORED);
+            assert(callee_type.node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(callee_type.node));
 
             switch (callee_type.node->kind) {
                 default: {
@@ -1576,7 +1587,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     if (callee_type.node->type_function.varargs_style == LAYE_VARARGS_NONE) {
                         if (lca_da_count(node->call.arguments) != param_count) {
-                            node->sema_state = LYIR_SEMA_ERRORED;
+                            laye_sema_set_errored(node);
                             lyir_write_error(
                                 lyir_context,
                                 node->location,
@@ -1592,7 +1603,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         }
                     } else if (callee_type.node->type_function.varargs_style == LAYE_VARARGS_C) {
                         if (lca_da_count(node->call.arguments) < param_count) {
-                            node->sema_state = LYIR_SEMA_ERRORED;
+                            laye_sema_set_errored(node);
                             lyir_write_error(
                                 lyir_context,
                                 node->location,
@@ -1643,7 +1654,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             }
 
             laye_type value_type = node->index.value->type;
-            assert(value_type.node->sema_state == LYIR_SEMA_OK || value_type.node->sema_state == LYIR_SEMA_ERRORED);
+            assert(value_type.node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(value_type.node));
 
             switch (value_type.node->kind) {
                 default: {
@@ -1702,11 +1713,11 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             assert(node->member.value != NULL);
 
             laye_type value_type = node->member.value->type;
-            assert(value_type.node->sema_state == LYIR_SEMA_OK || value_type.node->sema_state == LYIR_SEMA_ERRORED);
+            assert(value_type.node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(value_type.node));
 
             laye_expr_set_lvalue(node, laye_expr_is_lvalue(node->member.value));
             if (!laye_expr_is_lvalue(node->member.value)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 lyir_write_error(lyir_context, node->member.value->location, "Expression must be a modifiable lvalue.");
                 break;
             }
@@ -1719,7 +1730,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             switch (value_type.node->kind) {
                 default: {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                     lca_string type_string = lca_string_create(laye_context->allocator);
                     laye_type_print_to_string(value_type, &type_string, laye_context->use_color);
@@ -1737,7 +1748,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     int64_t member_index = laye_type_struct_field_index_by_name(value_type, member_name);
                     if (member_index < 0) {
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                         node->type = LTY(laye_context->laye_types.poison);
                         lyir_write_error(lyir_context, node->location, "No such member '%.*s'.", LCA_STR_EXPAND(member_name));
                         break;
@@ -1755,7 +1766,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             if (referenced_decl_node == NULL) {
                 referenced_decl_node = laye_sema_lookup_value_declaration(node->module, node->nameref);
                 if (referenced_decl_node == NULL) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                     break;
                 }
@@ -1763,7 +1774,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             if (lca_da_count(node->nameref.template_arguments) != 0) {
                 if (lca_da_count(referenced_decl_node->template_parameters) != lca_da_count(node->nameref.template_arguments)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     lyir_write_error(
                         lyir_context,
                         node->location,
@@ -1855,7 +1866,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             lca_string to_type_string = lca_string_create(laye_context->allocator);
             laye_type_print_to_string(type_to, &to_type_string, laye_context->use_color);
 
-            node->sema_state = LYIR_SEMA_ERRORED;
+            laye_sema_set_errored(node);
             lyir_write_error(
                 lyir_context,
                 node->location,
@@ -1877,7 +1888,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     node->type = expected_type;
                 } else {
                     has_usable_type = false;
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                     lyir_write_error(
                         lyir_context,
@@ -1886,7 +1897,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     );
                 }
             } else if (!laye_sema_analyse_type(sema, &node->type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(laye_context->laye_types.poison);
                 // continue to analyze the initializers, though
             }
@@ -1933,7 +1944,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     if (is_struct_ctor) {
                         if (init_index >= lca_da_count(ctor_type.node->type_struct.fields)) {
-                            node->sema_state = LYIR_SEMA_ERRORED;
+                            laye_sema_set_errored(node);
                             lyir_write_error(
                                 lyir_context,
                                 init->location,
@@ -1964,7 +1975,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         designator_location = init->member_initializer.name.location;
                     }
 
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     lyir_write_error(
                         lyir_context,
                         designator_location,
@@ -1975,14 +1986,14 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 lca_da_push(node->ctor.calculated_offsets, calculated_offset);
             }
 
-            if (node->sema_state == LYIR_SEMA_OK) {
+            if (node->sema_state == LYIR_SEMA_DONE) {
                 assert(lca_da_count(node->ctor.calculated_offsets) == lca_da_count(node->ctor.initializers) && "did not generate the correct number of pre-calculated initializer offsets for the number of ctor member initializers");
             }
         } break;
 
         case LAYE_NODE_UNARY: {
             if (!laye_sema_analyse_node(sema, &node->unary.operand, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(laye_context->laye_types.poison);
                 break;
             }
@@ -2004,7 +2015,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                         !laye_type_is_buffer(node->unary.operand->type)
                     ) {
                         lyir_write_error(lyir_context, node->location, "Expression must have an arithmetic type.");
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                         node->type = LTY(laye_context->laye_types.poison);
                         break;
                     }
@@ -2018,7 +2029,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
                     if (!laye_type_is_int(node->unary.operand->type)) {
                         lyir_write_error(lyir_context, node->location, "Expression must have an integer type.");
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                         node->type = LTY(laye_context->laye_types.poison);
                         break;
                     }
@@ -2029,7 +2040,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                 case '&': {
                     if (!laye_expr_is_lvalue(node->unary.operand)) {
                         lyir_write_error(lyir_context, node->location, "Cannot take the address of a non-lvalue expression.");
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                         node->type = LTY(laye_context->laye_types.poison);
                         break;
                     }
@@ -2048,7 +2059,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     }
 
                     if (!laye_sema_convert(sema, &node->unary.operand, value_type_noref)) {
-                        node->sema_state = LYIR_SEMA_ERRORED;
+                        laye_sema_set_errored(node);
                         node->type = LTY(laye_context->laye_types.poison);
                         break;
                     }
@@ -2067,7 +2078,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     laye_type_print_to_string(node->unary.operand->type, &type_string, laye_context->use_color);
                     lyir_write_error(lyir_context, node->location, "Cannot dereference type %.*s.", LCA_STR_EXPAND(type_string));
                     lca_string_destroy(&type_string);
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                 } break;
 
@@ -2083,7 +2094,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
         case LAYE_NODE_BINARY: {
             if (!laye_sema_analyse_node(sema, &node->binary.lhs, NOTY) || !laye_sema_analyse_node(sema, &node->binary.rhs, NOTY)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(laye_context->laye_types.poison);
                 break;
             }
@@ -2163,7 +2174,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     break;
 
                 cannot_arith_types:;
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
 
                     lca_string lhs_type_string = lca_string_create(lca_default_allocator);
@@ -2226,7 +2237,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
                     break;
 
                 cannot_compare_types:;
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
 
                     lca_string lhs_type_string = lca_string_create(lca_default_allocator);
@@ -2277,7 +2288,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         } break;
 
         case LAYE_NODE_TYPE_VAR: {
-            node->sema_state = LYIR_SEMA_ERRORED;
+            laye_sema_set_errored(node);
             node->type = LTY(laye_context->laye_types.poison);
             lyir_write_error(lyir_context, node->location, "Cannot infer a type here.");
         } break;
@@ -2288,14 +2299,14 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
             if (referenced_decl_node == NULL) {
                 referenced_decl_node = laye_sema_lookup_type_declaration(node->module, node->nameref);
                 if (referenced_decl_node == NULL) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                     break;
                 }
             }
 
             assert(referenced_decl_node != NULL);
-            assert(referenced_decl_node->sema_state == LYIR_SEMA_OK || referenced_decl_node->sema_state == LYIR_SEMA_ERRORED);
+            assert(referenced_decl_node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(referenced_decl_node));
             assert(laye_node_is_decl(referenced_decl_node));
             node->nameref.referenced_declaration = referenced_decl_node;
             assert(referenced_decl_node->declared_type.node != NULL);
@@ -2337,7 +2348,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
         case LAYE_NODE_TYPE_POINTER:
         case LAYE_NODE_TYPE_BUFFER: {
             if (!laye_sema_analyse_type(sema, &node->type_container.element_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
         } break;
 
@@ -2348,13 +2359,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
             assert(node->type_function.return_type.node != NULL);
             if (!laye_sema_analyse_type(sema, &node->type_function.return_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
                 node->type = LTY(laye_context->laye_types.poison);
             }
 
             for (int64_t i = 0, count = lca_da_count(node->type_function.parameter_types); i < count; i++) {
                 if (!laye_sema_analyse_type(sema, &node->type_function.parameter_types[i])) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     node->type = LTY(laye_context->laye_types.poison);
                 }
             }
@@ -2362,25 +2373,25 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
         case LAYE_NODE_TYPE_ARRAY: {
             if (!laye_sema_analyse_type(sema, &node->type_container.element_type)) {
-                node->sema_state = LYIR_SEMA_ERRORED;
+                laye_sema_set_errored(node);
             }
 
             for (int64_t i = 0, count = lca_da_count(node->type_container.length_values); i < count; i++) {
                 if (!laye_sema_analyse_node(sema, &node->type_container.length_values[i], NOTY)) {
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     continue;
                 }
 
                 lyir_evaluated_constant constant_value = {0};
                 if (!laye_expr_evaluate(node->type_container.length_values[i], &constant_value, true)) {
                     lyir_write_error(lyir_context, node->type_container.length_values[i]->location, "Array length value must be a compile-time known integer value. This expression was unable to be evaluated at compile time.");
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     continue;
                 }
 
                 if (constant_value.kind != LYIR_EVAL_INT) {
                     lyir_write_error(lyir_context, node->type_container.length_values[i]->location, "Array length value must be a compile-time known integer value. This expression did not evaluate to an integer.");
-                    node->sema_state = LYIR_SEMA_ERRORED;
+                    laye_sema_set_errored(node);
                     continue;
                 }
 
@@ -2441,7 +2452,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
 
     assert(node != NULL);
     if (node->sema_state == LYIR_SEMA_IN_PROGRESS) {
-        node->sema_state = LYIR_SEMA_OK;
+        node->sema_state = LYIR_SEMA_DONE;
     }
 
 #if false
@@ -2451,13 +2462,13 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
     }
 #endif
 
-    assert(node->sema_state == LYIR_SEMA_OK || node->sema_state == LYIR_SEMA_ERRORED);
+    assert(node->sema_state == LYIR_SEMA_DONE || laye_sema_is_errored(node));
     assert(node->type.node != NULL);
     assert(node->type.node->kind != LAYE_NODE_INVALID);
     assert(node->type.node->kind != LAYE_NODE_TYPE_UNKNOWN);
 
     *node_ref = node;
-    return node->sema_state == LYIR_SEMA_OK;
+    return node->sema_state == LYIR_SEMA_DONE;
 }
 
 static laye_struct_type_field laye_sema_create_padding_field(laye_sema* sema, laye_module* module, lyir_location location, int padding_bytes) {
@@ -2577,12 +2588,12 @@ static int laye_sema_convert_impl(laye_sema* sema, laye_node** node_ref, laye_ty
         return LAYE_CONVERT_NOOP;
     }
 
-    if (from.node->sema_state == LYIR_SEMA_ERRORED || to.node->sema_state == LYIR_SEMA_ERRORED) {
+    if (laye_sema_is_errored(from.node) || laye_sema_is_errored(to.node)) {
         return LAYE_CONVERT_CONTAINS_ERRORS;
     }
 
-    assert(from.node->sema_state == LYIR_SEMA_OK);
-    assert(to.node->sema_state == LYIR_SEMA_OK);
+    assert(from.node->sema_state == LYIR_SEMA_DONE);
+    assert(to.node->sema_state == LYIR_SEMA_DONE);
 
     if (perform_conversion) {
         laye_sema_lvalue_to_rvalue(sema, node_ref, false);
@@ -2738,7 +2749,7 @@ static bool laye_sema_convert(laye_sema* sema, laye_node** node, laye_type to) {
     assert(node != NULL);
     assert(*node != NULL);
 
-    if ((*node)->sema_state == LYIR_SEMA_ERRORED) {
+    if (laye_sema_is_errored(*node)) {
         return true;
     }
 
@@ -2759,7 +2770,7 @@ static void laye_sema_convert_or_error(laye_sema* sema, laye_node** node, laye_t
         lca_string to_type_string = lca_string_create(laye_context->allocator);
         laye_type_print_to_string(to, &to_type_string, laye_context->use_color);
 
-        (*node)->sema_state = LYIR_SEMA_ERRORED;
+        laye_sema_set_errored(*node);
         lyir_write_error(
             lyir_context,
             (*node)->location,
@@ -2821,7 +2832,7 @@ static void laye_sema_convert_to_c_varargs_or_error(laye_sema* sema, laye_node**
     lyir_write_error(lyir_context, (*node)->location, "Cannot convert type %.*s to a type correct for C varargs.", LCA_STR_EXPAND(type_string));
     lca_string_destroy(&type_string);
 
-    (*node)->sema_state = LYIR_SEMA_ERRORED;
+    laye_sema_set_errored(*node);
     (*node)->type = LTY(laye_context->laye_types.poison);
 }
 
@@ -2897,7 +2908,7 @@ static void laye_sema_lvalue_to_rvalue(laye_sema* sema, laye_node** node, bool s
     assert(*node != NULL);
     assert((*node)->module != NULL);
 
-    if ((*node)->sema_state == LYIR_SEMA_ERRORED) return;
+    if (laye_sema_is_errored(*node)) return;
 
     laye_context* laye_context = sema->context;
     assert(laye_context != NULL);

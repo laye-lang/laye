@@ -210,10 +210,8 @@ typedef enum lyir_sema_state {
     LYIR_SEMA_NOT_ANALYSED,
     // semantic analysis for this node has started, but is not complete.
     LYIR_SEMA_IN_PROGRESS,
-    // semantic analysis resulted in at least one error. analysis is complete, but not "ok".
-    LYIR_SEMA_ERRORED,
     // semantic analysis completed without errors.
-    LYIR_SEMA_OK,
+    LYIR_SEMA_DONE,
 } lyir_sema_state;
 
 typedef enum lyir_evaluated_constant_kind {

@@ -552,6 +552,79 @@ typedef enum laye_member_init_kind {
     LAYE_MEMBER_INIT_INDEXED,
 } laye_member_init_kind;
 
+/// Bitmask that indicates whether a node is dependent.
+///
+/// A node is *type-dependent* if its type depends on a template
+/// parameter. For example, in the program
+///
+///   T add<var T>(T a, T b) { return a + b; }
+///
+/// the expression `a` is type-dependent because it *is* a template
+/// parameter, and the expression `a + b` is type-dependent because
+/// the type of a `+` expression is the common type of its operands,
+/// which in this case are both type-dependent.
+///
+/// A node is *value-dependent* if its *value* depends on a template
+/// parameter. Value dependence is usually only relevant in contexts
+/// that require constant evaluation. For example, in the program
+///
+///   void foo<int N>() { int[N] a; }
+///
+/// in the array type `int[N]`, the expression `N` is value-dependent
+/// because its value won’t be known until instantiation time; this
+/// means we also can’t check if the array is valid until instantiation
+/// time. As a result, the type of the array is dependent.
+///
+/// Finally, a type is *instantiation-dependent* if it contains a
+/// template parameter. Type-dependence and value-dependence both
+/// imply instantiation-dependence.
+///
+/// Note that value-dependence does not imply type-dependence or vice
+/// versa. Furthermore, an expression that contains a value-dependent
+/// expression or a type-dependent type need not be value- or type-
+/// dependent itself, but it *is* instantiation-dependent.
+///
+/// For example, if `a` is a type template parameter, then `a[4]` is
+/// type-dependent, but `sizeof(a[4])` is not type-dependent since the
+/// type of `sizeof(...)` is always `int`. However, it *is* value-dependent
+/// since the size of a dependent type is unknown. Furthermore, the
+/// expression `sizeof(sizeof(a[4]))` is neither type- nor value-dependent:
+/// `sizeof(...)` is never type-dependent, and only value-dependent
+/// if its operand is type-dependent, so `sizeof(sizeof(a[4])) is neither.
+///
+/// However, it *is* still instantiation-dependent since we need to instantiate
+/// it at instantiation time, not to know its value, but still to check that
+/// the inner `sizeof` is actually valid. For example, although the value of
+/// `sizeof(sizeof(a[-1]))` is logically always `sizeof(int)`, this expression
+/// is still invalid because it contains an invalid type.
+///
+/// Finally, error handling in sema is very similar to handling dependence:
+/// if an expression is type-dependent, we can’t perform any checks that rely
+/// on its type, and the same applies to value-dependence. The same is true
+/// for expressions that contain an error, so we simply model errors as another
+/// form of dependence, though error-dependence, unlike type- or value-dependence
+/// is never resolved. Error-dependent expressions are simply skipped at instantiation
+/// time.
+typedef enum laye_dependence {
+    // not dependent.
+    LAYE_DEPENDENCE_NONE = 0,
+
+    // node contains a dependent node.
+    LAYE_DEPENDENCE_INSTANTIATION = 1 << 0,
+
+    // the node's type depends on a template parameter
+    LAYE_DEPENDENCE_TYPE = 1 << 1,
+    LAYE_DEPENDENCE_TYPE_DEPENDENT = LAYE_DEPENDENCE_INSTANTIATION | LAYE_DEPENDENCE_TYPE,
+
+    // the node's value depends on a template parameter
+    LAYE_DEPENDENCE_VALUE = 1 << 2,
+    LAYE_DEPENDENCE_VALUE_DEPENDENT = LAYE_DEPENDENCE_INSTANTIATION | LAYE_DEPENDENCE_VALUE,
+
+    // the node contains an error.
+    LAYE_DEPENDENCE_ERROR = 1 << 3,
+    LAYE_DEPENDENCE_ERROR_DEPENDENT = LAYE_DEPENDENCE_INSTANTIATION | LAYE_DEPENDENCE_ERROR,
+} laye_dependence;
+
 struct laye_node {
     laye_node_kind kind;
     laye_context* context;
@@ -577,6 +650,7 @@ struct laye_node {
 
     // the state of semantic analysis for this node.
     lyir_sema_state sema_state;
+    laye_dependence dependence;
 
     // the value category of this expression. i.e., is this an lvalue or rvalue expression?
     lyir_value_category value_category;
@@ -604,6 +678,8 @@ struct laye_node {
     // and the types declared by struct, enum or alias declarations.
     // this is not needed for import declarations, for example.
     laye_type declared_type;
+    // for declarations which declare scopes, this is that.
+    laye_scope* declared_scope;
 
     // should not contain any unique information when compared to the shared fields above,
     // but for syntactic preservation these nodes are stored with every declaration anyway.
@@ -1314,7 +1390,6 @@ laye_node* laye_node_create_in_context(laye_context* context, laye_node_kind kin
 void laye_node_destroy(laye_node* node);
 
 void laye_node_set_sema_in_progress(laye_node* node);
-void laye_node_set_sema_errored(laye_node* node);
 void laye_node_set_sema_ok(laye_node* node);
 bool laye_node_is_sema_in_progress(laye_node* node);
 bool laye_node_is_sema_ok(laye_node* node);

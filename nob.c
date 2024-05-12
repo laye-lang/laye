@@ -67,6 +67,7 @@ static const char* laye_driver_project_sources[] = {
     "./laye/lib/context.c",
     "./laye/lib/data.c",
     "./laye/lib/debug.c",
+    "./laye/lib/dependence.c",
     "./laye/lib/irgen.c",
     "./laye/lib/parser.c",
     "./laye/lib/sema.c",

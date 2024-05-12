@@ -518,7 +518,7 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
     assert(irgen != NULL);
     assert(builder != NULL);
     assert(node != NULL);
-    assert(node->sema_state == LYIR_SEMA_OK);
+    assert(node->sema_state == LYIR_SEMA_DONE);
 
     lyir_module* module = lyir_builder_module_get(builder);
     assert(module != NULL);

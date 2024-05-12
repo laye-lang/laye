@@ -1166,7 +1166,7 @@ parse_end:;
     return result;
 }
 
-static laye_parse_result laye_parse_decl_template_parameters(laye_parser* p, laye_node* decl_node) {
+static laye_parse_result laye_parse_decl_template_parameters(laye_parser* p, laye_node* decl_node, laye_scope* scope) {
     assert(p != NULL);
     assert(decl_node != NULL);
     assert(laye_node_is_decl(decl_node));
@@ -1217,6 +1217,8 @@ static laye_parse_result laye_parse_decl_template_parameters(laye_parser* p, lay
         }
 
         assert(template_param != NULL);
+        assert(laye_node_is_decl(template_param));
+        laye_scope_declare(scope, template_param);
         lca_da_push(decl_node->template_parameters, template_param);
 
         if (laye_parser_at(p, '>')) {
@@ -1235,8 +1237,12 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     assert(p->token.kind == LAYE_TOKEN_STRUCT || p->token.kind == LAYE_TOKEN_VARIANT);
 
     laye_node* struct_decl = laye_node_create(p->module, LAYE_NODE_DECL_STRUCT, p->token.location, LTY(p->context->laye_types._void));
-    assert(struct_decl != NULL);
     laye_apply_attributes(struct_decl, attributes);
+    
+    laye_parser_push_scope(p);
+    struct_decl->declared_scope = p->scope;
+    assert(struct_decl->declared_scope != NULL);
+    laye_parser_pop_scope(p);
 
     laye_parse_result result = laye_parse_result_success(struct_decl);
 
@@ -1260,7 +1266,7 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
         laye_scope_declare(p->scope, struct_decl);
 
         if (laye_parser_at(p, '<')) {
-            result = laye_parse_decl_template_parameters(p, struct_decl);
+            result = laye_parse_decl_template_parameters(p, struct_decl, struct_decl->declared_scope);
             assert(result.node == struct_decl);
         }
     }
@@ -1370,10 +1376,15 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
     assert(p->token.kind != LAYE_TOKEN_INVALID);
 
     laye_node* decl_node = laye_node_create(p->module, LAYE_NODE_DECL_BINDING, name_token.location, LTY(p->context->laye_types._void));
+
+    laye_parser_push_scope(p);
+    laye_scope* template_param_scope = p->scope;
+    laye_parser_pop_scope(p);
+
     // TODO(local): I don't think this will actually cause problems, but this *might* need a similar solution to expressions:
     // checking whitespace before the <>
     if (laye_parser_at(p, '<')) {
-        laye_parse_result result = laye_parse_decl_template_parameters(p, decl_node);
+        laye_parse_result result = laye_parse_decl_template_parameters(p, decl_node, template_param_scope);
         assert(result.node == decl_node);
 
         laye_parse_result_write_diags(p->context, result);
@@ -1457,7 +1468,8 @@ static laye_parse_result laye_parse_declaration_continue(laye_parser* p, lca_da(
 
         function_type->type_function.calling_convention = function_node->attributes.calling_convention;
 
-        laye_parser_push_scope(p);
+        //laye_parser_push_scope(p);
+        p->scope = template_param_scope;
         p->scope->name = name_token.string_value;
         p->scope->is_function_scope = true;
 

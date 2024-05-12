@@ -352,14 +352,9 @@ void laye_node_set_sema_in_progress(laye_node* node) {
     node->sema_state = LYIR_SEMA_IN_PROGRESS;
 }
 
-void laye_node_set_sema_errored(laye_node* node) {
-    assert(node != NULL);
-    node->sema_state = LYIR_SEMA_ERRORED;
-}
-
 void laye_node_set_sema_ok(laye_node* node) {
     assert(node != NULL);
-    node->sema_state = LYIR_SEMA_OK;
+    node->sema_state = LYIR_SEMA_DONE;
 }
 
 bool laye_node_is_sema_in_progress(laye_node* node) {
@@ -369,12 +364,7 @@ bool laye_node_is_sema_in_progress(laye_node* node) {
 
 bool laye_node_is_sema_ok(laye_node* node) {
     assert(node != NULL);
-    return node->sema_state == LYIR_SEMA_OK;
-}
-
-bool laye_node_is_sema_ok_or_errored(laye_node* node) {
-    assert(node != NULL);
-    return node->sema_state == LYIR_SEMA_OK || node->sema_state == LYIR_SEMA_ERRORED;
+    return node->sema_state == LYIR_SEMA_DONE;
 }
 
 bool laye_node_has_noreturn_semantics(laye_node* node) {
