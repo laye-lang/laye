@@ -224,6 +224,10 @@ static void laye_node_debug_print(laye_print_context* print_context, laye_node* 
         }
     }
 
+    if (laye_node_is_dependent(node)) {
+        lca_string_append_format(print_context->output, " DEPENDENT");
+    }
+
     if (node->declared_type.node != NULL) {
         lca_string_append_format(print_context->output, " ");
         laye_type_print_to_string(node->declared_type, print_context->output, use_color);

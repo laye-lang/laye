@@ -1238,11 +1238,6 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
 
     laye_node* struct_decl = laye_node_create(p->module, LAYE_NODE_DECL_STRUCT, p->token.location, LTY(p->context->laye_types._void));
     laye_apply_attributes(struct_decl, attributes);
-    
-    laye_parser_push_scope(p);
-    struct_decl->declared_scope = p->scope;
-    assert(struct_decl->declared_scope != NULL);
-    laye_parser_pop_scope(p);
 
     laye_parse_result result = laye_parse_result_success(struct_decl);
 
@@ -1257,13 +1252,17 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
         );
 
         if (!laye_parser_at(p, '{')) {
-            return result;
+            goto defer;
         }
     } else {
         struct_decl->declared_name = ident_token.string_value;
 
         assert(p->scope != NULL);
         laye_scope_declare(p->scope, struct_decl);
+    
+        laye_parser_push_scope(p);
+        struct_decl->declared_scope = p->scope;
+        assert(struct_decl->declared_scope != NULL);
 
         if (laye_parser_at(p, '<')) {
             result = laye_parse_decl_template_parameters(p, struct_decl, struct_decl->declared_scope);
@@ -1272,10 +1271,10 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     }
 
     if (!laye_parser_consume(p, '{', NULL)) {
-        return laye_parse_result_combine(
+        laye_return_defer((laye_parse_result_combine(
             result,
             laye_parse_result_failure(struct_decl, lyir_error(p->context->lyir_context, p->token.location, "Expected '{' to begin this %s.", is_variant ? "variant" : "struct"))
-        );
+        )));
     }
 
     while (!laye_parser_at2(p, LAYE_TOKEN_EOF, '}')) {
@@ -1328,6 +1327,12 @@ static laye_parse_result laye_parse_struct_declaration(laye_parser* p, lca_da(la
     }
 
     result.node = struct_decl;
+
+defer:;
+    if (struct_decl->declared_scope != NULL) {
+        laye_parser_pop_scope(p);
+    }
+    
     return result;
 }
 

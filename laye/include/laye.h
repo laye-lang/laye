@@ -45,6 +45,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //
 
+#define laye_return_defer(value) do { result = (value); goto defer; } while (0)
+
 typedef struct laye_scope laye_scope;
 typedef struct laye_token laye_token;
 
@@ -113,7 +115,9 @@ typedef struct laye_symbol {
     laye_symbol_kind kind;
     lca_string_view name;
     union {
+        // if LAYE_SYMBOL_ENTITY, all of the declaration nodes that make up this symbol
         lca_da(laye_node*) nodes;
+        // if LAYE_SYMBOL_NAMESPACE, the symbols in this namespace
         lca_da(struct laye_symbol*) symbols;
     };
 } laye_symbol;

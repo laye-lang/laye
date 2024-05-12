@@ -5,16 +5,16 @@ struct vec<T, int N> {
     T[N] data;
 }
 
-vec2<T, N> add<var T, int N>(vec<T, N> a, vec<T, N> b) {
-    vec2<T, N> result;
-    for (int i = 0; i < N; i = i + 1) {
-        result.data[i] = a.data[i] + b.data[i];
-    }
-    return result;
-}
+// vec2<T, N> add<var T, int N>(vec<T, N> a, vec<T, N> b) {
+//     vec2<T, N> result;
+//     for (int i = 0; i < N; i = i + 1) {
+//         result.data[i] = a.data[i] + b.data[i];
+//     }
+//     return result;
+// }
 
 int main() {
-    vec<int, 2> v0;
-    vec<int, 2> v1;
-    vec<int, 2> v3 = add<int, 2>(v0, v1);
+    // vec<int, 2> v0;
+    // vec<int, 2> v1;
+    // vec<int, 2> v3 = add<int, 2>(v0, v1);
 }
