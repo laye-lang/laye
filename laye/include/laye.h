@@ -1393,7 +1393,9 @@ void laye_node_set_sema_in_progress(laye_node* node);
 void laye_node_set_sema_ok(laye_node* node);
 bool laye_node_is_sema_in_progress(laye_node* node);
 bool laye_node_is_sema_ok(laye_node* node);
-bool laye_node_is_sema_ok_or_errored(laye_node* node);
+
+bool laye_node_is_dependent(laye_node* node);
+void laye_compute_dependence(laye_node* node);
 
 bool laye_node_has_noreturn_semantics(laye_node* node);
 

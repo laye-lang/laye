@@ -84,7 +84,6 @@ static laye_node* laye_create_constant_node(laye_sema* sema, laye_node* node, ly
 static void laye_sema_set_errored(laye_node* node) {
     assert(node);
     node->dependence |= LAYE_DEPENDENCE_ERROR_DEPENDENT;
-    node->sema_state = LYIR_SEMA_DONE;
 }
 
 static bool laye_sema_is_errored(laye_node* node) {
@@ -2451,7 +2450,7 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
     }
 
     assert(node != NULL);
-    if (node->sema_state == LYIR_SEMA_IN_PROGRESS) {
+    if (node->sema_state == LYIR_SEMA_IN_PROGRESS || laye_sema_is_errored(node)) {
         node->sema_state = LYIR_SEMA_DONE;
     }
 
@@ -2466,6 +2465,8 @@ static bool laye_sema_analyse_node(laye_sema* sema, laye_node** node_ref, laye_t
     assert(node->type.node != NULL);
     assert(node->type.node->kind != LAYE_NODE_INVALID);
     assert(node->type.node->kind != LAYE_NODE_TYPE_UNKNOWN);
+
+    laye_compute_dependence(node);
 
     *node_ref = node;
     return node->sema_state == LYIR_SEMA_DONE;
