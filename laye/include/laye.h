@@ -1345,6 +1345,34 @@ struct laye_node {
     };
 };
 
+//
+
+typedef enum laye_args_parse_result {
+    LAYE_ARGS_OK,
+    LAYE_ARGS_NO_ARGS,
+    LAYE_ARGS_ERR_UNKNOWN,
+} laye_args_parse_result;
+
+typedef struct laye_args {
+    const char* program_name;
+} laye_args;
+
+typedef struct laye_build_tool_args {
+    const char* program_name;
+} laye_build_tool_args;
+
+typedef void (*laye_args_parse_logger)(char* message);
+void laye_args_parse_logger_default(char* message);
+
+laye_args_parse_result laye_args_parse(laye_args* args, int argc, char** argv, laye_args_parse_logger logger);
+laye_args_parse_result laye_compat_args_parse(laye_args* args, int argc, char** argv, laye_args_parse_logger logger);
+laye_args_parse_result laye_build_tool_args_parse(laye_build_tool_args* args, int argc, char** argv, laye_args_parse_logger logger);
+
+int laye_main(laye_args args);
+int laye_build_tool_main(laye_build_tool_args args);
+
+//
+
 laye_context* laye_context_create(lyir_context* lyir_context);
 void laye_context_destroy(laye_context* context);
 

@@ -50,7 +50,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_IMPLEMENTATION
 #include "lca.h"
 
-#define LAYEC_PATH "./out/layec"
+#define LAYEC_PATH "./out/layec0"
 
 #define FCHK_DIR  "./fchk"
 #define FCHK_OUT  FCHK_DIR "/out"

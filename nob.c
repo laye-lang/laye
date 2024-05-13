@@ -39,8 +39,8 @@ typedef struct project_info {
     const char** sources;
 } project_info;
 
-// == Laye Compiler Driver ==
-static const char* laye_driver_project_includes[] = {
+// == Laye Legacy Compiler Driver ==
+static const char* layec0_driver_project_includes[] = {
     "./lca/include",
     "./lyir/include",
     "./ccly/include",
@@ -49,7 +49,7 @@ static const char* laye_driver_project_includes[] = {
     NULL, // sentinel
 };
 
-static const char* laye_driver_project_sources[] = {
+static const char* layec0_driver_project_sources[] = {
     "./lyir/lib/irpass/abi.c",
     "./lyir/lib/irpass/validate.c",
     "./lyir/lib/cback.c",
@@ -77,15 +77,232 @@ static const char* laye_driver_project_sources[] = {
     NULL, // sentinel
 };
 
-static project_info laye_driver_project = {
-    "laye",
-    "Laye Compiler Driver",
-    "layec",
+static project_info layec0_driver_project = {
+    "laye_legacy",
+    "Laye Legacy Compiler Driver",
+    "layec0",
 
-    laye_driver_project_includes,
-    laye_driver_project_sources,
+    layec0_driver_project_includes,
+    layec0_driver_project_sources,
+};
+// == Laye Legacy Compiler Driver ==
+
+// == Laye Compiler Driver ==
+static const char* layec1_driver_project_includes[] = {
+    "./lca/include",
+    "./lyir/include",
+    "./laye/include",
+
+    NULL, // sentinel
+};
+
+static const char* layec1_driver_project_sources[] = {
+    "./lyir/lib/irpass/abi.c",
+    "./lyir/lib/irpass/validate.c",
+    "./lyir/lib/cback.c",
+    "./lyir/lib/context.c",
+    "./lyir/lib/depgraph.c",
+    "./lyir/lib/ir.c",
+    "./lyir/lib/llvm.c",
+    "./lyir/lib/shared.c",
+
+    "./laye/lib/context.c",
+    "./laye/lib/data.c",
+    "./laye/lib/debug.c",
+    "./laye/lib/dependence.c",
+    "./laye/lib/driver.c",
+    "./laye/lib/irgen.c",
+    "./laye/lib/parser.c",
+    "./laye/lib/sema.c",
+
+    "./laye/src/layec1.c",
+
+    NULL, // sentinel
+};
+
+static project_info layec1_driver_project = {
+    "layec1",
+    "Laye Compiler Driver",
+    "layec1",
+
+    layec1_driver_project_includes,
+    layec1_driver_project_sources,
 };
 // == Laye Compiler Driver ==
+
+// == Laye Compatibility Compiler Driver ==
+static const char* layec_driver_project_includes[] = {
+    "./lca/include",
+    "./lyir/include",
+    "./laye/include",
+
+    NULL, // sentinel
+};
+
+static const char* layec_driver_project_sources[] = {
+    "./lyir/lib/irpass/abi.c",
+    "./lyir/lib/irpass/validate.c",
+    "./lyir/lib/cback.c",
+    "./lyir/lib/context.c",
+    "./lyir/lib/depgraph.c",
+    "./lyir/lib/ir.c",
+    "./lyir/lib/llvm.c",
+    "./lyir/lib/shared.c",
+
+    "./laye/lib/context.c",
+    "./laye/lib/data.c",
+    "./laye/lib/debug.c",
+    "./laye/lib/dependence.c",
+    "./laye/lib/driver.c",
+    "./laye/lib/irgen.c",
+    "./laye/lib/parser.c",
+    "./laye/lib/sema.c",
+
+    "./laye/src/layec.c",
+
+    NULL, // sentinel
+};
+
+static project_info layec_driver_project = {
+    "layec",
+    "Laye Compatibility Compiler Driver",
+    "layec",
+
+    layec_driver_project_includes,
+    layec_driver_project_sources,
+};
+// == Laye Compatibility Compiler Driver ==
+
+// == CCLY Compiler Driver ==
+static const char* ccly1_driver_project_includes[] = {
+    "./lca/include",
+    "./lyir/include",
+    "./ccly/include",
+
+    NULL, // sentinel
+};
+
+static const char* ccly1_driver_project_sources[] = {
+    "./lyir/lib/irpass/abi.c",
+    "./lyir/lib/irpass/validate.c",
+    "./lyir/lib/cback.c",
+    "./lyir/lib/context.c",
+    "./lyir/lib/depgraph.c",
+    "./lyir/lib/ir.c",
+    "./lyir/lib/llvm.c",
+    "./lyir/lib/shared.c",
+
+    "./ccly/lib/context.c",
+    "./ccly/lib/data.c",
+    "./ccly/lib/debug.c",
+    "./ccly/lib/driver.c",
+    "./ccly/lib/parser.c",
+
+    "./ccly/src/ccly1.c",
+
+    NULL, // sentinel
+};
+
+static project_info ccly1_driver_project = {
+    "ccly1",
+    "CCLY Compiler Driver",
+    "ccly1",
+
+    ccly1_driver_project_includes,
+    ccly1_driver_project_sources,
+};
+// == CCLY Compiler Driver ==
+
+// == CCLY Compatibility Compiler Driver ==
+static const char* ccly_driver_project_includes[] = {
+    "./lca/include",
+    "./lyir/include",
+    "./ccly/include",
+
+    NULL, // sentinel
+};
+
+static const char* ccly_driver_project_sources[] = {
+    "./lyir/lib/irpass/abi.c",
+    "./lyir/lib/irpass/validate.c",
+    "./lyir/lib/cback.c",
+    "./lyir/lib/context.c",
+    "./lyir/lib/depgraph.c",
+    "./lyir/lib/ir.c",
+    "./lyir/lib/llvm.c",
+    "./lyir/lib/shared.c",
+
+    "./ccly/lib/context.c",
+    "./ccly/lib/data.c",
+    "./ccly/lib/debug.c",
+    "./ccly/lib/driver.c",
+    "./ccly/lib/parser.c",
+
+    "./ccly/src/ccly.c",
+
+    NULL, // sentinel
+};
+
+static project_info ccly_driver_project = {
+    "ccly",
+    "CCLY Compatibility Compiler Driver",
+    "ccly",
+
+    ccly_driver_project_includes,
+    ccly_driver_project_sources,
+};
+// == CCLY Compatibility Compiler Driver ==
+
+// == Laye Build Tool ==
+static const char* laye_build_tool_includes[] = {
+    "./lca/include",
+    "./lyir/include",
+    "./ccly/include",
+    "./laye/include",
+
+    NULL, // sentinel
+};
+
+static const char* laye_build_tool_sources[] = {
+    "./lyir/lib/irpass/abi.c",
+    "./lyir/lib/irpass/validate.c",
+    "./lyir/lib/cback.c",
+    "./lyir/lib/context.c",
+    "./lyir/lib/depgraph.c",
+    "./lyir/lib/ir.c",
+    "./lyir/lib/llvm.c",
+    "./lyir/lib/shared.c",
+
+    "./ccly/lib/context.c",
+    "./ccly/lib/data.c",
+    "./ccly/lib/debug.c",
+    "./ccly/lib/driver.c",
+    "./ccly/lib/parser.c",
+
+    "./laye/lib/build_tool.c",
+    "./laye/lib/context.c",
+    "./laye/lib/data.c",
+    "./laye/lib/debug.c",
+    "./laye/lib/dependence.c",
+    "./laye/lib/driver.c",
+    "./laye/lib/irgen.c",
+    "./laye/lib/parser.c",
+    "./laye/lib/sema.c",
+
+    "./laye/src/layec.c",
+
+    NULL, // sentinel
+};
+
+static project_info laye_build_tool = {
+    "laye",
+    "Laye Build Tool",
+    "laye",
+
+    laye_build_tool_includes,
+    laye_build_tool_sources,
+};
+// == Laye Compatibility Compiler Driver ==
 
 // == Laye Execution Test Runner ==
 static const char* exec_test_runner_project_includes[] = {
@@ -266,7 +483,7 @@ defer:;
 }
 
 static bool run_fchk(bool rebuild) {
-    if (!build_project(laye_driver_project)) {
+    if (!build_project(layec0_driver_project)) {
         return false;
     }
 
@@ -303,7 +520,27 @@ static bool run_fchk(bool rebuild) {
 static bool ensure_compilers_are_rebuilt() {
     bool result = true;
 
-    if (!build_project(laye_driver_project)) {
+    if (!build_project(ccly1_driver_project)) {
+        nob_return_defer(false);
+    }
+
+    if (!build_project(ccly_driver_project)) {
+        nob_return_defer(false);
+    }
+
+    if (!build_project(layec0_driver_project)) {
+        nob_return_defer(false);
+    }
+
+    if (!build_project(layec1_driver_project)) {
+        nob_return_defer(false);
+    }
+
+    if (!build_project(layec_driver_project)) {
+        nob_return_defer(false);
+    }
+
+    if (!build_project(laye_build_tool)) {
         nob_return_defer(false);
     }
 
@@ -345,7 +582,7 @@ static bool nob_run(int argc, char** argv) {
         nob_return_defer(false);
     }
 
-    nob_cmd_append(&run_cmd, "./out/layec");
+    nob_cmd_append(&run_cmd, "./out/layec0");
     nob_da_append_many(&run_cmd, argv, argc);
 
     if (!nob_cmd_run_sync(run_cmd)) {

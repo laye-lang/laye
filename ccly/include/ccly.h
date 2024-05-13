@@ -43,6 +43,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "lyir.h"
 
+#define ccly_return_defer(value) do { result = (value); goto defer; } while (0)
+
 typedef struct c_context {
     lyir_context* lyir_context;
     lca_allocator allocator;
@@ -186,6 +188,28 @@ typedef struct c_translation_unit {
     //lca_da(c_token) _all_tokens;
     c_token_buffer token_buffer;
 } c_translation_unit;
+
+//
+
+typedef enum ccly_args_parse_result {
+    CCLY_ARGS_OK,
+    CCLY_ARGS_NO_ARGS,
+    CCLY_ARGS_ERR_UNKNOWN,
+} ccly_args_parse_result;
+
+typedef struct ccly_args {
+    const char* program_name;
+} ccly_args;
+
+typedef void (*ccly_args_parse_logger)(char* message);
+void ccly_args_parse_logger_default(char* message);
+
+ccly_args_parse_result ccly_args_parse(ccly_args* args, int argc, char** argv, ccly_args_parse_logger logger);
+ccly_args_parse_result ccly_compat_args_parse(ccly_args* args, int argc, char** argv, ccly_args_parse_logger logger);
+
+int ccly_main(ccly_args args);
+
+//
 
 c_context* c_context_create(lyir_context* lyir_context);
 void c_context_destroy(c_context* c_context);
