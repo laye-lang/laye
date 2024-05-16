@@ -205,7 +205,6 @@ typedef void (*ccly_args_parse_logger)(char* message);
 void ccly_args_parse_logger_default(char* message);
 
 ccly_args_parse_result ccly_args_parse(ccly_args* args, int argc, char** argv, ccly_args_parse_logger logger);
-ccly_args_parse_result ccly_compat_args_parse(ccly_args* args, int argc, char** argv, ccly_args_parse_logger logger);
 
 int ccly_main(ccly_args args);
 

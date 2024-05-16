@@ -1347,29 +1347,71 @@ struct laye_node {
 
 //
 
+typedef enum laye_source_file_kind {
+    LAYE_SOURCE_DEFAULT,
+    LAYE_SOURCE_LAYE,
+    LAYE_SOURCE_C,
+    LAYE_SOURCE_LYIR,
+} laye_source_file_kind;
+
+typedef struct laye_source_file_info {
+    lca_string_view path;
+    laye_source_file_kind kind;
+} laye_source_file_info;
+
 typedef enum laye_args_parse_result {
     LAYE_ARGS_OK,
     LAYE_ARGS_NO_ARGS,
     LAYE_ARGS_ERR_UNKNOWN,
 } laye_args_parse_result;
 
-typedef struct laye_args {
-    const char* program_name;
-} laye_args;
+typedef enum laye_compilation_step {
+    LAYE_COMPILE_STEP_PREPROCESS,
+    LAYE_COMPILE_STEP_PARSE,
+    LAYE_COMPILE_STEP_SEMA,
+    // IRgen is a prerequisite for all assembly steps
+    LAYE_COMPILE_STEP_CODEGEN,
+    LAYE_COMPILE_STEP_ASSEMBLE,
+    LAYE_COMPILE_STEP_LINK,
+} laye_compilation_step;
 
-typedef struct laye_build_tool_args {
-    const char* program_name;
-} laye_build_tool_args;
+typedef struct laye_args {
+    lca_string_view program_name;
+
+    lca_da(laye_source_file_info) input_files;
+
+    bool help;
+    bool verbose;
+
+    enum {
+        LAYE_COLOR_AUTO,
+        LAYE_COLOR_ALWAYS,
+        LAYE_COLOR_NEVER,
+    } use_color;
+
+    bool use_byte_positions_in_diagnostics;
+
+    lyir_backend_kind backend;
+    laye_compilation_step requested_compile_step;
+
+    lca_string_view output_file;
+    bool is_output_file_stdout;
+
+    lca_da(lca_string_view) include_directories;
+    lca_da(lca_string_view) library_directories;
+    lca_da(lca_string_view) link_libraries;
+} laye_args;
 
 typedef void (*laye_args_parse_logger)(char* message);
 void laye_args_parse_logger_default(char* message);
 
+void laye_args_usage_print(laye_args_parse_logger logger);
 laye_args_parse_result laye_args_parse(laye_args* args, int argc, char** argv, laye_args_parse_logger logger);
-laye_args_parse_result laye_compat_args_parse(laye_args* args, int argc, char** argv, laye_args_parse_logger logger);
-laye_args_parse_result laye_build_tool_args_parse(laye_build_tool_args* args, int argc, char** argv, laye_args_parse_logger logger);
+void laye_args_destroy(laye_args* args);
 
 int laye_main(laye_args args);
-int laye_build_tool_main(laye_build_tool_args args);
+
+const char* laye_compile_step_to_cstring(laye_compilation_step step);
 
 //
 

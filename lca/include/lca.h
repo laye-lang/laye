@@ -100,6 +100,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_SV_CONSTANT(C) ((lca_string_view){.data = (C), .count = (sizeof C) - 1})
 #define LCA_STR_EXPAND(s)  ((int)s.count), (s.data)
 
+void lca_assertion_failure_handler(const char* message, const char* expression, int line, const char* file);
+#define LCA_ASSERT(Condition, Message)                                                                  \
+    do {                                                                                                \
+        if (!(Condition)) { lca_assertion_failure_handler((Message), #Condition, __LINE__, __FILE__); } \
+    } while (0)
+
 typedef void* (*lca_allocator_function)(void* user_data, size_t count, void* ptr);
 
 typedef struct lca_allocator {
@@ -245,7 +251,7 @@ char* lca_shift_args(int* argc, char*** argv);
 bool lca_stdout_isatty(void);
 bool lca_stderr_isatty(void);
 
-bool lcat_file_exists(const char* file_path);
+bool lca_file_exists(const char* file_path);
 lca_string lca_file_read(lca_allocator allocator, const char* file_path);
 
 char* lca_plat_self_exe(void);
@@ -462,7 +468,7 @@ lca_string_view lca_string_as_view(lca_string s) {
 }
 
 lca_string_view lca_string_view_slice(lca_string_view sv, int64_t offset, int64_t length) {
-    assert(offset >= 0 && offset < sv.count);
+    assert(offset >= 0 && offset <= sv.count);
     if (length == -1) {
         length = sv.count - offset;
     }
@@ -790,7 +796,7 @@ bool lca_stderr_isatty(void) {
     return isatty(fileno(stderr));
 }
 
-bool lcat_file_exists(const char* file_path) {
+bool lca_file_exists(const char* file_path) {
 #    if _WIN32
     // TODO: distinguish between "does not exists" and other errors
     DWORD dwAttrib = GetFileAttributesA(file_path);
@@ -838,6 +844,20 @@ char* lca_plat_self_exe(void) {
     assert(false && "lca_plat_self_exe is not implemented on this platform");
     return NULL;
 #    endif
+}
+
+void lca_assertion_failure_handler(const char* message, const char* expression, int line, const char* file) {
+    fprintf(
+        stderr,
+        "%s:%d: %sAssertion Failed:%s %s\n%s\n",
+        file,
+        line,
+        ANSI_COLOR_RED,
+        ANSI_COLOR_RESET,
+        message,
+        expression
+    );
+    abort();
 }
 
 #endif

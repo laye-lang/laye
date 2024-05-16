@@ -88,134 +88,7 @@ static project_info layec0_driver_project = {
 };
 // == Laye Legacy Compiler Driver ==
 
-// == Laye Compiler Driver ==
-static const char* layec1_driver_project_includes[] = {
-    "./lca/include",
-    "./lyir/include",
-    "./laye/include",
-
-    NULL, // sentinel
-};
-
-static const char* layec1_driver_project_sources[] = {
-    "./lyir/lib/irpass/abi.c",
-    "./lyir/lib/irpass/validate.c",
-    "./lyir/lib/cback.c",
-    "./lyir/lib/context.c",
-    "./lyir/lib/depgraph.c",
-    "./lyir/lib/ir.c",
-    "./lyir/lib/llvm.c",
-    "./lyir/lib/shared.c",
-
-    "./laye/lib/context.c",
-    "./laye/lib/data.c",
-    "./laye/lib/debug.c",
-    "./laye/lib/dependence.c",
-    "./laye/lib/driver.c",
-    "./laye/lib/irgen.c",
-    "./laye/lib/parser.c",
-    "./laye/lib/sema.c",
-
-    "./laye/src/layec1.c",
-
-    NULL, // sentinel
-};
-
-static project_info layec1_driver_project = {
-    "layec1",
-    "Laye Compiler Driver",
-    "layec1",
-
-    layec1_driver_project_includes,
-    layec1_driver_project_sources,
-};
-// == Laye Compiler Driver ==
-
-// == Laye Compatibility Compiler Driver ==
-static const char* layec_driver_project_includes[] = {
-    "./lca/include",
-    "./lyir/include",
-    "./laye/include",
-
-    NULL, // sentinel
-};
-
-static const char* layec_driver_project_sources[] = {
-    "./lyir/lib/irpass/abi.c",
-    "./lyir/lib/irpass/validate.c",
-    "./lyir/lib/cback.c",
-    "./lyir/lib/context.c",
-    "./lyir/lib/depgraph.c",
-    "./lyir/lib/ir.c",
-    "./lyir/lib/llvm.c",
-    "./lyir/lib/shared.c",
-
-    "./laye/lib/context.c",
-    "./laye/lib/data.c",
-    "./laye/lib/debug.c",
-    "./laye/lib/dependence.c",
-    "./laye/lib/driver.c",
-    "./laye/lib/irgen.c",
-    "./laye/lib/parser.c",
-    "./laye/lib/sema.c",
-
-    "./laye/src/layec.c",
-
-    NULL, // sentinel
-};
-
-static project_info layec_driver_project = {
-    "layec",
-    "Laye Compatibility Compiler Driver",
-    "layec",
-
-    layec_driver_project_includes,
-    layec_driver_project_sources,
-};
-// == Laye Compatibility Compiler Driver ==
-
 // == CCLY Compiler Driver ==
-static const char* ccly1_driver_project_includes[] = {
-    "./lca/include",
-    "./lyir/include",
-    "./ccly/include",
-
-    NULL, // sentinel
-};
-
-static const char* ccly1_driver_project_sources[] = {
-    "./lyir/lib/irpass/abi.c",
-    "./lyir/lib/irpass/validate.c",
-    "./lyir/lib/cback.c",
-    "./lyir/lib/context.c",
-    "./lyir/lib/depgraph.c",
-    "./lyir/lib/ir.c",
-    "./lyir/lib/llvm.c",
-    "./lyir/lib/shared.c",
-
-    "./ccly/lib/context.c",
-    "./ccly/lib/data.c",
-    "./ccly/lib/debug.c",
-    "./ccly/lib/driver.c",
-    "./ccly/lib/lexer.c",
-    "./ccly/lib/parser.c",
-
-    "./ccly/src/ccly1.c",
-
-    NULL, // sentinel
-};
-
-static project_info ccly1_driver_project = {
-    "ccly1",
-    "CCLY Compiler Driver",
-    "ccly1",
-
-    ccly1_driver_project_includes,
-    ccly1_driver_project_sources,
-};
-// == CCLY Compiler Driver ==
-
-// == CCLY Compatibility Compiler Driver ==
 static const char* ccly_driver_project_includes[] = {
     "./lca/include",
     "./lyir/include",
@@ -248,16 +121,16 @@ static const char* ccly_driver_project_sources[] = {
 
 static project_info ccly_driver_project = {
     "ccly",
-    "CCLY Compatibility Compiler Driver",
+    "CCLY Compiler Driver",
     "ccly",
 
     ccly_driver_project_includes,
     ccly_driver_project_sources,
 };
-// == CCLY Compatibility Compiler Driver ==
+// == CCLY Compiler Driver ==
 
-// == Laye Build Tool ==
-static const char* laye_build_tool_includes[] = {
+// == Laye Compiler Driver ==
+static const char* laye_compiler_driver_includes[] = {
     "./lca/include",
     "./lyir/include",
     "./ccly/include",
@@ -266,7 +139,7 @@ static const char* laye_build_tool_includes[] = {
     NULL, // sentinel
 };
 
-static const char* laye_build_tool_sources[] = {
+static const char* laye_compiler_driver_sources[] = {
     "./lyir/lib/irpass/abi.c",
     "./lyir/lib/irpass/validate.c",
     "./lyir/lib/cback.c",
@@ -283,7 +156,6 @@ static const char* laye_build_tool_sources[] = {
     "./ccly/lib/lexer.c",
     "./ccly/lib/parser.c",
 
-    "./laye/lib/build_tool.c",
     "./laye/lib/context.c",
     "./laye/lib/data.c",
     "./laye/lib/debug.c",
@@ -293,20 +165,20 @@ static const char* laye_build_tool_sources[] = {
     "./laye/lib/parser.c",
     "./laye/lib/sema.c",
 
-    "./laye/src/layec.c",
+    "./laye/src/laye.c",
 
     NULL, // sentinel
 };
 
-static project_info laye_build_tool = {
+static project_info laye_compiler_driver = {
     "laye",
-    "Laye Build Tool",
+    "Laye Compiler Driver",
     "laye",
 
-    laye_build_tool_includes,
-    laye_build_tool_sources,
+    laye_compiler_driver_includes,
+    laye_compiler_driver_sources,
 };
-// == Laye Compatibility Compiler Driver ==
+// == Laye Compiler Driver ==
 
 // == Laye Execution Test Runner ==
 static const char* exec_test_runner_project_includes[] = {
@@ -380,6 +252,7 @@ static void cflags(Nob_Cmd* cmd, bool debug) {
     nob_cmd_append(cmd, "-Wno-unused-parameter");
     nob_cmd_append(cmd, "-Wno-unused-variable");
     nob_cmd_append(cmd, "-Wno-unused-function");
+    nob_cmd_append(cmd, "-Wno-gnu-zero-variadic-macro-arguments");
     nob_cmd_append(cmd, "-fdata-sections");
     nob_cmd_append(cmd, "-ffunction-sections");
     nob_cmd_append(cmd, "-Werror=return-type");
@@ -524,7 +397,7 @@ static bool run_fchk(bool rebuild) {
 static bool ensure_compilers_are_rebuilt() {
     bool result = true;
 
-    if (!build_project(ccly1_driver_project)) {
+    if (!build_project(layec0_driver_project)) {
         nob_return_defer(false);
     }
 
@@ -532,19 +405,7 @@ static bool ensure_compilers_are_rebuilt() {
         nob_return_defer(false);
     }
 
-    if (!build_project(layec0_driver_project)) {
-        nob_return_defer(false);
-    }
-
-    if (!build_project(layec1_driver_project)) {
-        nob_return_defer(false);
-    }
-
-    if (!build_project(layec_driver_project)) {
-        nob_return_defer(false);
-    }
-
-    if (!build_project(laye_build_tool)) {
+    if (!build_project(laye_compiler_driver)) {
         nob_return_defer(false);
     }
 

@@ -38,3 +38,16 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#define LCA_IMPLEMENTATION
+#include "lca.h"
+
+#include "laye.h"
+
+int main(int argc, char** argv) {
+    lca_temp_allocator_init(lca_default_allocator, 1024 * 1024);
+    laye_args args = {0};
+    laye_args_parse_result args_result = laye_args_parse(&args, argc, argv, laye_args_parse_logger_default);
+    int result = laye_main(args);
+    laye_args_destroy(&args);
+    return result;
+}

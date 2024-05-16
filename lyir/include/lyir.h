@@ -153,6 +153,13 @@ typedef struct lyir_location {
     int64_t length;
 } lyir_location;
 
+typedef enum lyir_backend_kind {
+    LYIR_BACKEND_NONE,
+    LYIR_BACKEND_LLVM,
+    LYIR_BACKEND_C,
+    LYIR_BACKEND_ASM,
+} lyir_backend_kind;
+
 typedef enum lyir_status {
     LYIR_NO_STATUS,
     LYIR_INFO,

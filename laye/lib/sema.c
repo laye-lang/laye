@@ -549,7 +549,7 @@ static lca_string laye_sema_get_module_import_file_path(laye_context* laye_conte
     }
 
     lca_string_path_append_view(&lookup_path, import_name);
-    if (lcat_file_exists(lca_string_as_cstring(lookup_path))) {
+    if (lca_file_exists(lca_string_as_cstring(lookup_path))) {
         return lookup_path;
     }
 
@@ -561,7 +561,7 @@ static lca_string laye_sema_get_module_import_file_path(laye_context* laye_conte
 
         lca_string_append_format(&lookup_path, "%.*s", LCA_STR_EXPAND(include_path));
         lca_string_path_append_view(&lookup_path, import_name);
-        if (lcat_file_exists(lca_string_as_cstring(lookup_path))) {
+        if (lca_file_exists(lca_string_as_cstring(lookup_path))) {
             return lookup_path;
         }
     }
