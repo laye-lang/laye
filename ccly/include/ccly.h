@@ -215,7 +215,7 @@ c_context* c_context_create(lyir_context* lyir_context);
 void c_context_destroy(c_context* c_context);
 
 lca_string c_translation_unit_debug_print(c_translation_unit* tu);
-c_translation_unit* c_parse(c_context* context, lyir_sourceid sourceid);
+c_translation_unit* ccly_parse(c_context* context, lyir_sourceid sourceid);
 void c_translation_unit_destroy(c_translation_unit* tu);
 
 //

@@ -224,7 +224,7 @@ static c_translation_unit* parse_translation_unit(compiler_state* state, c_conte
         return NULL;
     }
 
-    c_translation_unit* tu = c_parse(context, sourceid);
+    c_translation_unit* tu = ccly_parse(context, sourceid);
     assert(tu != NULL);
     lca_da_push(state->translation_units, tu);
 

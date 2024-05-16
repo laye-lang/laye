@@ -62,6 +62,7 @@ static const char* layec0_driver_project_sources[] = {
     "./ccly/lib/context.c",
     "./ccly/lib/data.c",
     "./ccly/lib/debug.c",
+    "./ccly/lib/lexer.c",
     "./ccly/lib/parser.c",
 
     "./laye/lib/context.c",
@@ -196,6 +197,7 @@ static const char* ccly1_driver_project_sources[] = {
     "./ccly/lib/data.c",
     "./ccly/lib/debug.c",
     "./ccly/lib/driver.c",
+    "./ccly/lib/lexer.c",
     "./ccly/lib/parser.c",
 
     "./ccly/src/ccly1.c",
@@ -236,6 +238,7 @@ static const char* ccly_driver_project_sources[] = {
     "./ccly/lib/data.c",
     "./ccly/lib/debug.c",
     "./ccly/lib/driver.c",
+    "./ccly/lib/lexer.c",
     "./ccly/lib/parser.c",
 
     "./ccly/src/ccly.c",
@@ -277,6 +280,7 @@ static const char* laye_build_tool_sources[] = {
     "./ccly/lib/data.c",
     "./ccly/lib/debug.c",
     "./ccly/lib/driver.c",
+    "./ccly/lib/lexer.c",
     "./ccly/lib/parser.c",
 
     "./laye/lib/build_tool.c",
