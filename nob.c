@@ -253,6 +253,7 @@ static void cflags(Nob_Cmd* cmd, bool debug) {
     nob_cmd_append(cmd, "-Wno-unused-variable");
     nob_cmd_append(cmd, "-Wno-unused-function");
     nob_cmd_append(cmd, "-Wno-gnu-zero-variadic-macro-arguments");
+    nob_cmd_append(cmd, "-Wno-missing-field-initializers");
     nob_cmd_append(cmd, "-fdata-sections");
     nob_cmd_append(cmd, "-ffunction-sections");
     nob_cmd_append(cmd, "-Werror=return-type");

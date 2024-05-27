@@ -148,6 +148,90 @@ typedef struct lca_command {
     int64_t capacity;
 } lca_command;
 
+typedef enum lca_clopt_parser_result {
+    LCA_CLOPT_PARSE_OK,
+    LCA_CLOPT_PARSE_STOP,
+} lca_clopt_parser_result;
+
+typedef enum lca_clopt_flags {
+    LCA_CLOPT_NONE = 0,
+    LCA_CLOPT_ALIAS = 1 << 0,
+    LCA_CLOPT_ARG_OPTIONAL = 1 << 1,
+    LCA_CLOPT_HIDDEN = 1 << 2,
+    LCA_CLOPT_DOC = 1 << 3,
+    LCA_CLOPT_NO_USAGE = 1 << 4,
+} lca_clopt_flags;
+
+typedef enum lca_clopt_type {
+    LCA_CLOPT_CSTRING,
+    LCA_CLOPT_STRING_VIEW,
+    LCA_CLOPT_BOOL,
+    LCA_CLOPT_PROGRAMATIC,
+} lca_clopt_type;
+
+enum {
+    LCA_CLOPT_KEY_ARG = -1,
+    LCA_CLOPT_KEY_END = -2,
+    LCA_CLOPT_KEY_PROGRAM_NAME = -3,
+};
+
+enum {
+    LCA_CLOPT_RESULT_OK = 0,
+};
+
+typedef lca_clopt_parser_result (*lca_clopt_parser_callback)(int key, lca_string_view name, lca_string_view arg, void* args_data);
+
+typedef struct lca_clopt {
+    /// A unique identifier for this option.
+    /// If this is a printable ASCII character, it also specifies the short option name `-char`,
+    /// where `char` is the ASCII character with the code key.
+    int key;
+
+    /// The long name of this option.
+    /// Can be null if this option only has a short name.
+    const char* name;
+
+    /// If nonnull, the name of the argument which should be provided with this option,
+    /// for example in `--name=value` or `-c value`.
+    /// Optional if the `LCA_CLOPT_ARG_OPTIONAL` flag is set.
+    const char* arg;
+
+    /// The location within the argument storage struct to place the option value.
+    /// If this option has the `LCA_CLOPT_PROGRAMATIC` flag, this field is ignored and
+    /// the option value is instead passed to the argument parser callback you provide.
+    size_t struct_offset;
+
+    /// Flags associated with this option.
+    lca_clopt_flags flags;
+
+    /// The type of the option when storing into the arguments structure at `struct_offset`, or
+    /// `LCA_CLOPT_PROGRAMATIC` to have the parser callback handle it manually.
+    lca_clopt_type type;
+
+    /// A documentation string, for printing in help and usage messages.
+    /// 
+    /// If both key and name are null, this will be printed tabbed left from
+    /// the normal option column, making it useful as a group header.
+    /// This will be the first thing printed in its group.
+    /// When used as a group header, it's convention to end the string with ':'.
+    const char* doc;
+
+    /// Group identity for this option.
+    ///
+    /// In a long help message, options are sorted alphabetically within each group.
+    /// Groups are presented in the order 0, 1, 2, ..., n, -m, ..., -2, -1.
+    ///
+    /// Every option item with a `0` will inherit the group number of the previous entry,
+    /// or zero if it's the first one. If it's a group header, with the `name` and `key` fields
+    /// both zero, then the previous entry + 1 is the default instead.
+    /// "Automagic" options such as `--help` are put into group -1.
+    int group;
+} lca_clopt;
+
+int lca_clopt_parse(int argc, char** argv, lca_clopt* opts, void* args_data, lca_clopt_parser_callback parser_callback);
+void lca_clopt_write_error(lca_string_view program_name, const char* format, ...);
+void lca_clopt_usage(lca_string_view program_name, lca_clopt* opts);
+
 void lca_da_maybe_expand(void** da_ref, int64_t element_size, int64_t required_count);
 
 void* lca_allocate(lca_allocator allocator, size_t n);
@@ -858,6 +942,50 @@ void lca_assertion_failure_handler(const char* message, const char* expression, 
         expression
     );
     abort();
+}
+
+int lca_clopt_parse(int argc, char** argv, lca_clopt* opts, void* args_data, lca_clopt_parser_callback parser_callback) {
+    LCA_ASSERT(argc >= 1, "lca_clopt_parse can't handle < 1 arguments (needs program name)");
+
+    lca_string_view program_name = lca_string_view_from_cstring(lca_shift_args(&argc, &argv));
+    parser_callback(LCA_CLOPT_KEY_PROGRAM_NAME, LCA_SV_EMPTY, program_name, args_data);
+
+    if (argc == 0) {
+        lca_clopt_usage(program_name, opts);
+        exit(0);
+        return 0;
+    }
+
+    bool help = false;
+
+    bool force_value_args = false;
+
+    while (argc > 0) {
+        lca_string_view arg = lca_string_view_from_cstring(lca_shift_args(&argc, &argv));
+        if (force_value_args) {
+            goto arg_is_value;
+        }
+
+        if (lca_string_view_equals_cstring(arg, "--")) {
+            force_value_args = true;
+        }
+
+    arg_is_value:;
+    }
+
+    return 0;
+}
+
+void lca_clopt_write_error(lca_string_view program_name, const char* format, ...) {
+    fprintf(stderr, "%.*s: %serror:%s ", LCA_STR_EXPAND(program_name), ANSI_COLOR_RED, ANSI_COLOR_RESET);
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+}
+
+void lca_clopt_usage(lca_string_view program_name, lca_clopt* opts) {
+    fprintf(stderr, "usage: %.*s\n", LCA_STR_EXPAND(program_name));
 }
 
 #endif

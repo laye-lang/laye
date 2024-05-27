@@ -43,11 +43,75 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "laye.h"
 
+enum {
+    __LAYE_CLOPT_KEYS_START = 256,
+
+    LAYE_CLOPT_KEY_BACKEND,
+};
+
+static lca_clopt options[] = {
+    {'o', "output", "file", offsetof(laye_args, output_file), 0, 0, "Write output to <file>. If <file> is '-` (a single dash), then output will be written to stdout."},
+    {'x', NULL, "language", 0, 0, LCA_CLOPT_PROGRAMATIC, "Changes the default interpretation of an input source file. By default, the source file extension determines what format the file is. When overriden, treats the following source files as a specific format instead. One of 'default', 'c', 'laye' or 'lyir'."},
+    {LAYE_CLOPT_KEY_BACKEND, "backend", "name", 0, 0, LCA_CLOPT_PROGRAMATIC, "What code generation backend to use. One of 'c' or 'llvm'. Default: 'llvm'."},
+
+    {0, NULL, NULL, 0, 0, 0, "actions:"},
+
+    {'E', "preprocess", NULL, offsetof(laye_args, output_file), 0, 0, "Write output to <file>. If <file> is '-` (a single dash), then output will be written to stdout."},
+
+    {0, NULL, NULL, 0, 0, 0, "diagnostics and output:"},
+
+    {0, NULL, NULL, 0, 0, 0, "include path management:"},
+
+    {0, NULL, NULL, 0, 0, 0, "linker options:"},
+
+    {0}, // terminating sentinel
+};
+
+lca_clopt_parser_result laye_args_parser_callback(int key, lca_string_view name, lca_string_view arg, void* args_data) {
+    laye_args* args = args_data;
+
+    switch (key) {
+        default: {
+            // do nothing
+        } break;
+
+        case LCA_CLOPT_KEY_PROGRAM_NAME: {
+            args->program_name = arg;
+        } break;
+
+        case 'x': {
+            fprintf(stderr, "-x \"%.*s\" passed\n", LCA_STR_EXPAND(arg));
+        } break;
+
+        case LAYE_CLOPT_KEY_BACKEND: {
+            fprintf(stderr, "--backend \"%.*s\" passed\n", LCA_STR_EXPAND(arg));
+        } break;
+    }
+
+    return LCA_CLOPT_PARSE_OK;
+}
+
 int main(int argc, char** argv) {
+    int result = 0;
+
     lca_temp_allocator_init(lca_default_allocator, 1024 * 1024);
-    laye_args args = {0};
-    laye_args_parse_result args_result = laye_args_parse(&args, argc, argv, laye_args_parse_logger_default);
-    int result = laye_main(args);
+    
+    laye_args args = {
+        .requested_compile_step = LAYE_COMPILE_STEP_LINK,
+        .backend = LYIR_BACKEND_LLVM,
+    };
+
+    // laye_args_parse_result args_result = laye_args_parse(&args, argc, argv, laye_args_parse_logger_default);
+    // laye_return_defer(laye_main(args));
+
+    if (0 == lca_clopt_parse(argc, argv, options, &args, laye_args_parser_callback)) {
+        laye_return_defer(laye_main(args));
+    } else {
+        // the parser will have reported all errors it encountered
+        laye_return_defer(1);
+    }
+ 
+defer:;
     laye_args_destroy(&args);
     return result;
 }

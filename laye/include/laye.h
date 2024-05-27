@@ -1377,10 +1377,10 @@ typedef enum laye_compilation_step {
 
 typedef struct laye_args {
     lca_string_view program_name;
+    lca_string_view command;
 
     lca_da(laye_source_file_info) input_files;
 
-    bool help;
     bool verbose;
 
     enum {
@@ -1400,18 +1400,21 @@ typedef struct laye_args {
     lca_da(lca_string_view) include_directories;
     lca_da(lca_string_view) library_directories;
     lca_da(lca_string_view) link_libraries;
+
+    // parsing state
+    laye_source_file_kind override_source_file_kind;
 } laye_args;
 
 typedef void (*laye_args_parse_logger)(char* message);
 void laye_args_parse_logger_default(char* message);
 
-void laye_args_usage_print(laye_args_parse_logger logger);
+void laye_args_usage_print(laye_args* args, laye_args_parse_logger logger);
 laye_args_parse_result laye_args_parse(laye_args* args, int argc, char** argv, laye_args_parse_logger logger);
 void laye_args_destroy(laye_args* args);
 
 int laye_main(laye_args args);
 
-const char* laye_compile_step_to_cstring(laye_compilation_step step);
+const char* laye_compile_step_to_verb_cstring(laye_compilation_step step);
 
 //
 
