@@ -502,7 +502,7 @@ static void laye_generate_ctor(laye_irgen* irgen, lyir_builder* builder, laye_no
         lyir_value* offset_value = lyir_int_constant_create(context, inits[i]->location, intptr_type, offset);
 
         lyir_value* init_address = lyir_build_ptradd(builder, inits[i]->location, address, offset_value);
-        
+
         if (init_node->kind == LAYE_NODE_CTOR) {
             laye_generate_ctor(irgen, builder, init_node, init_address, false);
         } else {
@@ -1749,4 +1749,5 @@ static lyir_value* laye_generate_node(laye_irgen* irgen, lyir_builder* builder, 
     }
 
     assert(false && "unreachable");
+    return NULL;
 }

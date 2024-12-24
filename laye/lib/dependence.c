@@ -242,7 +242,7 @@ void laye_compute_dependence(laye_node* node) {
                 copy_dependence_all(node, node->_if.conditions);
                 copy_dependence_all(node, node->_if.passes);
                 copy_dependence(node, node->_if.fail);
-            } else{
+            } else {
                 copy_inst_dependence_all(node, node->_if.conditions);
                 copy_inst_dependence_all(node, node->_if.passes);
                 copy_inst_dependence(node, node->_if.fail);
@@ -322,7 +322,7 @@ void laye_compute_dependence(laye_node* node) {
             return;
 
         case LAYE_NODE_ALIGNOF:
-            node->dependence |= turn_type_to_value_dependence(node->_alignof.query);
+            node->dependence |= turn_type_to_value_dependence(node->_alignof_.query);
             return;
 
         case LAYE_NODE_NAMEREF:
@@ -400,7 +400,6 @@ void laye_compute_dependence(laye_node* node) {
             copy_inst_dependence(node, node->catch.body);
             return;
 
-
         case LAYE_NODE_TYPE_TEMPLATE_PARAMETER:
             node->dependence |= LAYE_DEPENDENCE_TYPE_DEPENDENT;
             return;
@@ -450,7 +449,6 @@ void laye_compute_dependence(laye_node* node) {
         case LAYE_NODE_TYPE_OVERLOADS:
         case LAYE_NODE_TYPE_STRICT_ALIAS:
             assert(false && "Unimplemented");
-
     }
 
     assert(false && "unreachable: invalid node kind");

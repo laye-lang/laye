@@ -3,3 +3,6 @@ export foreign callconv(cdecl) noreturn exit(i32 exit_code);
 export foreign callconv(cdecl) i8 mut[*] malloc(uint count);
 export foreign callconv(cdecl) i8 mut[*] realloc(i8[*] memory, uint new_count);
 export foreign callconv(cdecl) void free(i8[*] memory);
+
+export foreign callconv(cdecl) i8 mut[*] memcpy(i8 mut[*] d, i8[*] s, uint count);
+export foreign callconv(cdecl) i8 mut[*] memset(i8 mut[*] p, i32 value, uint count);

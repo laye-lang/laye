@@ -37,9 +37,9 @@ import "deps/libc.laye";
 // generates namespace `libc2`
 import "deps/libc.laye" as libc2;
 // generates no namespace, imports `stdio` as `stdio3`
-import stdio as stdio3 "deps/libc.laye";
+import stdio as stdio3 from "deps/libc.laye";
 // generates no namespace, imports `stdio::printf` as `printf3`
-import stdio::printf as printf3 "deps/libc.laye";
+import stdio::printf as printf3 from "deps/libc.laye";
 
 import "deps/foo.laye";
 

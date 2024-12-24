@@ -34,6 +34,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
@@ -268,11 +270,16 @@ int nob_file_exists(const char *file_path);
 //   do not recommend since the whole idea of nobuild is to keep the process of bootstrapping
 //   as simple as possible and doing all of the actual work inside of the nobuild)
 //
+#if defined(_WIN32)
+#define NOB_GO_REBUILD_URSELF_EXE_SUFFIX(Path) nob_temp_sprintf("%s.exe", (Path))
+#else
+#define NOB_GO_REBUILD_URSELF_EXE_SUFFIX(Path) (Path)
+#endif
 #define NOB_GO_REBUILD_URSELF(argc, argv)                                                    \
     do {                                                                                     \
         const char *source_path = __FILE__;                                                  \
         assert(argc >= 1);                                                                   \
-        const char *binary_path = argv[0];                                                   \
+        const char *binary_path = NOB_GO_REBUILD_URSELF_EXE_SUFFIX(argv[0]);                 \
                                                                                              \
         int rebuild_is_needed = nob_needs_rebuild(binary_path, &source_path, 1);             \
         if (rebuild_is_needed < 0) exit(1);                                                  \
@@ -600,12 +607,12 @@ Nob_Proc_Result nob_proc_wait_result(Nob_Proc proc)
     if (proc == NOB_INVALID_PROC) return result;
 
 #ifdef _WIN32
-    DWORD result = WaitForSingleObject(
+    DWORD win32_result = WaitForSingleObject(
                        proc,    // HANDLE hHandle,
                        INFINITE // DWORD  dwMilliseconds
                    );
 
-    if (result == WAIT_FAILED) {
+    if (win32_result == WAIT_FAILED) {
         nob_log(NOB_ERROR, "could not wait on child process: %lu", GetLastError());
         return result;
     }

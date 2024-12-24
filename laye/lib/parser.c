@@ -3254,13 +3254,14 @@ restart_token:;
     /* token.leading_trivia = */ laye_read_trivia(p, true);
     token.location.offset = p->lexer_position;
 
-    if (p->lexer_position >= p->source.text.count) {
+    if (p->lexer_position >= p->source.text.count || p->current_char == 0) {
         token.kind = LAYE_TOKEN_EOF;
         p->token = token;
         return;
     }
 
     char c = p->current_char;
+    //fprintf(stderr, "c:   %c   %d   (%ld ?>= %ld)\n", c, c, p->lexer_position, p->source.text.count);
     switch (c) {
         case '(':
         case ')':
@@ -3648,6 +3649,7 @@ restart_token:;
             token.kind = LAYE_TOKEN_UNKNOWN;
             token.location.length = p->lexer_position - token.location.offset;
             lyir_write_error(p->context->lyir_context, token.location, "Invalid character in Laye source file.");
+            exit(2);
 
             lca_da_push(p->module->_all_tokens, token);
 

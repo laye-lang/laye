@@ -1,9 +1,14 @@
 #if defined(_WIN32)
 #    define NOB_WINDOWS
 #    define NOB_PATH_SEP "\\"
+#    define EXE_SUFFIX   ".exe"
+#    define _CRT_SECURE_NO_WARNINGS
+#    define _CRT_SECURE_NO_WARNINGS_GLOBALS
+#    define _CRT_NONSTDC_NO_WARNINGS
 #elif defined(__unix__)
 #    define NOB_UNIX
 #    define NOB_PATH_SEP "/"
+#    define EXE_SUFFIX ""
 #else
 #    error "This build script currently only supports Windows and Unix, sorry"
 #endif
@@ -81,7 +86,7 @@ static const char* layec0_driver_project_sources[] = {
 static project_info layec0_driver_project = {
     "laye_legacy",
     "Laye Legacy Compiler Driver",
-    "layec0",
+    "layec0" EXE_SUFFIX,
 
     layec0_driver_project_includes,
     layec0_driver_project_sources,
@@ -122,7 +127,7 @@ static const char* ccly_driver_project_sources[] = {
 static project_info ccly_driver_project = {
     "ccly",
     "CCLY Compiler Driver",
-    "ccly",
+    "ccly" EXE_SUFFIX,
 
     ccly_driver_project_includes,
     ccly_driver_project_sources,
@@ -173,7 +178,7 @@ static const char* laye_compiler_driver_sources[] = {
 static project_info laye_compiler_driver = {
     "laye",
     "Laye Compiler Driver",
-    "laye",
+    "laye" EXE_SUFFIX,
 
     laye_compiler_driver_includes,
     laye_compiler_driver_sources,
@@ -194,7 +199,7 @@ static const char* exec_test_runner_project_sources[] = {
 static project_info exec_test_runner_project = {
     "exec_test_runner",
     "Laye Execution Test Runner",
-    "exec_test_runner",
+    "exec_test_runner" EXE_SUFFIX,
 
     exec_test_runner_project_includes,
     exec_test_runner_project_sources,
@@ -254,11 +259,13 @@ static void cflags(Nob_Cmd* cmd, bool debug) {
     nob_cmd_append(cmd, "-Wno-unused-function");
     nob_cmd_append(cmd, "-Wno-gnu-zero-variadic-macro-arguments");
     nob_cmd_append(cmd, "-Wno-missing-field-initializers");
+    nob_cmd_append(cmd, "-Wno-deprecated-declarations");
     nob_cmd_append(cmd, "-fdata-sections");
     nob_cmd_append(cmd, "-ffunction-sections");
     nob_cmd_append(cmd, "-Werror=return-type");
     nob_cmd_append(cmd, "-D__USE_POSIX");
     nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
+    nob_cmd_append(cmd, "-fms-compatibility");
 
     if (debug) {
         nob_cmd_append(cmd, "-fsanitize=address");
@@ -352,7 +359,7 @@ static bool build_project(project_info project) {
     }
 
     nob_return_defer(nob_cmd_run_sync(cmd));
-    
+
 defer:;
     nob_cmd_free(cmd);
     nob_da_free(dependencies);
@@ -427,7 +434,7 @@ defer:;
 
 static bool nob_run(int argc, char** argv) {
     bool result = true;
-    
+
     int build_argc = argc;
     char** build_argv = argv;
 
@@ -486,7 +493,11 @@ defer:;
     return result;
 }
 
-#define delegate_to_command(SHIFT, CMD, ...) do { if (SHIFT) { nob_shift_args(&argc, &argv); } return CMD(__VA_ARGS__ __VA_OPT__(,) argc, argv) ? 0 : 1; } while (0)
+#define delegate_to_command(SHIFT, CMD, ...)                       \
+    do {                                                           \
+        if (SHIFT) { nob_shift_args(&argc, &argv); }               \
+        return CMD(__VA_ARGS__ __VA_OPT__(, ) argc, argv) ? 0 : 1; \
+    } while (0)
 
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);

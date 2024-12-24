@@ -22,6 +22,9 @@ out
 test-out
 nob
 nob.old
+nob.exe
+nob.obj
+nob.exe.old
 build
 *.ll
 

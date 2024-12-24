@@ -51,7 +51,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "laye.h"
 
 #define NOB_NO_LOG_EXIT_STATUS
-#define NOB_NO_CMD_RENDER
+//#define NOB_NO_CMD_RENDER
 
 #define NOB_IMPLEMENTATION
 #include "nob.h"
@@ -68,7 +68,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     "    --x <source-kind>         Changes the default interpretation of an input source file.\n"                     \
     "                              By default, the source file extension determines what format the file is.\n"       \
     "                              When overriden, treats the following source files as a specific format instead.\n" \
-    "                              One of 'default', 'c', 'laye' or 'lyir'.\n"                                        \
+    "                              One of 'default', 'c', 'laye', 'lyir' or 'obj'.\n"                                 \
     "                              Default: 'default'.\n"                                                             \
     "    --backend <backend>       What code generation backend to use. One of 'c' or 'llvm'.\n"                      \
     "                              Default: 'c'.\n"                                                                   \
@@ -112,6 +112,7 @@ typedef enum source_file_kind {
     SOURCE_LAYE,
     SOURCE_C,
     SOURCE_LYIR,
+    SOURCE_OBJ,
 } source_file_kind;
 
 typedef enum backend {
@@ -143,6 +144,7 @@ typedef struct compiler_state {
     bool parse_only;
     bool sema_only;
     bool assemble_only;
+    bool compile_only;
 
     backend backend;
 
@@ -345,6 +347,7 @@ static void add_stdlib_includes(laye_context* context, lca_string_view stdlib_ro
         lca_da_push(context->include_directories, liblaye_dir);
     } else {
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, while the Laye compiler found the standard `lib/laye` directory, it did not find the `liblaye` standard library directory within it. Because of this, the compiler will be unable to add it as a default include location and you will need to manually include it: `-I path/to/lib/laye`.\n");
+        exit(1);
     }
 }
 
@@ -479,8 +482,10 @@ int main(int argc, char** argv) {
 
         lca_string_destroy(&libdir_builder);
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, the Laye compiler could not locate the standard library directory. Either it does not exist or is not in a place the compiler looks for it. The Laye compiler searches for the standard library in `./lib/laye`, `../lib/laye`, `../../lib/laye` etc relative to the executable file itself.\n");
+        exit(1);
     } else {
         fprintf(stderr, ANSI_COLOR_MAGENTA "warning" ANSI_COLOR_RESET ": Unfortunately, either Laye does not support getting the current executable path on this platform or it could not be obtained for some reason. Because of this, the compiler will be unable to easily infer the location of the standard library and you may need to manually include the standard library path: `-I path/to/lib/laye`.\n");
+        exit(1);
     }
 
 found_stdlib:;
@@ -521,6 +526,8 @@ found_stdlib:;
             }
 
             assert(tu != NULL);
+        } else if (input_file_kind == SOURCE_OBJ || (input_file_kind == SOURCE_DEFAULT && lca_string_view_ends_with_cstring(input_file_path, ".o"))) {
+            // pass
         } else {
             fprintf(stderr, "Unknown source file type for file %.*s\n", LCA_STR_EXPAND(input_file_path));
             exit_code = 1;
@@ -787,6 +794,13 @@ static int backend_llvm(compiler_state* state) {
         lca_string_view_to_cstring(temp_allocator, state->output_file)
     );
 
+    for (int64_t i = 0; i < lca_da_count(state->input_files); i++) {
+        if (state->input_files[i].kind == SOURCE_OBJ || (state->input_files[i].kind == SOURCE_DEFAULT && lca_string_view_ends_with_cstring(state->input_files[i].path, ".o"))) {
+            const char* s = lca_temp_sprintf("%.*s", LCA_STR_EXPAND(state->input_files[i].path));
+            nob_cmd_append(&clang_ll_cmd, s);
+        }
+    }
+
     for (int64_t i = 0; i < lca_da_count(state->lyir_context->link_libraries); i++) {
         const char* s = lca_temp_sprintf("-l%.*s", LCA_STR_EXPAND(state->lyir_context->link_libraries[i]));
         nob_cmd_append(&clang_ll_cmd, s);
@@ -836,8 +850,8 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
             args->sema_only = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-S")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--assemble"))) {
             args->assemble_only = true;
-        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-c"))) {
-            args->assemble_only = true;
+        } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-c")) || lca_string_view_equals(arg, LCA_SV_CONSTANT("--compile"))) {
+            args->compile_only = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-c"))) {
             args->emit_c = true;
         } else if (lca_string_view_equals(arg, LCA_SV_CONSTANT("-emit-lyir"))) {
@@ -880,6 +894,8 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
                 args->override_file_kind = SOURCE_LAYE;
             } else if (0 == strcmp(backend, "lyir")) {
                 args->override_file_kind = SOURCE_LYIR;
+            } else if (0 == strcmp(backend, "o") || 0 == strcmp(backend, "obj") || 0 == strcmp(backend, "object")) {
+                args->override_file_kind = SOURCE_OBJ;
             } else if (0 == strcmp(backend, "default")) {
                 args->override_file_kind = SOURCE_DEFAULT;
             } else {
@@ -926,6 +942,11 @@ static bool parse_args(compiler_state* args, int* argc, char*** argv) {
             };
             lca_da_push(args->input_files, info);
         }
+    }
+
+    if (args->assemble_only && args->compile_only) {
+        fprintf(stderr, "%.*s: cannot specify both '-c' and '-S'\n", LCA_STR_EXPAND(args->program_name));
+        return false;
     }
 
     if (lca_da_count(args->input_files) == 0 && !args->help) {

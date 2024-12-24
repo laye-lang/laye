@@ -7,6 +7,9 @@ project(layec-test-runner)
 # Allow arbitrary characters in test names.
 cmake_policy(SET CMP0110 NEW)
 
+add_compile_options(-stdlib=libstdc++)
+add_compile_options(-cxx-isystem /usr/local/clang+llvm-18.1.8/include/c++/v1/)
+
 if (BUILD_TESTING)
     include(ExternalProject)
     include(CTest)

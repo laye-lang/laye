@@ -43,6 +43,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -209,7 +210,7 @@ typedef struct lca_clopt {
     lca_clopt_type type;
 
     /// A documentation string, for printing in help and usage messages.
-    /// 
+    ///
     /// If both key and name are null, this will be printed tabbed left from
     /// the normal option column, making it useful as a group header.
     /// This will be the first thing printed in its group.
@@ -304,12 +305,12 @@ lca_string_view lca_string_view_path_file_name(lca_string_view s);
     do {                                                                \
         if (lca_da_get_header(V)->count) lca_da_get_header(V)->count--; \
     } while (0)
-#define lca_da_insert(V, I, E)                                                                 \
-    assert((I) > 0);                                                                           \
-    do {                                                                                       \
-        lca_da_count_set((V), lca_da_count((V)) + 1);                                          \
-        memmove(&(V)[(I) + 1], &(V)[(I)], sizeof(*(V)) * (size_t)(lca_da_count((V)) - (I)-1)); \
-        (V)[(I)] = (E);                                                                        \
+#define lca_da_insert(V, I, E)                                                                   \
+    assert((I) > 0);                                                                             \
+    do {                                                                                         \
+        lca_da_count_set((V), lca_da_count((V)) + 1);                                            \
+        memmove(&(V)[(I) + 1], &(V)[(I)], sizeof(*(V)) * (size_t)(lca_da_count((V)) - (I) - 1)); \
+        (V)[(I)] = (E);                                                                          \
     } while (0)
 #define lca_da_back(V) (&(V)[lca_da_count(V) - 1])
 #define lca_da_free(V)                                             \
@@ -357,7 +358,6 @@ lca_command_result lca_command_run(lca_command command);
 #        define _WINCON_
 #        include <direct.h>
 #        include <io.h>
-#        include <shellapi.h>
 #        include <windows.h>
 #    else
 #        include <execinfo.h>
@@ -921,9 +921,13 @@ char* lca_plat_self_exe(void) {
         return NULL;
     }
     return buffer;
-#    elif define(_WIN32)
-    assert(false && "lca_plat_self_exe is not implemented on this platform");
-    return NULL;
+#    elif defined(_WIN32)
+    char buf[MAX_PATH];
+    DWORD length = GetModuleFileNameA(NULL, buf, MAX_PATH);
+    char* buffer = malloc(length + 1);
+    memset(buffer, 0, length + 1);
+    memcpy(buffer, buf, length);
+    return buffer;
 #    else
     assert(false && "lca_plat_self_exe is not implemented on this platform");
     return NULL;

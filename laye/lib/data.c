@@ -46,7 +46,7 @@ laye_symbol* laye_symbol_create(laye_module* module, laye_symbol_kind kind, lca_
     if (kind == LAYE_SYMBOL_ENTITY) {
         assert(name.count > 0);
     }
-    
+
     laye_symbol* symbol = lca_arena_push(module->arena, sizeof *symbol);
     assert(symbol != NULL);
     symbol->kind = kind;
@@ -115,7 +115,7 @@ void laye_module_destroy(laye_module* module) {
     lca_da_free(module->_all_symbols);
 
     lca_da_free(module->top_level_nodes);
-    //lca_da_free(module->imports);
+    // lca_da_free(module->imports);
 
     lca_arena_destroy(module->arena);
 
@@ -169,7 +169,7 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, lca_s
     if (!is_type_declaration) {
         for (int64_t i = 0, count = lca_da_count(*entity_namespace); i < count; i++) {
             laye_aliased_node entry = (*entity_namespace)[i];
-            
+
             lca_string_view existing_name = entry.name;
             laye_node* existing_declaration = entry.node;
             assert(existing_declaration != NULL);
@@ -186,9 +186,9 @@ void laye_scope_declare_aliased(laye_scope* scope, laye_node* declaration, lca_s
     }
 
     lca_da_push(*entity_namespace, ((laye_aliased_node){
-        .name = alias,
-        .node = declaration,
-    }));
+                                       .name = alias,
+                                       .node = declaration,
+                                   }));
 }
 
 static laye_node* laye_scope_lookup_from(laye_scope* scope, lca_da(laye_aliased_node) declarations, lca_string_view name) {
@@ -517,7 +517,7 @@ int laye_type_size_in_bits(laye_type type) {
         }
 
         case LAYE_NODE_TYPE_ARRAY: {
-            int element_size = laye_type_size_in_bytes(type.node->type_container.element_type);// * 8;
+            int element_size = laye_type_size_in_bytes(type.node->type_container.element_type); // * 8;
             int64_t constant_value = 1;
 
             for (int64_t i = 0, count = lca_da_count(type.node->type_container.length_values); i < count; i++) {
@@ -600,7 +600,7 @@ int laye_type_align_in_bytes(laye_type type) {
 
         case LAYE_NODE_TYPE_STRUCT: {
             if (type.node->type_struct.cached_align != 0) {
-                return type.node->type_struct.cached_align;// * 8;
+                return type.node->type_struct.cached_align; // * 8;
             }
 
             // NOTE(local): Sema is responsible for caching, any time before sema
@@ -868,6 +868,7 @@ int64_t laye_type_struct_field_index_by_name(laye_type struct_type, lca_string_v
 
 int64_t laye_type_struct_variant_index_by_name(laye_type struct_type, lca_string_view variant_name) {
     assert(false && "unimplemented");
+    return 0;
 }
 
 laye_type laye_type_strip_pointers_and_references(laye_type type) {

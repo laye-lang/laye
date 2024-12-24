@@ -50,11 +50,18 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define LCA_IMPLEMENTATION
 #include "lca.h"
 
-#define LAYEC_PATH "./out/layec0"
+#if defined(_WIN32)
+#    define EXE_SUFFIX   ".exe"
+#    define _CRT_SECURE_NO_WARNINGS
+#    define _CRT_SECURE_NO_WARNINGS_GLOBALS
+#    define _CRT_NONSTDC_NO_WARNINGS
+#elif defined(__unix__)
+#    define EXE_SUFFIX ""
+#else
+#    error "This build script currently only supports Windows and Unix, sorry"
+#endif
 
-#define FCHK_DIR  "./fchk"
-#define FCHK_OUT  FCHK_DIR "/out"
-#define FCHK_PATH FCHK_OUT "/fchk"
+#define LAYEC_PATH "./out/layec0" EXE_SUFFIX
 
 typedef struct test_info {
     const char* test_name;

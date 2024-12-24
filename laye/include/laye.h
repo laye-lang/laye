@@ -45,7 +45,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //
 
-#define laye_return_defer(value) do { result = (value); goto defer; } while (0)
+#define laye_return_defer(value) \
+    do {                         \
+        result = (value);        \
+        goto defer;              \
+    } while (0)
 
 typedef struct laye_scope laye_scope;
 typedef struct laye_token laye_token;
@@ -140,7 +144,7 @@ typedef struct laye_module {
 
     // namespaces to reference when traversing imports.
     // *only* for imports which generate namespaces.
-    //lca_da(laye_module_import) imports;
+    // lca_da(laye_module_import) imports;
 
     laye_symbol* exports;
     laye_symbol* imports;
@@ -691,7 +695,7 @@ struct laye_node {
 
     // populated during IRgen, makes it easier to keep track of
     // since we don't have usable hash tables woot.
-    //layec_value* ir_value;
+    // layec_value* ir_value;
 
     union {
         // node describing an import declaration.
@@ -1124,7 +1128,7 @@ struct laye_node {
             // if the query resolves to an expression, then the alignment of the type of that
             // expression is returned.
             laye_node* query;
-        } _alignof;
+        } _alignof_;
 
         laye_nameref nameref;
 
